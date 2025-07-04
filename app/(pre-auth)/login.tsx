@@ -1,14 +1,14 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
-import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AuthContext } from '../_layout';
+import { Link, useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../services/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login } = useContext(AuthContext);
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -37,21 +37,18 @@ export default function LoginScreen() {
     return isValid;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!validate()) return;
     
     setLoading(true);
     
-    // Simulate login API call
-    setTimeout(() => {
+    try {
+      await login(email, password);
+      // The AuthContext will handle navigation after successful login
+    } catch (error) {
+      console.error('Login error:', error);
       setLoading(false);
-      
-      // Use the login function from AuthContext
-      login();
-      
-      // Navigate to home screen after successful login
-      router.replace('/(tabs)/my-learning');
-    }, 1500);
+    }
   };
 
   const handleSocialLogin = (provider) => {

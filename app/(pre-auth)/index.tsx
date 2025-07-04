@@ -1,14 +1,14 @@
-import React, { useEffect } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { 
-  useSharedValue, 
-  withTiming, 
-  useAnimatedStyle, 
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Dimensions, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
   Easing,
-  withSequence,
+  useAnimatedStyle,
+  useSharedValue,
   withDelay,
+  withSequence,
+  withTiming,
 } from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');

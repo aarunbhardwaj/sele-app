@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, FlatList, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { FlatList, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
 // Mock data for enrolled courses
 const enrolledCourses = [

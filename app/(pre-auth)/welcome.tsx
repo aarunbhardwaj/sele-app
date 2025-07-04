@@ -1,12 +1,12 @@
-import React, { useEffect } from 'react';
-import { Text, View, ScrollView, Image, TouchableOpacity, FlatList } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Animated, { 
-  useSharedValue, 
-  withTiming, 
-  useAnimatedStyle, 
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { FlatList, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
   Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 
 const courses = [

@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator } from 'react-native';
-import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../services/AuthContext';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -32,24 +34,32 @@ export default function LoginScreen() {
     return isValid;
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!validate()) return;
     
     setLoading(true);
     
-    // Simulate login API call
-    setTimeout(() => {
+    try {
+      await login(email, password);
+      // The navigation will be handled by the AuthContext after successful login
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert(
+        'Login Failed',
+        'Invalid email or password. Please try again.',
+        [{ text: 'OK' }]
+      );
       setLoading(false);
-      // Navigate to home screen after successful login
-      router.replace('/(tabs)');
-    }, 1500);
+    }
   };
 
   const handleSocialLogin = (provider) => {
     // Implement social login
-    console.log(`Login with ${provider}`);
-    // After successful login
-    // router.replace('/(tabs)');
+    Alert.alert(
+      'Social Login',
+      `${provider} login is not implemented yet.`,
+      [{ text: 'OK' }]
+    );
   };
 
   return (
@@ -115,7 +125,10 @@ export default function LoginScreen() {
             </View>
 
             {/* Forgot Password */}
-            <TouchableOpacity className="self-end">
+            <TouchableOpacity 
+              className="self-end" 
+              onPress={() => router.push('/auth/forgot-password')}
+            >
               <Text className="text-blue-600">Forgot Password?</Text>
             </TouchableOpacity>
 
@@ -167,11 +180,9 @@ export default function LoginScreen() {
           {/* Sign up link */}
           <View className="flex-row justify-center mt-8">
             <Text className="text-gray-600">Don't have an account? </Text>
-            <Link href="/auth/signup" asChild>
-              <TouchableOpacity>
-                <Text className="text-blue-600 font-semibold">Sign up</Text>
-              </TouchableOpacity>
-            </Link>
+            <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+              <Text className="text-blue-600 font-semibold">Sign up</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>

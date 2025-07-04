@@ -1,14 +1,14 @@
-import React, { useState, useContext } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { AuthContext } from '../_layout';
+import { useRouter } from 'expo-router';
+import React, { useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../services/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignupScreen() {
   const router = useRouter();
-  const { login } = useContext(AuthContext);
+  const { signup } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -82,21 +82,23 @@ export default function SignupScreen() {
     }
   };
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!validate()) return;
     
     setLoading(true);
     
-    // Simulate signup API call
-    setTimeout(() => {
+    try {
+      const success = await signup(email, password, name);
+      // Navigation is handled by AuthContext if successful
+      if (!success) {
+        // If signup returns false, it means it failed but was handled gracefully
+        setLoading(false);
+      }
+    } catch (error) {
+      // This catch block is just a safeguard; most errors are handled in AuthContext
+      console.error('Unexpected signup error:', error);
       setLoading(false);
-      
-      // Use the login function from AuthContext to set authenticated state
-      login();
-      
-      // Navigate to home screen after successful signup
-      router.replace('/(tabs)/my-learning');
-    }, 1500);
+    }
   };
 
   const handleSocialSignup = (provider) => {

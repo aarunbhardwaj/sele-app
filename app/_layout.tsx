@@ -1,39 +1,20 @@
 import { Stack } from "expo-router";
-import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
+import { AuthProvider, useAuth } from "../services/AuthContext";
 import './globals.css'; // Import global styles
 
-// This is a simple auth context setup - in a real app you'd use a proper auth system
-export const AuthContext = React.createContext({
-  isAuthenticated: false,
-  login: () => {},
-  logout: () => {},
-});
-
-import * as React from "react";
-
+// Root layout component that uses our AuthProvider
 export default function RootLayout() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  return (
+    <AuthProvider>
+      <RootLayoutNav />
+    </AuthProvider>
+  );
+}
 
-  useEffect(() => {
-    // Simulate checking if user is logged in
-    // In a real app, you'd check AsyncStorage, SecureStore, or make an API call
-    setTimeout(() => {
-      setIsAuthenticated(false); // Initially not authenticated
-      setIsLoading(false);
-    }, 500);
-  }, []);
-
-  const authContext = {
-    isAuthenticated,
-    login: () => {
-      setIsAuthenticated(true);
-    },
-    logout: () => {
-      setIsAuthenticated(false);
-    },
-  };
+// Navigation component that uses the auth context
+function RootLayoutNav() {
+  const { isLoading, isAuthenticated } = useAuth();
 
   // Show a loading screen while checking authentication
   if (isLoading) {
@@ -45,39 +26,65 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthContext.Provider value={authContext}>
-      <Stack
-        screenOptions={{
-          headerShown: false, // Default to hide headers globally
+    <Stack
+      screenOptions={{
+        headerShown: false, // Default to hide headers globally
+      }}
+    >
+      <Stack.Screen
+        name="splash"
+        options={{
+          headerShown: false
+        }} 
+      />
+      <Stack.Screen
+        name="(pre-auth)"
+        options={{
+          headerShown: false
         }}
-      >
-        <Stack.Screen
-          name="splash"
-          options={{
-            headerShown: false
-          }} 
-        />
-        <Stack.Screen
-          name="(pre-auth)"
-          options={{
-            headerShown: false
-          }}
-          redirect={isAuthenticated}  // Redirect if user is already logged in
-        />
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false
-          }}
-          redirect={!isAuthenticated}  // Redirect if user is not logged in
-        />
-        <Stack.Screen
-          name="movies/[id]"
-          options={{
-            headerShown: false
-          }} 
-        />
-      </Stack>
-    </AuthContext.Provider>
+        redirect={isAuthenticated}  // Redirect if user is already logged in
+      />
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: false
+        }}
+        redirect={!isAuthenticated}  // Redirect if user is not logged in
+      />
+      <Stack.Screen
+        name="(admin)"
+        options={{
+          headerShown: false
+        }}
+        redirect={!isAuthenticated}  // Redirect if user is not logged in
+      />
+      {/* Individual auth screens */}
+      <Stack.Screen
+        name="auth/forgot-password"
+        options={{
+          headerShown: true,
+          headerTitle: "Forgot Password"
+        }}
+      />
+      <Stack.Screen
+        name="auth/login"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="auth/signup"
+        options={{
+          headerShown: false
+        }}
+      />
+      <Stack.Screen
+        name="auth/verification-code"
+        options={{
+          headerShown: true,
+          headerTitle: "Verification"
+        }}
+      />
+    </Stack>
   );
 }
