@@ -3,9 +3,14 @@ import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Switch, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../../services/AuthContext';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Header from '../../components/ui/Header';
+import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
+import Text from '../../components/ui/Typography';
 import appwriteService from '../../services/appwrite';
+import { useAuth } from '../../services/AuthContext';
 
 const Profile = () => {
     const router = useRouter();
@@ -240,288 +245,478 @@ const Profile = () => {
     // Display loading indicator while fetching data
     if (loading) {
         return (
-            <View className="flex-1 justify-center items-center bg-gray-50">
-                <ActivityIndicator size="large" color="#3B82F6" />
-                <Text className="mt-4 text-gray-600">Loading profile...</Text>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary.main} />
+                <Text variant="body1" color={colors.neutral.darkGray} style={styles.loadingText}>Loading profile...</Text>
             </View>
         );
     }
 
     return (
-        <ScrollView className="flex-1 bg-gray-50">
-            <View className="pt-14 px-5 pb-8">
-                {/* Header */}
-                <View className="mb-6 flex-row justify-between items-center">
-                    <View>
-                        <Text className="text-2xl font-bold">Profile</Text>
-                        <Text className="text-gray-600 mt-1">
-                            Manage your account and preferences
-                        </Text>
-                    </View>
-                    {!editing ? (
-                        <TouchableOpacity 
-                            className="bg-blue-50 rounded-lg p-2"
-                            onPress={() => setEditing(true)}
-                        >
-                            <Ionicons name="pencil" size={22} color="#3B82F6" />
-                        </TouchableOpacity>
+        <View style={styles.container}>
+            <Header 
+                title="Profile" 
+                showLogo={true}
+                rightIcon={
+                    !editing ? (
+                        <Ionicons name="pencil" size={22} color={colors.primary.main} />
                     ) : (
-                        <TouchableOpacity 
-                            className="bg-gray-50 rounded-lg p-2"
-                            onPress={() => setEditing(false)}
-                        >
-                            <Ionicons name="close" size={22} color="#4B5563" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-
-                {/* User Profile */}
-                <View className="bg-white rounded-xl shadow-sm p-4 mb-6">
-                    {!editing ? (
-                        <>
-                            <View className="flex-row items-center">
-                                <Image 
-                                    source={
-                                        userProfile?.profileImage 
-                                            ? { uri: userProfile.profileImage } 
-                                            : require('../../assets/images/app-logo.png')
-                                    }
-                                    className="w-20 h-20 rounded-full"
-                                    resizeMode="cover"
-                                />
-                                <View className="ml-4">
-                                    <Text className="text-lg font-bold">{userProfile?.displayName || user?.name || 'User'}</Text>
-                                    <Text className="text-gray-600">{user?.email || 'No email provided'}</Text>
-                                    <View className="flex-row items-center mt-1">
-                                        <View className="bg-blue-100 rounded-full px-2 py-0.5">
-                                            <Text className="text-blue-700 text-xs">{userProfile?.englishLevel || 'Beginner'}</Text>
-                                        </View>
-                                        <View className="flex-row items-center ml-2">
-                                            <Ionicons name="globe-outline" size={14} color="#4B5563" />
-                                            <Text className="text-gray-700 text-xs ml-1">{userProfile?.nativeLanguage || 'Not specified'}</Text>
+                        <Ionicons name="close" size={22} color={colors.neutral.darkGray} />
+                    )
+                }
+                onRightIconPress={() => setEditing(!editing)}
+            />
+            <ScrollView style={styles.scrollView}>
+                <View style={styles.content}>
+                    {/* Profile Card */}
+                    <Card style={styles.profileCard}>
+                        {!editing ? (
+                            <>
+                                <View style={styles.profileHeader}>
+                                    <Image 
+                                        source={
+                                            userProfile?.profileImage 
+                                                ? { uri: userProfile.profileImage } 
+                                                : require('../../assets/images/app-logo.png')
+                                        }
+                                        style={styles.profileImage}
+                                        resizeMode="cover"
+                                    />
+                                    <View style={styles.profileInfo}>
+                                        <Text variant="h5" style={styles.profileName}>{userProfile?.displayName || user?.name || 'User'}</Text>
+                                        <Text variant="body2" color={colors.neutral.darkGray}>{user?.email || 'No email provided'}</Text>
+                                        <View style={styles.profileBadges}>
+                                            <View style={styles.levelBadge}>
+                                                <Text variant="caption" color={colors.secondary.dark} style={styles.badgeText}>{userProfile?.englishLevel || 'Beginner'}</Text>
+                                            </View>
+                                            <View style={styles.languageBadge}>
+                                                <Ionicons name="globe-outline" size={14} color={colors.neutral.darkGray} />
+                                                <Text variant="caption" color={colors.neutral.darkGray} style={styles.languageText}>{userProfile?.nativeLanguage || 'Not specified'}</Text>
+                                            </View>
                                         </View>
                                     </View>
                                 </View>
-                            </View>
 
-                            <View className="mt-4 pt-4 border-t border-gray-100">
-                                <Text className="text-gray-800 font-medium">Learning Goal</Text>
-                                <Text className="text-gray-600 mt-1">{userProfile?.learningGoal || 'No learning goal set'}</Text>
-                            </View>
-
-                            <View className="flex-row justify-between mt-4 pt-4 border-t border-gray-100">
-                                <View className="items-center">
-                                    <Text className="text-xl font-bold text-blue-600">{userProfile?.dailyGoalMinutes || 15}</Text>
-                                    <Text className="text-xs text-gray-600">Minutes/Day</Text>
+                                <View style={styles.sectionDivider}>
+                                    <Text variant="subtitle2" color={colors.neutral.text}>Learning Goal</Text>
+                                    <Text variant="body2" color={colors.neutral.darkGray} style={styles.goalText}>{userProfile?.learningGoal || 'No learning goal set'}</Text>
                                 </View>
-                                <View className="items-center">
-                                    <Text className="text-xl font-bold text-blue-600">0</Text>
-                                    <Text className="text-xs text-gray-600">Day Streak</Text>
+
+                                <View style={styles.statsContainer}>
+                                    <View style={styles.statItem}>
+                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>{userProfile?.dailyGoalMinutes || 15}</Text>
+                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Minutes/Day</Text>
+                                    </View>
+                                    <View style={styles.statItem}>
+                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>0</Text>
+                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Day Streak</Text>
+                                    </View>
+                                    <View style={styles.statItem}>
+                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>{formatDate(userProfile?.joinedDate)}</Text>
+                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Joined</Text>
+                                    </View>
                                 </View>
-                                <View className="items-center">
-                                    <Text className="text-xl font-bold text-blue-600">{formatDate(userProfile?.joinedDate)}</Text>
-                                    <Text className="text-xs text-gray-600">Joined</Text>
+                            </>
+                        ) : (
+                            // Editing mode
+                            <View>
+                                <TouchableOpacity 
+                                    style={styles.imageSelector}
+                                    onPress={handleSelectImage}
+                                >
+                                    <Image 
+                                        source={
+                                            formData.profileImage 
+                                                ? { uri: formData.profileImage } 
+                                                : require('../../assets/images/app-logo.png')
+                                        }
+                                        style={styles.editProfileImage}
+                                        resizeMode="cover"
+                                    />
+                                    <Text variant="body2" color={colors.secondary.main} style={styles.changePhotoText}>Change Photo</Text>
+                                </TouchableOpacity>
+
+                                <View style={styles.formField}>
+                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Display Name</Text>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={formData.displayName}
+                                        onChangeText={(text) => setFormData({...formData, displayName: text})}
+                                        placeholder="Enter your name"
+                                        placeholderTextColor={colors.neutral.gray}
+                                    />
                                 </View>
-                            </View>
-                        </>
-                    ) : (
-                        // Editing mode
-                        <View>
-                            <TouchableOpacity 
-                                className="items-center mb-4"
-                                onPress={handleSelectImage}
-                            >
-                                <Image 
-                                    source={
-                                        formData.profileImage 
-                                            ? { uri: formData.profileImage } 
-                                            : require('../../assets/images/app-logo.png')
-                                    }
-                                    className="w-24 h-24 rounded-full mb-2"
-                                    resizeMode="cover"
-                                />
-                                <Text className="text-blue-600">Change Photo</Text>
-                            </TouchableOpacity>
 
-                            <View className="mb-4">
-                                <Text className="text-gray-700 mb-1">Display Name</Text>
-                                <TextInput
-                                    className="border border-gray-300 rounded-lg p-2 bg-gray-50"
-                                    value={formData.displayName}
-                                    onChangeText={(text) => setFormData({...formData, displayName: text})}
-                                    placeholder="Enter your name"
-                                />
-                            </View>
+                                <View style={styles.formField}>
+                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Native Language</Text>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={formData.nativeLanguage}
+                                        onChangeText={(text) => setFormData({...formData, nativeLanguage: text})}
+                                        placeholder="Your native language"
+                                        placeholderTextColor={colors.neutral.gray}
+                                    />
+                                </View>
 
-                            <View className="mb-4">
-                                <Text className="text-gray-700 mb-1">Native Language</Text>
-                                <TextInput
-                                    className="border border-gray-300 rounded-lg p-2 bg-gray-50"
-                                    value={formData.nativeLanguage}
-                                    onChangeText={(text) => setFormData({...formData, nativeLanguage: text})}
-                                    placeholder="Your native language"
-                                />
-                            </View>
-
-                            <View className="mb-4">
-                                <Text className="text-gray-700 mb-1">English Level</Text>
-                                <View className="flex-row flex-wrap">
-                                    {englishLevelOptions.map((level) => (
-                                        <TouchableOpacity
-                                            key={level}
-                                            className={`mr-2 mb-2 rounded-full px-4 py-2 ${
-                                                formData.englishLevel === level
-                                                    ? 'bg-blue-500'
-                                                    : 'bg-gray-200'
-                                            }`}
-                                            onPress={() => setFormData({...formData, englishLevel: level})}
-                                        >
-                                            <Text
-                                                className={`${
-                                                    formData.englishLevel === level
-                                                        ? 'text-white'
-                                                        : 'text-gray-700'
-                                                }`}
+                                <View style={styles.formField}>
+                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>English Level</Text>
+                                    <View style={styles.levelOptions}>
+                                        {englishLevelOptions.map((level) => (
+                                            <TouchableOpacity
+                                                key={level}
+                                                style={[
+                                                    styles.levelOption,
+                                                    formData.englishLevel === level && styles.selectedLevelOption
+                                                ]}
+                                                onPress={() => setFormData({...formData, englishLevel: level})}
                                             >
-                                                {level.charAt(0).toUpperCase() + level.slice(1)}
-                                            </Text>
-                                        </TouchableOpacity>
-                                    ))}
+                                                <Text
+                                                    variant="body2"
+                                                    color={formData.englishLevel === level ? colors.neutral.white : colors.neutral.darkGray}
+                                                >
+                                                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ))}
+                                    </View>
                                 </View>
-                            </View>
 
-                            <View className="mb-4">
-                                <Text className="text-gray-700 mb-1">Learning Goal</Text>
-                                <TextInput
-                                    className="border border-gray-300 rounded-lg p-2 bg-gray-50"
-                                    value={formData.learningGoal}
-                                    onChangeText={(text) => setFormData({...formData, learningGoal: text})}
-                                    placeholder="What do you want to achieve?"
-                                    multiline={true}
-                                    numberOfLines={3}
-                                    textAlignVertical="top"
+                                <View style={styles.formField}>
+                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Learning Goal</Text>
+                                    <TextInput
+                                        style={[styles.textInput, styles.textAreaInput]}
+                                        value={formData.learningGoal}
+                                        onChangeText={(text) => setFormData({...formData, learningGoal: text})}
+                                        placeholder="What do you want to achieve?"
+                                        placeholderTextColor={colors.neutral.gray}
+                                        multiline={true}
+                                        numberOfLines={3}
+                                        textAlignVertical="top"
+                                    />
+                                </View>
+
+                                <View style={styles.formField}>
+                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Daily Goal (minutes)</Text>
+                                    <TextInput
+                                        style={styles.textInput}
+                                        value={String(formData.dailyGoalMinutes)}
+                                        onChangeText={(text) => {
+                                            const value = parseInt(text) || 0;
+                                            setFormData({...formData, dailyGoalMinutes: value})
+                                        }}
+                                        placeholder="15"
+                                        placeholderTextColor={colors.neutral.gray}
+                                        keyboardType="numeric"
+                                    />
+                                </View>
+
+                                <Button
+                                    title={saving ? 'Saving...' : 'Save Changes'}
+                                    variant="primary"
+                                    onPress={handleSaveProfile}
+                                    loading={saving}
+                                    disabled={saving}
+                                    fullWidth
+                                    style={styles.saveButton}
+                                    leftIcon={saving ? null : <Ionicons name="save-outline" size={20} color="white" />}
                                 />
                             </View>
+                        )}
+                    </Card>
 
-                            <View className="mb-4">
-                                <Text className="text-gray-700 mb-1">Daily Goal (minutes)</Text>
-                                <TextInput
-                                    className="border border-gray-300 rounded-lg p-2 bg-gray-50"
-                                    value={String(formData.dailyGoalMinutes)}
-                                    onChangeText={(text) => {
-                                        const value = parseInt(text) || 0;
-                                        setFormData({...formData, dailyGoalMinutes: value})
-                                    }}
-                                    placeholder="15"
-                                    keyboardType="numeric"
-                                />
-                            </View>
-
-                            <TouchableOpacity
-                                className={`rounded-lg p-3 mt-2 ${saving ? 'bg-gray-400' : 'bg-blue-500'}`}
-                                onPress={handleSaveProfile}
-                                disabled={saving}
-                            >
-                                <View className="flex-row justify-center items-center">
-                                    {saving ? (
-                                        <ActivityIndicator size="small" color="white" />
-                                    ) : (
-                                        <Ionicons name="save-outline" size={20} color="white" />
-                                    )}
-                                    <Text className="text-white font-bold ml-2">{saving ? 'Saving...' : 'Save Changes'}</Text>
-                                </View>
-                            </TouchableOpacity>
+                    {/* Admin Access - Only shown for admin users */}
+                    {isAdmin && (
+                        <View style={styles.sectionContainer}>
+                            <Text variant="h5" style={styles.sectionTitle}>Admin Access</Text>
+                            <Card style={styles.sectionCard}>
+                                <TouchableOpacity 
+                                    style={styles.menuItem}
+                                    onPress={handleAdminAccess}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <Ionicons name="shield-outline" size={22} color={colors.neutral.darkGray} />
+                                        <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Admin Dashboard</Text>
+                                        <View style={styles.adminBadge}>
+                                            <Text variant="caption" color={colors.status.error} style={styles.adminBadgeText}>Admin</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                                </TouchableOpacity>
+                            </Card>
                         </View>
                     )}
-                </View>
 
-                {/* Admin Access - Only shown for admin users */}
-                {isAdmin && (
-                    <View className="mb-6">
-                        <Text className="text-lg font-semibold mb-3">Admin Access</Text>
-                        <View className="bg-white rounded-xl shadow-sm">
-                            <TouchableOpacity 
-                                className="p-4 flex-row items-center border-b border-gray-100"
-                                onPress={handleAdminAccess}
-                            >
-                                <Ionicons name="shield-outline" size={22} color="#4B5563" />
-                                <Text className="ml-3 text-gray-800">Admin Dashboard</Text>
-                                <View className="ml-2 bg-red-100 rounded-full px-2 py-0.5">
-                                    <Text className="text-red-700 text-xs">Admin</Text>
+                    {/* Settings */}
+                    <View style={styles.sectionContainer}>
+                        <Text variant="h5" style={styles.sectionTitle}>Settings</Text>
+                        <Card style={styles.sectionCard}>
+                            <View style={[styles.menuItem, styles.menuItemBordered]}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="notifications-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Push Notifications</Text>
                                 </View>
-                                <View className="flex-1 flex-row justify-end">
-                                    <Ionicons name="chevron-forward" size={18} color="#9CA3AF" />
+                                <Switch
+                                    value={notifications}
+                                    onValueChange={setNotifications}
+                                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
+                                    thumbColor={notifications ? colors.primary.main : colors.neutral.white}
+                                />
+                            </View>
+                            <View style={[styles.menuItem, styles.menuItemBordered]}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="moon-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Dark Mode</Text>
                                 </View>
+                                <Switch
+                                    value={darkMode}
+                                    onValueChange={setDarkMode}
+                                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
+                                    thumbColor={darkMode ? colors.primary.main : colors.neutral.white}
+                                />
+                            </View>
+                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="lock-closed-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Change Password</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
                             </TouchableOpacity>
-                        </View>
+                            <TouchableOpacity style={styles.menuItem}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="language-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Language Preferences</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                        </Card>
                     </View>
-                )}
 
-                {/* Settings */}
-                <Text className="text-lg font-semibold mb-3">Settings</Text>
-                <View className="bg-white rounded-xl shadow-sm mb-6">
-                    <View className="p-4 flex-row justify-between items-center border-b border-gray-100">
-                        <View className="flex-row items-center">
-                            <Ionicons name="notifications-outline" size={22} color="#4B5563" />
-                            <Text className="ml-3 text-gray-800">Push Notifications</Text>
-                        </View>
-                        <Switch
-                            value={notifications}
-                            onValueChange={setNotifications}
-                            trackColor={{ false: "#D1D5DB", true: "#93C5FD" }}
-                            thumbColor={notifications ? "#3B82F6" : "#f4f3f4"}
-                        />
+                    {/* Support */}
+                    <View style={styles.sectionContainer}>
+                        <Text variant="h5" style={styles.sectionTitle}>Support</Text>
+                        <Card style={styles.sectionCard}>
+                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="help-circle-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Help Center</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="chatbox-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Contact Support</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.menuItem}>
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="document-text-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Terms and Privacy</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                        </Card>
                     </View>
-                    <View className="p-4 flex-row justify-between items-center border-b border-gray-100">
-                        <View className="flex-row items-center">
-                            <Ionicons name="moon-outline" size={22} color="#4B5563" />
-                            <Text className="ml-3 text-gray-800">Dark Mode</Text>
-                        </View>
-                        <Switch
-                            value={darkMode}
-                            onValueChange={setDarkMode}
-                            trackColor={{ false: "#D1D5DB", true: "#93C5FD" }}
-                            thumbColor={darkMode ? "#3B82F6" : "#f4f3f4"}
-                        />
-                    </View>
-                    <TouchableOpacity className="p-4 flex-row items-center border-b border-gray-100">
-                        <Ionicons name="lock-closed-outline" size={22} color="#4B5563" />
-                        <Text className="ml-3 text-gray-800">Change Password</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-4 flex-row items-center">
-                        <Ionicons name="language-outline" size={22} color="#4B5563" />
-                        <Text className="ml-3 text-gray-800">Language Preferences</Text>
-                    </TouchableOpacity>
+
+                    {/* Logout Button */}
+                    <Button
+                        title="Log Out"
+                        variant="outline"
+                        style={styles.logoutButton}
+                        textStyle={{ color: colors.status.error }}
+                        leftIcon={<Ionicons name="log-out-outline" size={22} color={colors.status.error} />}
+                        onPress={handleLogout}
+                    />
                 </View>
-
-                {/* Support */}
-                <Text className="text-lg font-semibold mb-3">Support</Text>
-                <View className="bg-white rounded-xl shadow-sm mb-6">
-                    <TouchableOpacity className="p-4 flex-row items-center border-b border-gray-100">
-                        <Ionicons name="help-circle-outline" size={22} color="#4B5563" />
-                        <Text className="ml-3 text-gray-800">Help Center</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-4 flex-row items-center border-b border-gray-100">
-                        <Ionicons name="chatbox-outline" size={22} color="#4B5563" />
-                        <Text className="ml-3 text-gray-800">Contact Support</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="p-4 flex-row items-center">
-                        <Ionicons name="document-text-outline" size={22} color="#4B5563" />
-                        <Text className="ml-3 text-gray-800">Terms and Privacy</Text>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Logout Button */}
-                <TouchableOpacity 
-                    className="bg-red-50 rounded-xl p-4 flex-row justify-center items-center mt-4"
-                    onPress={handleLogout}
-                >
-                    <Ionicons name="log-out-outline" size={22} color="#EF4444" />
-                    <Text className="ml-2 text-red-600 font-medium">Log Out</Text>
-                </TouchableOpacity>
-            </View>
-        </ScrollView>
+            </ScrollView>
+        </View>
     );
 };
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.neutral.background,
+    },
+    scrollView: {
+        flex: 1,
+    },
+    content: {
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing.xl,
+        paddingTop: spacing.md,
+    },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: colors.neutral.background,
+    },
+    loadingText: {
+        marginTop: spacing.md,
+    },
+    profileCard: {
+        marginBottom: spacing.xl,
+        padding: spacing.md,
+    },
+    profileHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    profileImage: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+    },
+    profileInfo: {
+        marginLeft: spacing.md,
+        flex: 1,
+    },
+    profileName: {
+        fontWeight: typography.fontWeights.bold,
+    },
+    profileBadges: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: spacing.xs,
+    },
+    levelBadge: {
+        backgroundColor: colors.secondary.light + '30', // With opacity
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+    },
+    badgeText: {
+        fontWeight: typography.fontWeights.medium,
+    },
+    languageBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginLeft: spacing.sm,
+    },
+    languageText: {
+        marginLeft: 4,
+    },
+    sectionDivider: {
+        marginTop: spacing.md,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.neutral.lightGray,
+    },
+    goalText: {
+        marginTop: spacing.xs,
+    },
+    statsContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: spacing.md,
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.neutral.lightGray,
+    },
+    statItem: {
+        alignItems: 'center',
+    },
+    statValue: {
+        fontWeight: typography.fontWeights.bold,
+    },
+    statLabel: {
+        textAlign: 'center',
+    },
+    imageSelector: {
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    editProfileImage: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        marginBottom: spacing.sm,
+    },
+    changePhotoText: {
+        fontWeight: typography.fontWeights.medium,
+    },
+    formField: {
+        marginBottom: spacing.md,
+    },
+    formLabel: {
+        marginBottom: spacing.xs,
+    },
+    textInput: {
+        borderWidth: 1,
+        borderColor: colors.neutral.lightGray,
+        borderRadius: borderRadius.md,
+        padding: spacing.sm,
+        backgroundColor: colors.neutral.background,
+        color: colors.neutral.text,
+        fontSize: typography.fontSizes.sm,
+    },
+    textAreaInput: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    levelOptions: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+    },
+    levelOption: {
+        marginRight: spacing.sm,
+        marginBottom: spacing.sm,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        backgroundColor: colors.neutral.lightGray,
+    },
+    selectedLevelOption: {
+        backgroundColor: colors.primary.main,
+    },
+    saveButton: {
+        marginTop: spacing.md,
+    },
+    sectionContainer: {
+        marginBottom: spacing.xl,
+    },
+    sectionTitle: {
+        fontWeight: typography.fontWeights.semibold,
+        marginBottom: spacing.sm,
+    },
+    sectionCard: {
+        overflow: 'hidden',
+    },
+    menuItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: spacing.md,
+    },
+    menuItemBordered: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.neutral.lightGray,
+    },
+    menuItemLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    menuItemText: {
+        marginLeft: spacing.sm,
+    },
+    adminBadge: {
+        backgroundColor: colors.status.error + '20', // With opacity
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        marginLeft: spacing.sm,
+    },
+    adminBadgeText: {
+        fontWeight: typography.fontWeights.medium,
+    },
+    logoutButton: {
+        backgroundColor: colors.status.error + '10', // Very light red
+        borderColor: colors.status.error + '30', // Light red border
+        marginTop: spacing.md,
+    },
+});
  
 export default Profile;

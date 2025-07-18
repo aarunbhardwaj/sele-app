@@ -1,292 +1,693 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { useAuth } from '../../services/AuthContext';
+import React, { useEffect, useState } from 'react';
+import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withSpring,
+  withTiming
+} from 'react-native-reanimated';
+import Text from '../../components/ui/Typography';
+import { Button } from '../../components/ui2/button-native';
+import { Card, CardContent } from '../../components/ui2/card-native';
+import { Input } from '../../components/ui2/input-native';
+import PreAuthHeader, { preAuthColors } from '../../components/ui2/pre-auth-header';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
-export default function SignupScreen() {
+const badges = [
+  {
+    id: '1',
+    title: 'Early Bird',
+    icon: 'sunrise',
+    color: '#f59e0b',
+    description: 'Join the early adopters of our language learning platform',
+  },
+  {
+    id: '2',
+    title: 'Quick Learner',
+    icon: 'flash',
+    color: '#14b8a6',
+    description: 'Complete your first lesson within 24 hours',
+  },
+  {
+    id: '3',
+    title: 'Social Learner',
+    icon: 'people',
+    color: '#a855f7',
+    description: 'Connect your social accounts to find friends',
+  },
+];
+
+export default function SignUpScreen() {
   const router = useRouter();
-  const { signup } = useAuth();
+  
+  // Animation values
+  const headerOpacity = useSharedValue(0);
+  const headerTranslateY = useSharedValue(-50);
+  const formOpacity = useSharedValue(0);
+  const formTranslateY = useSharedValue(30);
+  const badgesTranslateX = useSharedValue(width);
+  const characterBounce = useSharedValue(1);
+  const buttonScale = useSharedValue(0.95);
+  const confettiOpacity = useSharedValue(0);
+  
+  // Form state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    terms: ''
-  });
-
-  const validate = () => {
-    const newErrors = {
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      terms: ''
-    };
-    let isValid = true;
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
+  const [step, setStep] = useState(1);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [isTermsAccepted, setIsTermsAccepted] = useState(false);
+  
+  // Animated confetti positions for celebration effect
+  const confettiPositions = Array.from({ length: 30 }).map(() => ({
+    x: useSharedValue(Math.random() * width),
+    y: useSharedValue(-20),
+    rotate: useSharedValue(Math.random() * 360),
+    size: 5 + Math.random() * 10,
+    color: ['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF69B4'][Math.floor(Math.random() * 5)],
+  }));
+  
+  useEffect(() => {
+    // Header animation
+    headerOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) });
+    headerTranslateY.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) });
     
-    // Name validation
-    if (!name) {
-      newErrors.name = 'Name is required';
-      isValid = false;
-    }
+    // Form animation
+    formOpacity.value = withDelay(
+      400,
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
+    formTranslateY.value = withDelay(
+      400,
+      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
     
-    // Email validation
-    if (!email) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-      isValid = false;
+    // Animate character bounce continuously for fun
+    characterBounce.value = withRepeat(
+      withSequence(
+        withTiming(1.05, { duration: 1000, easing: Easing.bounce }),
+        withTiming(1, { duration: 1000, easing: Easing.bounce }),
+      ),
+      -1,
+      true
+    );
+  }, []);
+  
+  // Show badges animation when moving to step 2
+  useEffect(() => {
+    if (step === 2) {
+      badgesTranslateX.value = withSpring(0, { damping: 12, stiffness: 100 });
+      
+      // Show confetti celebration
+      showConfettiAnimation();
     }
+  }, [step]);
+  
+  const showConfettiAnimation = () => {
+    setShowConfetti(true);
+    confettiOpacity.value = 1;
     
-    // Password validation
-    if (!password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    } else if (password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-      isValid = false;
-    }
+    // Animate each confetti piece
+    confettiPositions.forEach((confetti, index) => {
+      confetti.y.value = withDelay(
+        index * 20,
+        withTiming(500 + Math.random() * 300, { duration: 1500 + Math.random() * 1000 })
+      );
+      confetti.rotate.value = withDelay(
+        index * 20,
+        withTiming(confetti.rotate.value + 360 * 2 + Math.random() * 360, { duration: 1500 + Math.random() * 1000 })
+      );
+    });
     
-    // Confirm password validation
-    if (password !== confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
-      isValid = false;
-    }
-
-    // Terms validation
-    if (!termsAccepted) {
-      newErrors.terms = 'You must accept the Terms of Service';
-      isValid = false;
-    }
-    
-    setErrors(newErrors);
-    return isValid;
+    // Hide confetti after animation
+    setTimeout(() => {
+      confettiOpacity.value = withTiming(0, { duration: 500 });
+      setTimeout(() => setShowConfetti(false), 500);
+    }, 3000);
   };
-
-  const toggleTerms = () => {
-    setTermsAccepted(!termsAccepted);
-    if (!termsAccepted) {
-      setErrors({...errors, terms: ''});
-    }
-  };
-
-  const handleSignup = async () => {
-    if (!validate()) return;
+  
+  // Animated styles
+  const formAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: formOpacity.value,
+    transform: [{ translateY: formTranslateY.value }],
+  }));
+  
+  const badgesAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: badgesTranslateX.value }],
+  }));
+  
+  const characterAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: characterBounce.value }],
+  }));
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+  
+  const confettiAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: confettiOpacity.value,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+    pointerEvents: 'none',
+  }));
+  
+  const handleContinue = () => {
+    // Animate button press
+    buttonScale.value = withSequence(
+      withTiming(0.9, { duration: 100 }),
+      withTiming(1, { duration: 200, easing: Easing.bounce })
+    );
     
-    setLoading(true);
-    
-    try {
-      const success = await signup(email, password, name);
-      // Navigation is handled by AuthContext if successful
-      if (!success) {
-        // If signup returns false, it means it failed but was handled gracefully
-        setLoading(false);
+    if (step === 1) {
+      if (name && email && password && isTermsAccepted) {
+        setStep(2);
       }
-    } catch (error) {
-      // This catch block is just a safeguard; most errors are handled in AuthContext
-      console.error('Unexpected signup error:', error);
-      setLoading(false);
+    } else {
+      setIsSigningUp(true);
+      
+      // Simulate signup process
+      setTimeout(() => {
+        setIsSigningUp(false);
+        router.replace('/(tabs)');
+      }, 1500);
+    }
+  };
+  
+  const goBack = () => {
+    if (step === 2) {
+      setStep(1);
+      badgesTranslateX.value = width;
+    } else {
+      router.back();
     }
   };
 
-  const handleSocialSignup = (provider) => {
-    // Implement social signup
-    console.log(`Signup with ${provider}`);
-    // After successful signup
-    // router.replace('/(tabs)');
-  };
+  // Custom component for step indicator in the header
+  const StepIndicator = () => (
+    <View style={styles.stepIndicatorContainer}>
+      <View style={[styles.stepDot, { backgroundColor: step >= 1 ? preAuthColors.emerald : preAuthColors.lightGrey }]} />
+      <View style={styles.stepLine} />
+      <View style={[styles.stepDot, { backgroundColor: step >= 2 ? preAuthColors.emerald : preAuthColors.lightGrey }]} />
+    </View>
+  );
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1"
-    >
-      <ScrollView 
-        className="flex-1 bg-white"
-        contentContainerStyle={{ 
-          minHeight: height,
-          justifyContent: 'center'
-        }}
-      >
-        <View className="flex-1 px-8 justify-center">
-          {/* Header */}
-          <View className="items-center mb-6">
-            <Image
-              source={require('../../assets/images/app-logo.png')}
-              className="w-20 h-20 mb-3"
-              resizeMode="contain"
+    <View style={styles.container}>
+      {/* Using shared PreAuthHeader component */}
+      <View>
+        <PreAuthHeader 
+          title={step === 1 ? 'Create Account' : 'Almost Done!'} 
+        />
+        <StepIndicator />
+      </View>
+      
+      {/* Confetti animation overlay */}
+      {showConfetti && (
+        <Animated.View style={[confettiAnimatedStyle]} pointerEvents="none">
+          {confettiPositions.map((confetti, index) => (
+            <Animated.View 
+              key={index}
+              style={{
+                position: 'absolute',
+                width: confetti.size,
+                height: confetti.size,
+                backgroundColor: confetti.color,
+                borderRadius: confetti.size / 2,
+                top: 0,
+                left: 0,
+                transform: [
+                  { translateX: confetti.x },
+                  { translateY: confetti.y },
+                  { rotate: confetti.rotate },
+                ],
+              }}
             />
-            <Text className="text-2xl font-bold text-blue-600">Create Account</Text>
-            <Text className="text-gray-500 text-center mt-1">
-              Sign up to start your language learning journey
-            </Text>
-          </View>
-
-          {/* Form */}
-          <View className="space-y-4">
-            {/* Full Name */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Full Name</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.name ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="person-outline" size={14} color={errors.name ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Enter your full name"
-                  value={name}
-                  onChangeText={setName}
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-              {errors.name ? <Text className="text-red-500 text-sm mt-1">{errors.name}</Text> : null}
-            </View>
-
-            {/* Email */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Email</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.email ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="mail-outline" size={14} color={errors.email ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-              {errors.email ? <Text className="text-red-500 text-sm mt-1">{errors.email}</Text> : null}
-            </View>
-
-            {/* Password */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Password</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.password ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="lock-closed-outline" size={14} color={errors.password ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Create a password"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={14}
-                    color="#3B82F6"
-                  />
-                </TouchableOpacity>
-              </View>
-              {errors.password ? <Text className="text-red-500 text-sm mt-1">{errors.password}</Text> : null}
-            </View>
-
-            {/* Confirm Password */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Confirm Password</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.confirmPassword ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="lock-closed-outline" size={14} color={errors.confirmPassword ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Confirm your password"
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  secureTextEntry={!showConfirmPassword}
-                  placeholderTextColor="#9CA3AF"
-                />
-                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                  <Ionicons
-                    name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                    size={14}
-                    color="#3B82F6"
-                  />
-                </TouchableOpacity>
-              </View>
-              {errors.confirmPassword ? <Text className="text-red-500 text-sm mt-1">{errors.confirmPassword}</Text> : null}
-            </View>
-
-            {/* Terms and Conditions */}
-            <TouchableOpacity 
-              className="flex-row items-start mt-2" 
-              onPress={toggleTerms}
-              activeOpacity={0.7}
-            >
-              <Ionicons 
-                name={termsAccepted ? "checkbox-outline" : "square-outline"} 
-                size={18} 
-                color={errors.terms ? "#F87171" : "#3B82F6"} 
-                style={{ marginTop: 2 }} 
+          ))}
+        </Animated.View>
+      )}
+      
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+      >
+        {step === 1 ? (
+          <View style={styles.content}>
+            <Animated.View style={characterAnimatedStyle}>
+              <Image
+                source={require('../../assets/images/app-logo.png')}
+                style={styles.character}
+                resizeMode="contain"
               />
-              <Text className="text-gray-600 ml-2 flex-1">
-                By signing up, you agree to our <Text className="text-blue-600 font-medium">Terms of Service</Text> and <Text className="text-blue-600 font-medium">Privacy Policy</Text>
+            </Animated.View>
+            
+            <Text style={styles.title}>Join Our Community</Text>
+            <Text style={styles.subtitle}>Create an account to start your language learning journey</Text>
+            
+            {/* Form section */}
+            <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
+              <Card style={styles.formCard}>
+                <CardContent style={styles.cardContent}>
+                  {/* Name input */}
+                  <View style={styles.inputWrapper}>
+                    <Input
+                      placeholder="Your Name"
+                      value={name}
+                      onChangeText={setName}
+                      autoCapitalize="words"
+                      leftIcon={<Ionicons name="person-outline" size={20} color={preAuthColors.textLight} />}
+                    />
+                  </View>
+                  
+                  {/* Email input */}
+                  <View style={styles.inputWrapper}>
+                    <Input
+                      placeholder="Email Address"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      leftIcon={<Ionicons name="mail-outline" size={20} color={preAuthColors.textLight} />}
+                    />
+                  </View>
+                  
+                  {/* Password input */}
+                  <View style={styles.inputWrapper}>
+                    <Input
+                      placeholder="Password"
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!isPasswordVisible}
+                      leftIcon={<Ionicons name="lock-closed-outline" size={20} color={preAuthColors.textLight} />}
+                      rightIcon={
+                        <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                          <Ionicons 
+                            name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
+                            size={20} 
+                            color={preAuthColors.textLight} 
+                          />
+                        </TouchableOpacity>
+                      }
+                    />
+                  </View>
+                  
+                  {/* Terms and Conditions Checkbox */}
+                  <View style={styles.checkboxContainer}>
+                    <TouchableOpacity 
+                      style={styles.checkbox}
+                      onPress={() => setIsTermsAccepted(!isTermsAccepted)}
+                    >
+                      {isTermsAccepted ? (
+                        <Ionicons name="checkmark" size={16} color={preAuthColors.emerald} />
+                      ) : null}
+                    </TouchableOpacity>
+                    <Text style={styles.checkboxText}>
+                      I accept the{' '}
+                      <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+                      <Text style={styles.termsLink}>Privacy Policy</Text>
+                    </Text>
+                  </View>
+                  
+                  {/* Continue button */}
+                  <Animated.View style={buttonAnimatedStyle}>
+                    <Button
+                      onPress={handleContinue}
+                      className="bg-emerald-500 w-full py-3 mt-4"
+                      textClassName="text-white font-bold"
+                      disabled={!name || !email || !password || !isTermsAccepted}
+                    >
+                      <View style={styles.buttonContent}>
+                        <Text className="text-white font-bold mr-2">Continue</Text>
+                        <Ionicons name="arrow-forward" size={20} color="white" />
+                      </View>
+                    </Button>
+                  </Animated.View>
+                </CardContent>
+              </Card>
+              
+              {/* Terms and conditions */}
+              <Text style={styles.termsText}>
+                By signing up, you agree to our{' '}
+                <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+                <Text style={styles.termsLink}>Privacy Policy</Text>
               </Text>
-            </TouchableOpacity>
-            {errors.terms ? <Text className="text-red-500 text-sm mt-1">{errors.terms}</Text> : null}
-
-            {/* Signup Button */}
-            <TouchableOpacity
-              className={`mt-4 py-3 rounded-lg items-center ${loading ? 'bg-blue-400' : 'bg-blue-600'}`}
-              onPress={handleSignup}
-              disabled={loading}
-              style={{ shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.2, shadowRadius: 1.5, elevation: 2 }}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text className="text-white font-semibold">Create Account</Text>
-              )}
-            </TouchableOpacity>
+              
+              {/* Social signup options */}
+              <View style={styles.socialContainer}>
+                <Text style={styles.socialText}>Or sign up with</Text>
+                <View style={styles.socialButtonsContainer}>
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-google" size={20} color={preAuthColors.textDark} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-apple" size={20} color={preAuthColors.textDark} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.socialButton}>
+                    <Ionicons name="logo-facebook" size={20} color={preAuthColors.textDark} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Animated.View>
           </View>
-
-          {/* Divider */}
-          <View className="flex-row items-center my-6">
-            <View className="flex-1 h-0.5 bg-gray-200" />
-            <Text className="mx-4 text-gray-500">or sign up with</Text>
-            <View className="flex-1 h-0.5 bg-gray-200" />
-          </View>
-
-          {/* Social Signup */}
-          <View className="flex-row justify-center space-x-6">
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialSignup('Google')}
-            >
-              <Ionicons name="logo-google" size={20} color="#DB4437" />
-            </TouchableOpacity>
+        ) : (
+          // Step 2 - Badges and gamification elements
+          <View style={styles.content}>
+            <Text style={styles.title}>You're Almost There!</Text>
+            <Text style={styles.subtitle}>Claim your first badges and start learning</Text>
             
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialSignup('Apple')}
-            >
-              <Ionicons name="logo-apple" size={20} color="#000000" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialSignup('Facebook')}
-            >
-              <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-            </TouchableOpacity>
+            {/* Badges section */}
+            <Animated.View style={[styles.badgesContainer, badgesAnimatedStyle]}>
+              {badges.map((badge) => (
+                <Card key={badge.id} style={styles.badgeCard}>
+                  <CardContent style={styles.badgeContent}>
+                    <View 
+                      style={[styles.badgeIconContainer, { backgroundColor: badge.color + '20' }]}
+                    >
+                      <Ionicons name={badge.icon} size={28} color={badge.color} />
+                    </View>
+                    <Text style={styles.badgeTitle}>{badge.title}</Text>
+                    <Text style={styles.badgeDescription}>{badge.description}</Text>
+                    
+                    {/* Badge progress indicator */}
+                    <View style={styles.badgeProgressContainer}>
+                      <View style={styles.badgeProgressBar}>
+                        <View 
+                          style={[
+                            styles.badgeProgressFill, 
+                            { backgroundColor: badge.color, width: badge.id === '1' ? '100%' : '0%' }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={[styles.badgeProgressText, { color: badge.color }]}>
+                        {badge.id === '1' ? 'Unlocked' : 'Coming Soon'}
+                      </Text>
+                    </View>
+                  </CardContent>
+                </Card>
+              ))}
+              
+              {/* XP bonus card - Duolingo style */}
+              <Card style={styles.xpBonusCard}>
+                <CardContent style={styles.xpBonusContent}>
+                  <View style={styles.xpIconContainer}>
+                    <Text style={styles.xpText}>+100</Text>
+                    <Text style={styles.xpLabel}>XP</Text>
+                  </View>
+                  <View style={styles.xpTextContainer}>
+                    <Text style={styles.xpBonusTitle}>Sign-up Bonus!</Text>
+                    <Text style={styles.xpBonusDescription}>
+                      Get a head start with 100 XP when you create your account today
+                    </Text>
+                  </View>
+                </CardContent>
+              </Card>
+              
+              {/* Final signup button */}
+              <Animated.View style={buttonAnimatedStyle}>
+                <Button
+                  onPress={handleContinue}
+                  className="bg-emerald-500 w-full py-3 mt-6"
+                  textClassName="text-white font-bold"
+                  disabled={isSigningUp}
+                >
+                  {isSigningUp ? (
+                    <View style={styles.buttonContent}>
+                      <Text className="text-white mr-2">Creating account</Text>
+                      <Animated.View 
+                        style={{ 
+                          width: 16, 
+                          height: 16,
+                          transform: [{ rotate: withRepeat(withTiming('360deg', { duration: 1000 }), -1) }]
+                        }}
+                      >
+                        <Ionicons name="refresh" size={16} color="white" />
+                      </Animated.View>
+                    </View>
+                  ) : (
+                    <View style={styles.buttonContent}>
+                      <Text className="text-white font-bold mr-2">Start Learning Now</Text>
+                      <Ionicons name="rocket-outline" size={20} color="white" />
+                    </View>
+                  )}
+                </Button>
+              </Animated.View>
+            </Animated.View>
           </View>
-        </View>
+        )}
       </ScrollView>
-    </KeyboardAvoidingView>
+      
+      {/* Footer */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Already have an account?</Text>
+        <TouchableOpacity onPress={() => router.push('/(pre-auth)/login')}>
+          <Text style={styles.loginLink}>Log in</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: preAuthColors.white,
+  },
+  stepIndicatorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 16,
+    marginTop: -16,
+    backgroundColor: preAuthColors.lightGrey,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  stepDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  stepLine: {
+    width: 80,
+    height: 2,
+    backgroundColor: preAuthColors.lightGrey,
+    marginHorizontal: 5,
+  },
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 20,
+  },
+  character: {
+    width: 100,
+    height: 100,
+    marginBottom: 24,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: preAuthColors.textDark,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: preAuthColors.textLight,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  formContainer: {
+    width: '100%',
+  },
+  formCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  cardContent: {
+    padding: 20,
+  },
+  inputWrapper: {
+    marginBottom: 16,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  termsText: {
+    textAlign: 'center',
+    fontSize: 12,
+    color: preAuthColors.textLight,
+    marginTop: 16,
+  },
+  termsLink: {
+    color: preAuthColors.emerald,
+    fontWeight: '600',
+  },
+  socialContainer: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  socialText: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+    marginBottom: 16,
+  },
+  socialButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  socialButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: preAuthColors.lightGrey,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  badgesContainer: {
+    width: '100%',
+    paddingVertical: 16,
+  },
+  badgeCard: {
+    marginBottom: 16,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  badgeContent: {
+    padding: 16,
+  },
+  badgeIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  badgeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: preAuthColors.textDark,
+    marginBottom: 4,
+  },
+  badgeDescription: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+    marginBottom: 12,
+  },
+  badgeProgressContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  badgeProgressBar: {
+    flex: 1,
+    height: 6,
+    backgroundColor: preAuthColors.lightGrey,
+    borderRadius: 3,
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  badgeProgressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  badgeProgressText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  xpBonusCard: {
+    marginVertical: 8,
+    borderRadius: 16,
+    overflow: 'hidden',
+    backgroundColor: '#FFF9C4',
+  },
+  xpBonusContent: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  xpIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#f59e0b',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  xpText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  xpLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
+  },
+  xpTextContainer: {
+    flex: 1,
+  },
+  xpBonusTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f59e0b',
+    marginBottom: 4,
+  },
+  xpBonusDescription: {
+    fontSize: 14,
+    color: '#7D6E00',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  footerText: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+    marginRight: 4,
+  },
+  loginLink: {
+    fontSize: 14,
+    color: preAuthColors.emerald,
+    fontWeight: '600',
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: preAuthColors.emerald,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxText: {
+    fontSize: 14,
+    color: preAuthColors.textDark,
+    flex: 1,
+  },
+});

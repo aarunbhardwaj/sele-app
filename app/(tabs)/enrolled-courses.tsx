@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
+import Text from '../../components/ui/Typography';
 
 // Mock data for enrolled courses
 const enrolledCourses = [
@@ -38,10 +42,9 @@ const enrolledCourses = [
 ];
 
 const ProgressBar = ({ progress }) => (
-  <View className="w-full h-2 bg-gray-200 rounded-full mt-2">
+  <View style={styles.progressBarContainer}>
     <View 
-      className="h-2 bg-blue-500 rounded-full" 
-      style={{ width: `${progress}%` }} 
+      style={[styles.progressBar, { width: `${progress}%` }]} 
     />
   </View>
 );
@@ -64,67 +67,74 @@ export default function EnrolledCoursesScreen() {
   });
 
   const renderCourseItem = ({ item }) => (
-    <TouchableOpacity 
-      className="bg-white rounded-xl shadow-sm mb-4 overflow-hidden"
-      onPress={() => router.push(`/courses/${item.id}`)}
+    <Card
+      variant="elevated"
+      style={styles.courseCard}
     >
-      <Image 
-        source={item.image} 
-        className="w-full h-36" 
-        resizeMode="cover" 
-      />
-      <View className="p-4">
-        <View className="flex-row justify-between items-center mb-1">
-          <Text className="text-blue-600 font-medium">{item.level}</Text>
-          <View className="flex-row items-center">
-            <Ionicons name="person-outline" size={14} color="#6B7280" />
-            <Text className="text-gray-500 ml-1 text-xs">{item.instructor}</Text>
+      <TouchableOpacity onPress={() => router.push(`/courses/${item.id}`)}>
+        <Image 
+          source={item.image} 
+          style={styles.courseImage} 
+          resizeMode="cover" 
+        />
+        <View style={styles.courseContent}>
+          <View style={styles.courseHeader}>
+            <Text variant="subtitle2" color={colors.secondary.main}>{item.level}</Text>
+            <View style={styles.instructorContainer}>
+              <Ionicons name="person-outline" size={14} color={colors.neutral.darkGray} />
+              <Text variant="caption" color={colors.neutral.darkGray} style={styles.instructorText}>
+                {item.instructor}
+              </Text>
+            </View>
           </View>
+          
+          <Text variant="h5" style={styles.courseTitle}>{item.title}</Text>
+          
+          <ProgressBar progress={item.progress} />
+          
+          <View style={styles.progressInfo}>
+            <Text variant="caption" color={colors.neutral.gray}>{item.progress}% complete</Text>
+            <Text variant="caption" color={colors.neutral.gray}>
+              {item.completedLessons}/{item.totalLessons} lessons
+            </Text>
+          </View>
+          
+          <Button
+            title="Continue Learning"
+            variant="primary"
+            onPress={() => router.push(`/courses/${item.id}`)}
+            style={styles.continueButton}
+            fullWidth
+          />
         </View>
-        
-        <Text className="text-lg font-semibold mb-2">{item.title}</Text>
-        
-        <ProgressBar progress={item.progress} />
-        
-        <View className="flex-row justify-between items-center mt-2">
-          <Text className="text-xs text-gray-500">{item.progress}% complete</Text>
-          <Text className="text-xs text-gray-500">
-            {item.completedLessons}/{item.totalLessons} lessons
-          </Text>
-        </View>
-        
-        <TouchableOpacity 
-          className="bg-blue-600 py-2 rounded-lg items-center mt-3"
-        >
-          <Text className="text-white font-medium">Continue Learning</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Card>
   );
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="pt-14 px-5 pb-8">
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
         {/* Header */}
-        <View className="mb-6">
-          <Text className="text-2xl font-bold">My Enrolled Courses</Text>
-          <Text className="text-gray-600 mt-1">
+        <View style={styles.header}>
+          <Text variant="h2" color={colors.primary.main}>My Enrolled Courses</Text>
+          <Text variant="body2" color={colors.neutral.darkGray} style={styles.subtitle}>
             Continue where you left off
           </Text>
         </View>
 
         {/* Search Bar */}
-        <View className="flex-row items-center bg-white rounded-lg px-4 py-2.5 mb-6 border border-gray-200">
-          <Ionicons name="search" size={20} color="#9CA3AF" />
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={20} color={colors.neutral.gray} />
           <TextInput
-            className="flex-1 ml-2 text-base text-gray-800"
+            style={styles.searchInput}
             placeholder="Search your courses"
+            placeholderTextColor={colors.neutral.gray}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
+              <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
             </TouchableOpacity>
           )}
         </View>
@@ -133,40 +143,64 @@ export default function EnrolledCoursesScreen() {
         <ScrollView 
           horizontal 
           showsHorizontalScrollIndicator={false} 
-          className="mb-6"
+          style={styles.filtersContainer}
         >
           <TouchableOpacity 
-            className={`py-2 px-4 rounded-full mr-3 ${activeFilter === 'all' ? 'bg-blue-600' : 'bg-gray-200'}`}
+            style={[
+              styles.filterButton,
+              activeFilter === 'all' && styles.activeFilterButton
+            ]}
             onPress={() => setActiveFilter('all')}
           >
-            <Text className={`${activeFilter === 'all' ? 'text-white' : 'text-gray-800'}`}>
+            <Text 
+              variant="body2" 
+              color={activeFilter === 'all' ? colors.neutral.white : colors.neutral.text}
+            >
               All Courses
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            className={`py-2 px-4 rounded-full mr-3 ${activeFilter === 'inProgress' ? 'bg-blue-600' : 'bg-gray-200'}`}
+            style={[
+              styles.filterButton,
+              activeFilter === 'inProgress' && styles.activeFilterButton
+            ]}
             onPress={() => setActiveFilter('inProgress')}
           >
-            <Text className={`${activeFilter === 'inProgress' ? 'text-white' : 'text-gray-800'}`}>
+            <Text 
+              variant="body2" 
+              color={activeFilter === 'inProgress' ? colors.neutral.white : colors.neutral.text}
+            >
               In Progress
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            className={`py-2 px-4 rounded-full mr-3 ${activeFilter === 'notStarted' ? 'bg-blue-600' : 'bg-gray-200'}`}
+            style={[
+              styles.filterButton,
+              activeFilter === 'notStarted' && styles.activeFilterButton
+            ]}
             onPress={() => setActiveFilter('notStarted')}
           >
-            <Text className={`${activeFilter === 'notStarted' ? 'text-white' : 'text-gray-800'}`}>
+            <Text 
+              variant="body2" 
+              color={activeFilter === 'notStarted' ? colors.neutral.white : colors.neutral.text}
+            >
               Not Started
             </Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
-            className={`py-2 px-4 rounded-full mr-3 ${activeFilter === 'completed' ? 'bg-blue-600' : 'bg-gray-200'}`}
+            style={[
+              styles.filterButton,
+              activeFilter === 'completed' && styles.activeFilterButton
+            ]}
             onPress={() => setActiveFilter('completed')}
           >
-            <Text className={`${activeFilter === 'completed' ? 'text-white' : 'text-gray-800'}`}>
+            <Text 
+              variant="body2" 
+              color={activeFilter === 'completed' ? colors.neutral.white : colors.neutral.text}
+            >
               Completed
             </Text>
           </TouchableOpacity>
@@ -181,9 +215,9 @@ export default function EnrolledCoursesScreen() {
             scrollEnabled={false}
           />
         ) : (
-          <View className="items-center justify-center py-10">
-            <Ionicons name="search" size={64} color="#D1D5DB" />
-            <Text className="text-gray-400 text-center mt-3">
+          <View style={styles.emptyState}>
+            <Ionicons name="search" size={64} color={colors.neutral.lightGray} />
+            <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
               No courses matching your search.
             </Text>
           </View>
@@ -192,3 +226,109 @@ export default function EnrolledCoursesScreen() {
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
+  content: {
+    paddingTop: spacing.xxl + spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+  },
+  header: {
+    marginBottom: spacing.lg,
+  },
+  subtitle: {
+    marginTop: spacing.xs,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    color: colors.neutral.text,
+    fontSize: typography.fontSizes.md,
+  },
+  filtersContainer: {
+    marginBottom: spacing.xl,
+  },
+  filterButton: {
+    backgroundColor: colors.neutral.lightGray,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.md,
+  },
+  activeFilterButton: {
+    backgroundColor: colors.primary.main,
+  },
+  courseCard: {
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  courseImage: {
+    width: '100%',
+    height: 144,
+  },
+  courseContent: {
+    padding: spacing.md,
+  },
+  courseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  instructorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  instructorText: {
+    marginLeft: 4,
+  },
+  courseTitle: {
+    fontWeight: typography.fontWeights.semibold,
+    marginBottom: spacing.sm,
+  },
+  progressBarContainer: {
+    width: '100%',
+    height: 8,
+    backgroundColor: colors.neutral.lightGray,
+    borderRadius: borderRadius.full,
+    marginTop: spacing.sm,
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: colors.primary.main,
+    borderRadius: borderRadius.full,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  continueButton: {
+    marginTop: spacing.md,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyStateText: {
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+});

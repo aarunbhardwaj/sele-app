@@ -1,217 +1,435 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Link, useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming
+} from 'react-native-reanimated';
+import Text from '../../components/ui/Typography';
+import { Button } from '../../components/ui2/button-native';
+import { Card, CardContent } from '../../components/ui2/card-native';
+import { Input } from '../../components/ui2/input-native';
+import PreAuthHeader, { preAuthColors } from '../../components/ui2/pre-auth-header';
 import { useAuth } from '../../services/AuthContext';
-
-const { width, height } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
+  
+  // Animation values
+  const logoScale = useSharedValue(0.8);
+  const contentOpacity = useSharedValue(0);
+  const contentTranslateY = useSharedValue(30);
+  const formOpacity = useSharedValue(0);
+  const formTranslateY = useSharedValue(50);
+  const buttonScale = useSharedValue(0.95);
+  // Spinner rotation value
+  const rotation = useSharedValue(0);
+  
+  // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({ email: '', password: '' });
-  const [rememberMe, setRememberMe] = useState(false);
-
-  const validate = () => {
-    const newErrors = { email: '', password: '' };
-    let isValid = true;
-
-    if (!email) {
-      newErrors.email = 'Email is required';
-      isValid = false;
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
-      isValid = false;
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [loginAttempt, setLoginAttempt] = useState(0);
+  const [showTip, setShowTip] = useState(false);
+  const tipOpacity = useSharedValue(0);
+  
+  // Gamification elements
+  const [streakDays, setStreakDays] = useState(7); // Simulated streak data
+  
+  useEffect(() => {
+    // Logo entrance animation
+    logoScale.value = withSequence(
+      withTiming(1.1, { duration: 600, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 400, easing: Easing.inOut(Easing.quad) })
+    );
+    
+    // Content entrance animation
+    contentOpacity.value = withDelay(
+      400,
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
+    contentTranslateY.value = withDelay(
+      400,
+      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
+    
+    // Form entrance animation
+    formOpacity.value = withDelay(
+      800,
+      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
+    formTranslateY.value = withDelay(
+      800,
+      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) })
+    );
+  }, []);
+  
+  useEffect(() => {
+    if (isLoggingIn) {
+      rotation.value = withRepeat(
+        withTiming(360, { duration: 1000, easing: Easing.linear }),
+        -1,
+        false
+      );
+    } else {
+      rotation.value = 0;
     }
-
-    if (!password) {
-      newErrors.password = 'Password is required';
-      isValid = false;
-    }
-
-    setErrors(newErrors);
-    return isValid;
-  };
-
+  }, [isLoggingIn]);
+  
+  // Animated styles
+  const logoAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: logoScale.value }],
+    };
+  });
+  
+  const contentAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: contentOpacity.value,
+      transform: [{ translateY: contentTranslateY.value }],
+    };
+  });
+  
+  const formAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: formOpacity.value,
+      transform: [{ translateY: formTranslateY.value }],
+    };
+  });
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }],
+    };
+  });
+  
+  const tipAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tipOpacity.value,
+    };
+  });
+  
+  const spinnerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+  
   const handleLogin = async () => {
-    if (!validate()) return;
-    
-    setLoading(true);
-    
+    buttonScale.value = withSequence(
+      withTiming(0.9, { duration: 100 }),
+      withTiming(1, { duration: 200, easing: Easing.bounce })
+    );
+    setIsLoggingIn(true);
+    setLoginAttempt(loginAttempt + 1);
     try {
       await login(email, password);
-      // The AuthContext will handle navigation after successful login
+      // Navigation is handled in AuthContext after successful login
     } catch (error) {
-      console.error('Login error:', error);
-      setLoading(false);
+      // Error is handled in AuthContext (alert), but you can add extra UI feedback here if needed
+    } finally {
+      setIsLoggingIn(false);
+      setShowTip(true);
+      tipOpacity.value = withTiming(1, { duration: 500 });
+      setTimeout(() => {
+        tipOpacity.value = withTiming(0, { duration: 500 });
+        setTimeout(() => setShowTip(false), 500);
+      }, 4000);
     }
   };
-
-  const handleSocialLogin = (provider) => {
-    // Implement social login
-    console.log(`Login with ${provider}`);
-    // After successful login
-    // router.replace('/(tabs)');
-  };
-
-  const handleForgotPassword = () => {
-    // Handle forgot password
-    console.log('Forgot password');
-  };
-
+  
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      className="flex-1"
-    >
-      <ScrollView 
-        className="flex-1 bg-white"
-        contentContainerStyle={{ 
-          minHeight: height,
-          justifyContent: 'center'
-        }}
-      >
-        <View className="flex-1 px-8 justify-center">
-          {/* Header */}
-          <View className="items-center mb-8">
-            <Image
-              source={require('../../assets/images/app-logo.png')}
-              className="w-20 h-20 mb-3"
-              resizeMode="contain"
-            />
-            <Text className="text-2xl font-bold text-blue-600">Welcome Back</Text>
-            <Text className="text-gray-500 text-center mt-1">
-              Login to continue your learning journey
-            </Text>
+    <View style={styles.container}>
+      {/* Using the shared header component without back button */}
+      <PreAuthHeader title="Log In" />
+      
+      <Animated.View style={[styles.content, contentAnimatedStyle]}>
+        <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+          <Image
+            source={require('../../assets/images/app-logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+        </Animated.View>
+        
+        <Text style={styles.title}>Welcome Back!</Text>
+        <Text style={styles.subtitle}>Log in to continue your learning journey</Text>
+        
+        {/* Streak reminder - Duolingo style gamification */}
+        <View style={styles.streakContainer}>
+          <View style={styles.streakIcon}>
+            <Ionicons name="flame" size={22} color="#FF7F50" />
           </View>
-
-          {/* Form */}
-          <View className="space-y-4">
-            {/* Email */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Email</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.email ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="mail-outline" size={14} color={errors.email ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Enter your email"
+          <Text style={styles.streakText}>
+            Don't break your {streakDays}-day streak! Sign in to continue learning.
+          </Text>
+        </View>
+        
+        {/* Form section */}
+        <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
+          <Card style={styles.formCard}>
+            <CardContent style={styles.cardContent}>
+              {/* Email input */}
+              <View style={styles.inputWrapper}>
+                <Input
+                  placeholder="Email"
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  placeholderTextColor="#9CA3AF"
+                  leftIcon={<Ionicons name="mail-outline" size={20} color={preAuthColors.textLight} />}
                 />
               </View>
-              {errors.email ? <Text className="text-red-500 text-sm mt-1">{errors.email}</Text> : null}
-            </View>
-
-            {/* Password */}
-            <View>
-              <Text className="text-gray-700 mb-1.5 font-medium">Password</Text>
-              <View className={`flex-row items-center border-2 rounded-lg px-2.5 py-1.5 bg-white ${errors.password ? 'border-red-400' : 'border-blue-200'}`}
-                   style={{ backgroundColor: '#fafbfc', shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.05, shadowRadius: 1 }}>
-                <Ionicons name="lock-closed-outline" size={14} color={errors.password ? '#F87171' : '#3B82F6'} />
-                <TextInput
-                  className="flex-1 ml-2 text-sm text-gray-800"
-                  placeholder="Enter your password"
+              
+              {/* Password input */}
+              <View style={styles.inputWrapper}>
+                <Input
+                  placeholder="Password"
                   value={password}
                   onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  placeholderTextColor="#9CA3AF"
+                  secureTextEntry={!isPasswordVisible}
+                  leftIcon={<Ionicons name="lock-closed-outline" size={20} color={preAuthColors.textLight} />}
+                  rightIcon={
+                    <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+                      <Ionicons 
+                        name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
+                        size={20} 
+                        color={preAuthColors.textLight}
+                      />
+                    </TouchableOpacity>
+                  }
                 />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={14}
-                    color="#3B82F6"
-                  />
-                </TouchableOpacity>
               </View>
-              {errors.password ? <Text className="text-red-500 text-sm mt-1">{errors.password}</Text> : null}
-            </View>
-
-            {/* Remember Me & Forgot Password */}
-            <View className="flex-row justify-between items-center mt-1">
-              <TouchableOpacity 
-                className="flex-row items-center" 
-                onPress={() => setRememberMe(!rememberMe)}
-                activeOpacity={0.7}
-              >
-                <Ionicons 
-                  name={rememberMe ? "checkbox-outline" : "square-outline"} 
-                  size={18} 
-                  color="#3B82F6" 
-                />
-                <Text className="ml-2 text-gray-600">Remember me</Text>
-              </TouchableOpacity>
               
-              <TouchableOpacity onPress={handleForgotPassword}>
-                <Text className="text-blue-600 font-medium">Forgot Password?</Text>
+              {/* Login button */}
+              <Animated.View style={buttonAnimatedStyle}>
+                <Button
+                  onPress={handleLogin}
+                  className="bg-emerald-500 w-full py-4 my-4"
+                  textClassName="text-white font-bold"
+                  disabled={isLoggingIn}
+                >
+                  {isLoggingIn ? (
+                    <View style={styles.loadingContainer}>
+                      <Text className="text-white mr-2">Logging in</Text>
+                      <Animated.View style={[{ width: 16, height: 16 }, spinnerAnimatedStyle]}>
+                        <Ionicons name="refresh" size={16} color="white" />
+                      </Animated.View>
+                    </View>
+                  ) : (
+                    "Log In"
+                  )}
+                </Button>
+              </Animated.View>
+              
+              {/* Forgot password link */}
+              <TouchableOpacity 
+                style={styles.forgotPasswordContainer}
+                onPress={() => router.push('/auth/forgot-password')}
+              >
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </TouchableOpacity>
+            </CardContent>
+          </Card>
+          
+          {/* Language learning tip - appears after login attempt */}
+          {showTip && (
+            <Animated.View style={[styles.tipContainer, tipAnimatedStyle]}>
+              <View style={styles.tipIconContainer}>
+                <Ionicons name="bulb-outline" size={24} color={preAuthColors.pastelYellow} />
+              </View>
+              <View style={styles.tipTextContainer}>
+                <Text style={styles.tipTitle}>Learning Tip</Text>
+                <Text style={styles.tipText}>
+                  Practice speaking out loud for just 5 minutes a day to improve your pronunciation dramatically!
+                </Text>
+              </View>
+            </Animated.View>
+          )}
+          
+          {/* Social login options */}
+          <View style={styles.socialLoginContainer}>
+            <Text style={styles.socialLoginText}>Or continue with</Text>
+            <View style={styles.socialButtonsContainer}>
+              <TouchableOpacity style={styles.socialButton}>
+                <Ionicons name="logo-google" size={20} color={preAuthColors.textDark} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialButton}>
+                <Ionicons name="logo-apple" size={20} color={preAuthColors.textDark} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialButton}>
+                <Ionicons name="logo-facebook" size={20} color={preAuthColors.textDark} />
               </TouchableOpacity>
             </View>
-
-            {/* Login Button */}
-            <TouchableOpacity
-              className={`mt-5 py-3 rounded-lg items-center ${loading ? 'bg-blue-400' : 'bg-blue-600'}`}
-              onPress={handleLogin}
-              disabled={loading}
-              style={{ shadowColor: '#000', shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.2, shadowRadius: 1.5, elevation: 2 }}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text className="text-white font-semibold">Log In</Text>
-              )}
-            </TouchableOpacity>
           </View>
-
-          {/* Divider */}
-          <View className="flex-row items-center my-6">
-            <View className="flex-1 h-0.5 bg-gray-200" />
-            <Text className="mx-4 text-gray-500">or login with</Text>
-            <View className="flex-1 h-0.5 bg-gray-200" />
-          </View>
-
-          {/* Social Login */}
-          <View className="flex-row justify-center space-x-6">
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialLogin('Google')}
-            >
-              <Ionicons name="logo-google" size={20} color="#DB4437" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialLogin('Apple')}
-            >
-              <Ionicons name="logo-apple" size={20} color="#000000" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              className="w-12 h-12 border border-gray-200 rounded-full items-center justify-center bg-white"
-              onPress={() => handleSocialLogin('Facebook')}
-            >
-              <Ionicons name="logo-facebook" size={20} color="#4267B2" />
-            </TouchableOpacity>
-          </View>
-
-          {/* Sign Up Link */}
-          <View className="flex-row justify-center mt-8">
-            <Text className="text-gray-600">Don't have an account? </Text>
-            <Link href="/signup" asChild>
-              <TouchableOpacity>
-                <Text className="text-blue-600 font-medium">Sign Up</Text>
-              </TouchableOpacity>
-            </Link>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </Animated.View>
+      </Animated.View>
+      
+      {/* Footer - Sign up link */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Don't have an account?</Text>
+        <TouchableOpacity onPress={() => router.push('/(pre-auth)/signup')}>
+          <Text style={styles.signupLink}>Sign up</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: preAuthColors.white,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: preAuthColors.textDark,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: preAuthColors.textLight,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  streakIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#FFECE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  streakText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#E67E22',
+  },
+  formContainer: {
+    width: '100%',
+  },
+  formCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+  },
+  cardContent: {
+    padding: 20,
+  },
+  inputWrapper: {
+    marginBottom: 16,
+  },
+  forgotPasswordContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  forgotPasswordText: {
+    fontSize: 14,
+    color: preAuthColors.softPurple,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialLoginContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  socialLoginText: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+    marginBottom: 16,
+  },
+  socialButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  socialButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: preAuthColors.lightGrey,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 8,
+  },
+  tipContainer: {
+    flexDirection: 'row',
+    backgroundColor: preAuthColors.softPurple + '20',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  tipIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: preAuthColors.softPurple,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  tipTextContainer: {
+    flex: 1,
+  },
+  tipTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: preAuthColors.textDark,
+    marginBottom: 4,
+  },
+  tipText: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  footerText: {
+    fontSize: 14,
+    color: preAuthColors.textLight,
+    marginRight: 4,
+  },
+  signupLink: {
+    fontSize: 14,
+    color: preAuthColors.emerald,
+    fontWeight: '600',
+  },
+});

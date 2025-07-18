@@ -1,7 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
+import Header from '../../components/ui/Header';
+import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
+import Text from '../../components/ui/Typography';
 
 // Mock data for course categories
 const categories = [
@@ -120,170 +125,321 @@ export default function CoursesCatalogScreen() {
   });
 
   const renderCourseCard = ({ item }) => (
-    <TouchableOpacity 
-      className="bg-white rounded-xl shadow-sm mb-4 overflow-hidden"
-      onPress={() => router.push(`/courses/${item.id}`)}
+    <Card
+      variant="elevated"
+      style={styles.courseCard}
     >
-      <View className="relative">
-        <Image 
-          source={item.image} 
-          className="w-full h-36" 
-          resizeMode="cover" 
-        />
-        {item.isBestseller && (
-          <View className="absolute top-2 left-2 bg-yellow-400 px-2 py-1 rounded">
-            <Text className="text-xs font-bold text-gray-800">Bestseller</Text>
+      <TouchableOpacity 
+        onPress={() => router.push(`/courses/${item.id}`)}
+      >
+        <View style={styles.imageContainer}>
+          <Image 
+            source={item.image} 
+            style={styles.courseImage} 
+            resizeMode="cover" 
+          />
+          {item.isBestseller && (
+            <View style={styles.bestsellerBadge}>
+              <Text variant="caption" color={colors.neutral.black} style={styles.bestsellerText}>Bestseller</Text>
+            </View>
+          )}
+        </View>
+        <View style={styles.courseContent}>
+          <View style={styles.courseHeader}>
+            <Text variant="subtitle2" color={colors.secondary.main}>{item.level}</Text>
+            <View style={styles.ratingContainer}>
+              <Ionicons name="star" size={14} color={colors.accent.main} />
+              <Text variant="caption" color={colors.neutral.darkGray} style={styles.ratingText}>{item.rating} ({item.reviews} reviews)</Text>
+            </View>
           </View>
-        )}
-      </View>
-      <View className="p-4">
-        <View className="flex-row justify-between items-center mb-1">
-          <Text className="text-blue-600 font-medium">{item.level}</Text>
-          <View className="flex-row items-center">
-            <Ionicons name="star" size={14} color="#FBBF24" />
-            <Text className="text-gray-700 ml-1 text-xs">{item.rating} ({item.reviews} reviews)</Text>
+          
+          <Text variant="h5" style={styles.courseTitle}>{item.title}</Text>
+          
+          <Text variant="caption" color={colors.neutral.darkGray} style={styles.instructorText}>By {item.instructor} • {item.students} students</Text>
+          
+          <View style={styles.priceContainer}>
+            <Text variant="subtitle1" color={colors.neutral.text} style={styles.discountPrice}>£{item.discountPrice}</Text>
+            <Text variant="body2" color={colors.neutral.gray} style={styles.originalPrice}>£{item.price}</Text>
           </View>
         </View>
-        
-        <Text className="text-lg font-semibold mb-2">{item.title}</Text>
-        
-        <Text className="text-gray-600 text-xs mb-3">By {item.instructor} • {item.students} students</Text>
-        
-        <View className="flex-row items-center">
-          <Text className="text-xl font-bold text-gray-800">£{item.discountPrice}</Text>
-          <Text className="text-gray-500 line-through ml-2">£{item.price}</Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </Card>
   );
 
   const renderCategoryButton = ({ item }) => (
     <TouchableOpacity 
-      className={`flex-row items-center py-2 px-4 rounded-full mr-3 ${selectedCategory === item.id ? 'bg-blue-600' : 'bg-gray-200'}`}
+      style={[
+        styles.categoryButton,
+        selectedCategory === item.id ? styles.categoryButtonActive : styles.categoryButtonInactive
+      ]}
       onPress={() => setSelectedCategory(item.id)}
     >
       <Ionicons 
         name={item.icon} 
         size={16} 
-        color={selectedCategory === item.id ? '#FFFFFF' : '#4B5563'} 
+        color={selectedCategory === item.id ? colors.neutral.white : colors.neutral.darkGray} 
       />
-      <Text className={`ml-1 ${selectedCategory === item.id ? 'text-white' : 'text-gray-800'}`}>
+      <Text 
+        variant="body2" 
+        color={selectedCategory === item.id ? colors.neutral.white : colors.neutral.text}
+        style={styles.categoryButtonText}
+      >
         {item.name}
       </Text>
     </TouchableOpacity>
   );
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
-      <View className="pt-14 px-5 pb-8">
-        {/* Header */}
-        <View className="mb-6">
-          <Text className="text-2xl font-bold">Courses Catalog</Text>
-          <Text className="text-gray-600 mt-1">
-            Explore our wide range of British English courses
-          </Text>
-        </View>
-
-        {/* Search Bar */}
-        <View className="flex-row items-center bg-white rounded-lg px-4 py-2.5 mb-6 border border-gray-200">
-          <Ionicons name="search" size={20} color="#9CA3AF" />
-          <TextInput
-            className="flex-1 ml-2 text-base text-gray-800"
-            placeholder="Search courses, instructors, etc."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Categories */}
-        <View className="mb-6">
-          <Text className="text-lg font-semibold mb-3">Categories</Text>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-          >
-            {categories.map(item => (
-              <TouchableOpacity 
-                key={item.id}
-                className={`flex-row items-center py-2 px-4 rounded-full mr-3 ${selectedCategory === item.id ? 'bg-blue-600' : 'bg-gray-200'}`}
-                onPress={() => setSelectedCategory(item.id)}
-              >
-                <Ionicons 
-                  name={item.icon} 
-                  size={16} 
-                  color={selectedCategory === item.id ? '#FFFFFF' : '#4B5563'} 
-                />
-                <Text className={`ml-1 ${selectedCategory === item.id ? 'text-white' : 'text-gray-800'}`}>
-                  {item.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Featured Courses */}
-        {selectedCategory === '1' && searchQuery === '' && (
-          <View className="mb-8">
-            <View className="flex-row justify-between items-center mb-4">
-              <Text className="text-lg font-semibold">Featured Courses</Text>
-              <TouchableOpacity>
-                <Text className="text-blue-600">See All</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={featuredCourses}
-              renderItem={renderCourseCard}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
+    <View style={styles.container}>
+      <Header 
+        title="Courses" 
+        showLogo={true}
+        rightIcon={<Ionicons name="search" size={22} color={colors.neutral.darkGray} />}
+        onRightIconPress={() => {
+          // Focus the search input
+          // In a real app, you might want to show/hide a separate search screen
+        }}
+      />
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.content}>
+          {/* Search Bar */}
+          <View style={styles.searchBar}>
+            <Ionicons name="search" size={20} color={colors.neutral.gray} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search courses, instructors, etc."
+              placeholderTextColor={colors.neutral.gray}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
             />
-          </View>
-        )}
-
-        {/* All Courses or Filtered Courses */}
-        <View>
-          <View className="flex-row justify-between items-center mb-4">
-            <Text className="text-lg font-semibold">
-              {selectedCategory === '1' && searchQuery === '' ? 'Popular Courses' : 'Courses'}
-            </Text>
-            {selectedCategory === '1' && searchQuery === '' && (
-              <TouchableOpacity>
-                <Text className="text-blue-600">See All</Text>
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
               </TouchableOpacity>
             )}
           </View>
-          
-          {filteredCourses.length > 0 ? (
-            <FlatList
-              data={filteredCourses}
-              renderItem={renderCourseCard}
-              keyExtractor={item => item.id}
-              scrollEnabled={false}
-            />
-          ) : (
-            <View className="items-center justify-center py-10">
-              <Ionicons name="search" size={64} color="#D1D5DB" />
-              <Text className="text-gray-400 text-center mt-3">
-                No courses found matching your criteria.
-              </Text>
-              <TouchableOpacity 
-                className="mt-4 bg-blue-600 py-2.5 px-5 rounded-lg"
-                onPress={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('1');
-                }}
-              >
-                <Text className="text-white">View All Courses</Text>
-              </TouchableOpacity>
+
+          {/* Categories */}
+          <View style={styles.categoriesSection}>
+            <Text variant="h5" style={styles.sectionTitle}>Categories</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.categoriesScrollView}
+            >
+              {categories.map(item => renderCategoryButton({ item }))}
+            </ScrollView>
+          </View>
+
+          {/* Featured Courses */}
+          {selectedCategory === '1' && searchQuery === '' && (
+            <View style={styles.featuredSection}>
+              <View style={styles.sectionHeader}>
+                <Text variant="h5" style={styles.sectionTitle}>Featured Courses</Text>
+                <TouchableOpacity>
+                  <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+                </TouchableOpacity>
+              </View>
+              
+              <FlatList
+                data={featuredCourses}
+                renderItem={renderCourseCard}
+                keyExtractor={item => item.id}
+                scrollEnabled={false}
+              />
             </View>
           )}
+
+          {/* All Courses or Filtered Courses */}
+          <View style={styles.coursesSection}>
+            <View style={styles.sectionHeader}>
+              <Text variant="h5" style={styles.sectionTitle}>
+                {selectedCategory === '1' && searchQuery === '' ? 'Popular Courses' : 'Courses'}
+              </Text>
+              {selectedCategory === '1' && searchQuery === '' && (
+                <TouchableOpacity>
+                  <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+            
+            {filteredCourses.length > 0 ? (
+              <FlatList
+                data={filteredCourses}
+                renderItem={renderCourseCard}
+                keyExtractor={item => item.id}
+                scrollEnabled={false}
+              />
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="search" size={64} color={colors.neutral.lightGray} />
+                <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
+                  No courses found matching your criteria.
+                </Text>
+                <Button
+                  title="View All Courses"
+                  variant="primary"
+                  onPress={() => {
+                    setSearchQuery('');
+                    setSelectedCategory('1');
+                  }}
+                  style={styles.emptyStateButton}
+                />
+              </View>
+            )}
+          </View>
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  content: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
+    paddingTop: spacing.md,
+  },
+  header: {
+    marginBottom: spacing.xl,
+  },
+  subtitle: {
+    marginTop: spacing.xs,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral.white,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.xl,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: spacing.sm,
+    color: colors.neutral.text,
+    fontSize: typography.fontSizes.md,
+  },
+  categoriesSection: {
+    marginBottom: spacing.xl,
+  },
+  categoriesScrollView: {
+    marginTop: spacing.sm,
+  },
+  sectionTitle: {
+    fontWeight: typography.fontWeights.semibold,
+    marginBottom: spacing.sm,
+  },
+  categoryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.full,
+    marginRight: spacing.md,
+  },
+  categoryButtonActive: {
+    backgroundColor: colors.primary.main,
+  },
+  categoryButtonInactive: {
+    backgroundColor: colors.neutral.lightGray,
+  },
+  categoryButtonText: {
+    marginLeft: spacing.xs,
+  },
+  featuredSection: {
+    marginBottom: spacing.xl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  seeAllText: {
+    fontWeight: typography.fontWeights.medium,
+  },
+  courseCard: {
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    position: 'relative',
+  },
+  courseImage: {
+    width: '100%',
+    height: 144, // Fixed height for course images
+  },
+  bestsellerBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    left: spacing.sm,
+    backgroundColor: colors.accent.light,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.sm,
+  },
+  bestsellerText: {
+    fontWeight: typography.fontWeights.bold,
+  },
+  courseContent: {
+    padding: spacing.md,
+  },
+  courseHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ratingText: {
+    marginLeft: 4,
+  },
+  courseTitle: {
+    fontWeight: typography.fontWeights.semibold,
+    marginBottom: spacing.sm,
+  },
+  instructorText: {
+    marginBottom: spacing.sm,
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  discountPrice: {
+    fontWeight: typography.fontWeights.bold,
+  },
+  originalPrice: {
+    marginLeft: spacing.sm,
+    textDecorationLine: 'line-through',
+  },
+  coursesSection: {
+    marginBottom: spacing.lg,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  emptyStateText: {
+    textAlign: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  emptyStateButton: {
+    marginTop: spacing.md,
+  },
+});

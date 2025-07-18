@@ -350,6 +350,127 @@ export const appwriteService = {
     }
   },
   
+  createCourse: async (courseData) => {
+    try {
+      // Get current user
+      const currentUser = await account.get();
+      
+      if (!currentUser) {
+        throw new Error('User must be logged in to create a course');
+      }
+      
+      console.log('Current User:', currentUser.$id);
+      
+      // Get user's roles and check permissions
+      const userRoles = await appwriteService.getUserRoles(currentUser.$id);
+      
+      // Check if any of the user's roles have 'create:courses' permission
+      const hasCreatePermission = userRoles.some(role => 
+        role.permissions && role.permissions.includes('create:courses')
+      );
+      
+      if (!hasCreatePermission) {
+        throw new Error('User does not have permission to create courses');
+      }
+      
+      // First create the document payload
+      const coursePayload = {
+        title: courseData.title,
+        description: courseData.description,
+        level: courseData.level || 'beginner',
+        duration: courseData.duration || '4 weeks',
+        isPublished: courseData.isPublished || false,
+        coverImage: courseData.coverImage || '',
+        tags: courseData.tags || [],
+        creatorId: currentUser.$id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Create the document - with simple permissions that should work
+      const result = await databases.createDocument(
+        DATABASE_ID,
+        COURSES_COLLECTION_ID,
+        ID.unique(),
+        coursePayload
+      );
+      
+      console.log('Course created successfully:', result.$id);
+      
+      return result;
+    } catch (error) {
+      console.error('Appwrite service :: createCourse :: error', error);
+      throw error;
+    }
+  },
+  
+  updateCourse: async (courseId, courseData) => {
+    try {
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COURSES_COLLECTION_ID,
+        courseId,
+        {
+          ...courseData,
+          updatedAt: new Date().toISOString()
+        }
+      );
+    } catch (error) {
+      console.error('Appwrite service :: updateCourse :: error', error);
+      throw error;
+    }
+  },
+  
+  deleteCourse: async (courseId) => {
+    try {
+      // First, check if there are any lessons associated with this course
+      const associatedLessons = await databases.listDocuments(
+        DATABASE_ID,
+        LESSONS_COLLECTION_ID,
+        [Query.equal('courseId', courseId)]
+      );
+      
+      // Delete all associated lessons first
+      if (associatedLessons.documents.length > 0) {
+        for (const lesson of associatedLessons.documents) {
+          // Also delete any exercises associated with this lesson
+          const associatedExercises = await databases.listDocuments(
+            DATABASE_ID,
+            EXERCISES_COLLECTION_ID,
+            [Query.equal('lessonId', lesson.$id)]
+          );
+          
+          for (const exercise of associatedExercises.documents) {
+            await databases.deleteDocument(
+              DATABASE_ID,
+              EXERCISES_COLLECTION_ID,
+              exercise.$id
+            );
+          }
+          
+          // Delete the lesson
+          await databases.deleteDocument(
+            DATABASE_ID,
+            LESSONS_COLLECTION_ID,
+            lesson.$id
+          );
+        }
+      }
+      
+      // Finally delete the course
+      await databases.deleteDocument(
+        DATABASE_ID,
+        COURSES_COLLECTION_ID,
+        courseId
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Appwrite service :: deleteCourse :: error', error);
+      throw error;
+    }
+  },
+  
   getCoursesByLevel: async (level) => {
     try {
       const response = await databases.listDocuments(

@@ -1,14 +1,17 @@
 import { Stack } from "expo-router";
 import { Text, View } from "react-native";
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from "../services/AuthContext";
 import './globals.css'; // Import global styles
 
 // Root layout component that uses our AuthProvider
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
 
