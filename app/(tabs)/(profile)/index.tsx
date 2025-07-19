@@ -6,9 +6,9 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
-import Header from '../../../components/ui/Header';
 import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
+import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 import { useAuth } from '../../../services/AuthContext';
 
@@ -254,18 +254,17 @@ const Profile = () => {
 
     return (
         <View style={styles.container}>
-            <Header 
+            <PreAuthHeader 
                 title="Profile" 
-                showLogo={true}
-                showDrawerToggle={false}
-                rightIcon={
-                    !editing ? (
-                        <Ionicons name="pencil" size={22} color={colors.primary.main} />
-                    ) : (
-                        <Ionicons name="close" size={22} color={colors.neutral.darkGray} />
-                    )
+                rightComponent={
+                    <TouchableOpacity onPress={() => setEditing(!editing)}>
+                        {!editing ? (
+                            <Ionicons name="pencil" size={22} color={colors.primary.main} />
+                        ) : (
+                            <Ionicons name="close" size={22} color={colors.neutral.darkGray} />
+                        )}
+                    </TouchableOpacity>
                 }
-                onRightIconPress={() => setEditing(!editing)}
             />
             <ScrollView style={styles.scrollView}>
                 <View style={styles.content}>

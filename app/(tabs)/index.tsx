@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import Header from '../../components/ui/Header';
+import PreAuthHeader from '../../components/ui2/pre-auth-header';
 import Text from '../../components/ui/Typography';
 import { borderRadius, spacing, typography } from '../../components/ui/theme';
 
@@ -33,10 +33,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Header 
+      <PreAuthHeader 
         title="Home" 
-        showLogo={true}
-        showDrawerToggle={false}
       />
       <Animated.View style={[styles.content, fadeStyle]}>
         {/* Welcome Header */}

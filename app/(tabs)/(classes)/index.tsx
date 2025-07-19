@@ -3,9 +3,9 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { SafeAreaView, StyleSheet, View } from 'react-native';
 import Button from '../../../components/ui/Button';
-import Header from '../../../components/ui/Header';
 import { colors } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
+import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
 export default function ClassesIndex() {
   const router = useRouter();
@@ -13,10 +13,8 @@ export default function ClassesIndex() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Header 
+        <PreAuthHeader 
           title="Live Classes" 
-          showLogo={true}
-          showDrawerToggle={false}
         />
         <View style={styles.content}>
           <Text variant="h4" style={styles.heading}>Live Classes</Text>

@@ -2,18 +2,17 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import Button from '../../../components/ui/Button';
-import Header from '../../../components/ui/Header';
 import { colors } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
+import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
 export default function QuizIndex() {
   const router = useRouter();
   
   return (
     <View style={styles.container}>
-      <Header 
+      <PreAuthHeader 
         title="Quizzes" 
-        showLogo={true}
       />
       <View style={styles.content}>
         <Text variant="h4" style={styles.heading}>Quiz Center</Text>

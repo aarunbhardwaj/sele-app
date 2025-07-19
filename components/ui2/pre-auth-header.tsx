@@ -38,11 +38,10 @@ export default function PreAuthHeader({
 }: PreAuthHeaderProps) {
   const defaultRightComponent = (
     <TouchableOpacity 
-      style={styles.languageSelector}
+      style={styles.notificationButton}
       onPress={() => {}}
     >
-      <Text style={styles.languageText}>🇬🇧 EN</Text>
-      <Ionicons name="chevron-down" size={16} color={preAuthColors.textDark} />
+      <Ionicons name="notifications-outline" size={24} color={preAuthColors.textDark} />
     </TouchableOpacity>
   );
 
@@ -112,17 +111,9 @@ const styles = StyleSheet.create({
     padding: 4,
     marginRight: 12,
   },
-  languageSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: preAuthColors.lightGrey, // Changed from semi-transparent white to light grey
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  notificationButton: {
+    padding: 8,
     borderRadius: 16,
-  },
-  languageText: {
-    marginRight: 4,
-    fontSize: 14,
-    color: preAuthColors.textDark, // Changed from white to dark text
+    backgroundColor: preAuthColors.lightGrey,
   },
 });
