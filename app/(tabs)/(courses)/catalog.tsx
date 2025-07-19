@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { FlatList, Image, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Header from '../../../components/ui/Header';
@@ -190,111 +190,121 @@ export default function CoursesCatalogScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      <Header 
-        title="Courses" 
-        showLogo={true}
-        rightIcon={<Ionicons name="search" size={22} color={colors.neutral.darkGray} />}
-        onRightIconPress={() => {
-          // Focus the search input
-          // In a real app, you might want to show/hide a separate search screen
-        }}
-      />
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          {/* Search Bar */}
-          <View style={styles.searchBar}>
-            <Ionicons name="search" size={20} color={colors.neutral.gray} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search courses, instructors, etc."
-              placeholderTextColor={colors.neutral.gray}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
-              </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Categories */}
-          <View style={styles.categoriesSection}>
-            <Text variant="h5" style={styles.sectionTitle}>Categories</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false}
-              style={styles.categoriesScrollView}
-            >
-              {categories.map(item => renderCategoryButton({ item }))}
-            </ScrollView>
-          </View>
-
-          {/* Featured Courses */}
-          {selectedCategory === '1' && searchQuery === '' && (
-            <View style={styles.featuredSection}>
-              <View style={styles.sectionHeader}>
-                <Text variant="h5" style={styles.sectionTitle}>Featured Courses</Text>
-                <TouchableOpacity>
-                  <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <FlatList
-                data={featuredCourses}
-                renderItem={renderCourseCard}
-                keyExtractor={item => item.id}
-                scrollEnabled={false}
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <Header 
+          title="Courses" 
+          showLogo={true}
+          rightIcon={<Ionicons name="search" size={22} color={colors.neutral.darkGray} />}
+          onRightIconPress={() => {
+            // Focus the search input
+            // In a real app, you might want to show/hide a separate search screen
+          }}
+        />
+        <ScrollView style={styles.scrollView}>
+          <View style={styles.content}>
+            {/* Search Bar */}
+            <View style={styles.searchBar}>
+              <Ionicons name="search" size={20} color={colors.neutral.gray} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search courses, instructors, etc."
+                placeholderTextColor={colors.neutral.gray}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
               />
-            </View>
-          )}
-
-          {/* All Courses or Filtered Courses */}
-          <View style={styles.coursesSection}>
-            <View style={styles.sectionHeader}>
-              <Text variant="h5" style={styles.sectionTitle}>
-                {selectedCategory === '1' && searchQuery === '' ? 'Popular Courses' : 'Courses'}
-              </Text>
-              {selectedCategory === '1' && searchQuery === '' && (
-                <TouchableOpacity>
-                  <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')}>
+                  <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
                 </TouchableOpacity>
               )}
             </View>
-            
-            {filteredCourses.length > 0 ? (
-              <FlatList
-                data={filteredCourses}
-                renderItem={renderCourseCard}
-                keyExtractor={item => item.id}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <Ionicons name="search" size={64} color={colors.neutral.lightGray} />
-                <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
-                  No courses found matching your criteria.
-                </Text>
-                <Button
-                  title="View All Courses"
-                  variant="primary"
-                  onPress={() => {
-                    setSearchQuery('');
-                    setSelectedCategory('1');
-                  }}
-                  style={styles.emptyStateButton}
+
+            {/* Categories */}
+            <View style={styles.categoriesSection}>
+              <Text variant="h5" style={styles.sectionTitle}>Categories</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                style={styles.categoriesScrollView}
+              >
+                {categories.map(item => (
+                  <React.Fragment key={item.id}>
+                    {renderCategoryButton({ item })}
+                  </React.Fragment>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* Featured Courses */}
+            {selectedCategory === '1' && searchQuery === '' && (
+              <View style={styles.featuredSection}>
+                <View style={styles.sectionHeader}>
+                  <Text variant="h5" style={styles.sectionTitle}>Featured Courses</Text>
+                  <TouchableOpacity>
+                    <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+                  </TouchableOpacity>
+                </View>
+                
+                <FlatList
+                  data={featuredCourses}
+                  renderItem={renderCourseCard}
+                  keyExtractor={item => item.id}
+                  scrollEnabled={false}
                 />
               </View>
             )}
+
+            {/* All Courses or Filtered Courses */}
+            <View style={styles.coursesSection}>
+              <View style={styles.sectionHeader}>
+                <Text variant="h5" style={styles.sectionTitle}>
+                  {selectedCategory === '1' && searchQuery === '' ? 'Popular Courses' : 'Courses'}
+                </Text>
+                {selectedCategory === '1' && searchQuery === '' && (
+                  <TouchableOpacity>
+                    <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              
+              {filteredCourses.length > 0 ? (
+                <FlatList
+                  data={filteredCourses}
+                  renderItem={renderCourseCard}
+                  keyExtractor={item => item.id}
+                  scrollEnabled={false}
+                />
+              ) : (
+                <View style={styles.emptyState}>
+                  <Ionicons name="search" size={64} color={colors.neutral.lightGray} />
+                  <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
+                    No courses found matching your criteria.
+                  </Text>
+                  <Button
+                    title="View All Courses"
+                    variant="primary"
+                    onPress={() => {
+                      setSearchQuery('');
+                      setSelectedCategory('1');
+                    }}
+                    style={styles.emptyStateButton}
+                  />
+                </View>
+              )}
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.neutral.background,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.neutral.background,

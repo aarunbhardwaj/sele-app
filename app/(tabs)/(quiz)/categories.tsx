@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
+import Header from '../../../components/ui/Header';
 import Text from '../../../components/ui/Typography';
 
 // Mock data for quiz categories
@@ -36,7 +37,12 @@ export default function QuizCategoriesScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <Header 
+        title="Quiz Categories" 
+        showLogo={true}
+        showDrawerToggle={true} 
+      />
       <View style={styles.header}>
         <Text variant="h2">Quiz Categories</Text>
         <Text variant="body1" style={styles.subtitle}>Select a category to start practicing</Text>
@@ -48,7 +54,7 @@ export default function QuizCategoriesScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={styles.list}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 

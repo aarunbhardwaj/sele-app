@@ -1,10 +1,10 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors } from '../../../components/ui/theme';
-import Header from '../../../components/ui/Header';
-import Text from '../../../components/ui/Typography';
 import Button from '../../../components/ui/Button';
+import Header from '../../../components/ui/Header';
+import { colors } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
 
 export default function QuizIndex() {
   const router = useRouter();

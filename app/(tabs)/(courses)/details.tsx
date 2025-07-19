@@ -1,6 +1,6 @@
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { useRouter } from 'expo-router';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import Text from '../../../components/ui/Typography';

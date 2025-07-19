@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { DrawerActions, useNavigation } from '@react-navigation/native';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
@@ -9,6 +10,7 @@ interface HeaderProps {
   title?: string;
   showBack?: boolean;
   showLogo?: boolean;
+  showDrawerToggle?: boolean; // New prop for drawer toggle
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
   transparent?: boolean;
@@ -18,14 +20,20 @@ const Header: React.FC<HeaderProps> = ({
   title,
   showBack = false,
   showLogo = true,
+  showDrawerToggle = false, // Default to false
   rightIcon,
   onRightIconPress,
   transparent = false,
 }) => {
   const router = useRouter();
+  const navigation = useNavigation();
 
   const goBack = () => {
     router.back();
+  };
+
+  const openDrawer = () => {
+    navigation.dispatch(DrawerActions.openDrawer());
   };
 
   return (
@@ -42,6 +50,19 @@ const Header: React.FC<HeaderProps> = ({
           >
             <Ionicons 
               name="arrow-back" 
+              size={24} 
+              color={transparent ? colors.neutral.white : colors.neutral.text} 
+            />
+          </TouchableOpacity>
+        )}
+        {showDrawerToggle && (
+          <TouchableOpacity 
+            style={styles.menuButton} 
+            onPress={openDrawer}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Ionicons 
+              name="menu" 
               size={24} 
               color={transparent ? colors.neutral.white : colors.neutral.text} 
             />
@@ -117,6 +138,9 @@ const styles = StyleSheet.create({
   },
   rightIconButton: {
     padding: spacing.xs,
+  },
+  menuButton: {
+    marginRight: spacing.sm,
   },
 });
 

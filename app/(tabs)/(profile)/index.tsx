@@ -257,6 +257,7 @@ const Profile = () => {
             <Header 
                 title="Profile" 
                 showLogo={true}
+                showDrawerToggle={true}
                 rightIcon={
                     !editing ? (
                         <Ionicons name="pencil" size={22} color={colors.primary.main} />
