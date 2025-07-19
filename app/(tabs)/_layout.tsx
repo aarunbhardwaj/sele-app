@@ -31,6 +31,7 @@ const TabsLayout = () => {
     });
   };
 
+  // Main Tabs layout - no drawer
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -38,23 +39,27 @@ const TabsLayout = () => {
         tabBarActiveTintColor: colors.primary.main,
         tabBarInactiveTintColor: colors.neutral.darkGray,
         tabBarShowLabel: true,
-        headerShown: false, // Keep headers hidden
+        headerShown: false,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName: any = 'home-outline';
           
+          // Updated route names to match our new folder structure
           switch (route.name) {
             case 'index':
               iconName = focused ? 'home' : 'home-outline';
               break;
-            case 'my-learning':
+            case '(learning)':
               iconName = focused ? 'school' : 'school-outline';
               break;
-            case 'quizzes':
+            case '(courses)':
+              iconName = focused ? 'book' : 'book-outline';
+              break;
+            case '(quiz)':
               iconName = focused ? 'help-circle' : 'help-circle-outline';
               break;
-            case 'profile':
+            case '(profile)':
               iconName = focused ? 'person' : 'person-outline';
               break;
             default:
@@ -67,21 +72,19 @@ const TabsLayout = () => {
               {focused && <View style={styles.activeIndicator} />}
             </View>
           );
-        },
-        tabBarButton: [
-          'index',
-          'my-learning',
-          'quizzes',
-          'profile'
-        ].includes(route.name)
-          ? undefined
-          : () => null,
+        }
       })}
     >
+      {/* Main tabs */}
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="my-learning" options={{ title: 'Lessons' }} />
-      <Tabs.Screen name="quizzes" options={{ title: 'Quizzes' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="(learning)" options={{ title: 'Learning' }} />
+      <Tabs.Screen name="(courses)" options={{ title: 'Courses' }} />
+      <Tabs.Screen name="(quiz)" options={{ title: 'Quizzes' }} />
+      <Tabs.Screen name="(profile)" options={{ title: 'Profile' }} />
+      
+      {/* Hidden screens but still accessible via navigation */}
+      <Tabs.Screen name="(classes)" options={{ href: null, title: 'Classes' }} />
+      <Tabs.Screen name="(support)" options={{ href: null, title: 'Support' }} />
     </Tabs>
   );
 };

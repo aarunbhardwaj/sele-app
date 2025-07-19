@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Card from '../../components/ui/Card';
-import Text from '../../components/ui/Typography';
+import Card from '../../../components/ui/Card';
+import Text from '../../../components/ui/Typography';
 
 export default function CourseProgressScreen() {
   return (

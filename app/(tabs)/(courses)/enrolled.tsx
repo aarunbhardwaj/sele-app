@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
-import Text from '../../components/ui/Typography';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
 
 // Mock data for enrolled courses
 const enrolledCourses = [
@@ -17,7 +17,7 @@ const enrolledCourses = [
     instructor: 'Emma Thompson',
     totalLessons: 12,
     completedLessons: 5,
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
   },
   {
     id: '2',
@@ -27,7 +27,7 @@ const enrolledCourses = [
     instructor: 'James Wilson',
     totalLessons: 15,
     completedLessons: 3,
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
   },
   {
     id: '3',
@@ -37,7 +37,7 @@ const enrolledCourses = [
     instructor: 'Robert Clark',
     totalLessons: 10,
     completedLessons: 7,
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
   }
 ];
 
@@ -71,7 +71,7 @@ export default function EnrolledCoursesScreen() {
       variant="elevated"
       style={styles.courseCard}
     >
-      <TouchableOpacity onPress={() => router.push(`/courses/${item.id}`)}>
+      <TouchableOpacity onPress={() => router.push(`/(tabs)/(courses)/details?id=${item.id}`)}>
         <Image 
           source={item.image} 
           style={styles.courseImage} 
@@ -102,7 +102,7 @@ export default function EnrolledCoursesScreen() {
           <Button
             title="Continue Learning"
             variant="primary"
-            onPress={() => router.push(`/courses/${item.id}`)}
+            onPress={() => router.push(`/(tabs)/(courses)/progress?id=${item.id}`)}
             style={styles.continueButton}
             fullWidth
           />

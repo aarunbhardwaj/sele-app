@@ -1,16 +1,19 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Text from '../../components/ui/Typography';
+import { useRouter } from 'expo-router';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Text from '../../../components/ui/Typography';
 
 export default function CourseDetailsScreen() {
+  const router = useRouter();
+  
   return (
     <View style={styles.container}>
       <Card variant="elevated" style={styles.card}>
         <Text variant="h2">Course Details</Text>
         <Text variant="body1" style={styles.text}>This is a placeholder for the course details screen.</Text>
-        <Button title="Enroll" onPress={() => {}} style={styles.button} />
+        <Button title="Enroll" onPress={() => router.push('/(tabs)/(courses)/enrollment')} style={styles.button} />
       </Card>
     </View>
   );

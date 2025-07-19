@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Header from '../../components/ui/Header';
-import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
-import Text from '../../components/ui/Typography';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Header from '../../../components/ui/Header';
+import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
 
 // Mock data for course categories
 const categories = [
@@ -30,7 +30,7 @@ const featuredCourses = [
     price: 89.99,
     discountPrice: 49.99,
     instructor: 'Emma Thompson',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: true,
   },
   {
@@ -43,7 +43,7 @@ const featuredCourses = [
     price: 69.99,
     discountPrice: 34.99,
     instructor: 'James Wilson',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: false,
   },
 ];
@@ -60,7 +60,7 @@ const allCourses = [
     price: 79.99,
     discountPrice: 39.99,
     instructor: 'Robert Clark',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: true,
     category: 'Business'
   },
@@ -74,7 +74,7 @@ const allCourses = [
     price: 59.99,
     discountPrice: 29.99,
     instructor: 'Sarah Johnson',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: false,
     category: 'Vocabulary'
   },
@@ -88,7 +88,7 @@ const allCourses = [
     price: 64.99,
     discountPrice: 32.99,
     instructor: 'Michael Brown',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: false,
     category: 'Grammar'
   },
@@ -102,7 +102,7 @@ const allCourses = [
     price: 74.99,
     discountPrice: 37.99,
     instructor: 'Emily White',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     isBestseller: true,
     category: 'Conversation'
   },
@@ -130,7 +130,7 @@ export default function CoursesCatalogScreen() {
       style={styles.courseCard}
     >
       <TouchableOpacity 
-        onPress={() => router.push(`/courses/${item.id}`)}
+        onPress={() => router.push(`/(tabs)/(courses)/details?id=${item.id}`)}
       >
         <View style={styles.imageContainer}>
           <Image 

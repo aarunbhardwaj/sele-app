@@ -4,13 +4,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Header from '../../components/ui/Header';
-import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
-import Text from '../../components/ui/Typography';
-import appwriteService from '../../services/appwrite';
-import { useAuth } from '../../services/AuthContext';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Header from '../../../components/ui/Header';
+import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
+import appwriteService from '../../../services/appwrite';
+import { useAuth } from '../../../services/AuthContext';
 
 const Profile = () => {
     const router = useRouter();
@@ -277,7 +277,7 @@ const Profile = () => {
                                         source={
                                             userProfile?.profileImage 
                                                 ? { uri: userProfile.profileImage } 
-                                                : require('../../assets/images/app-logo.png')
+                                                : require('../../../assets/images/app-logo.png')
                                         }
                                         style={styles.profileImage}
                                         resizeMode="cover"
@@ -328,7 +328,7 @@ const Profile = () => {
                                         source={
                                             formData.profileImage 
                                                 ? { uri: formData.profileImage } 
-                                                : require('../../assets/images/app-logo.png')
+                                                : require('../../../assets/images/app-logo.png')
                                         }
                                         style={styles.editProfileImage}
                                         resizeMode="cover"
@@ -502,7 +502,10 @@ const Profile = () => {
                                 </View>
                                 <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
                             </TouchableOpacity>
-                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
+                            <TouchableOpacity 
+                                style={[styles.menuItem, styles.menuItemBordered]}
+                                onPress={() => router.push('/(tabs)/(support)/index')}
+                            >
                                 <View style={styles.menuItemLeft}>
                                     <Ionicons name="chatbox-outline" size={22} color={colors.neutral.darkGray} />
                                     <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Contact Support</Text>

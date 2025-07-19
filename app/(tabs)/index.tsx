@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { FlatList, SafeAreaView, StyleSheet, View } from 'react-native';
+import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Text from '../../components/ui/Typography';
 import { borderRadius, spacing, typography } from '../../components/ui/theme';
@@ -19,11 +20,12 @@ const featuredWords = [
 
 // This is the correct way to define options for Expo Router
 export const unstable_settings = {
-  // This tells Expo Router this tab shouldn't appear in the tab bar
-  isHidden: true
+  // This ensures proper routing in the new structure
+  initialRouteName: "index"
 };
 
-export default function TabsIndex() {
+export default function HomeScreen() {
+  const router = useRouter();
   const fade = useSharedValue(0);
   useEffect(() => void (fade.value = withTiming(1, { duration: 600 })), []);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
@@ -47,12 +49,12 @@ export default function TabsIndex() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: spacing.sm }}
           renderItem={({item}) => (
-            <View style={styles.lessonCard}>
+            <TouchableOpacity onPress={() => router.push(`/lesson/${item.id}`)} style={styles.lessonCard}>
               <Text variant="subtitle2" style={styles.lessonTitle}>{item.title}</Text>
               <View style={styles.progressBarContainer}>
                 <View style={[styles.progressBar, { width: `${item.progress}%` }]} />
               </View>
-            </View>
+            </TouchableOpacity>
           )}
         />
         {/* Daily Goal */}
@@ -78,6 +80,41 @@ export default function TabsIndex() {
             </View>
           )}
         />
+        {/* Quick Access Buttons */}
+        <Text variant="h5" style={styles.sectionTitle}>Quick Access</Text>
+        <View style={styles.quickAccessContainer}>
+          <TouchableOpacity 
+            style={styles.quickButton}
+            onPress={() => router.push('/(tabs)/(courses)')}
+          >
+            <Ionicons name="book-outline" size={24} color="#004D40" />
+            <Text variant="body2" style={styles.quickButtonText}>Courses</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickButton}
+            onPress={() => router.push('/(tabs)/(classes)')}
+          >
+            <Ionicons name="people-outline" size={24} color="#004D40" />
+            <Text variant="body2" style={styles.quickButtonText}>Classes</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickButton}
+            onPress={() => router.push('/(tabs)/(quiz)/categories')}
+          >
+            <Ionicons name="help-circle-outline" size={24} color="#004D40" />
+            <Text variant="body2" style={styles.quickButtonText}>Quizzes</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickButton}
+            onPress={() => router.push('/(tabs)/(profile)')}
+          >
+            <Ionicons name="person-outline" size={24} color="#004D40" />
+            <Text variant="body2" style={styles.quickButtonText}>Profile</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
     </SafeAreaView>
   );
@@ -97,5 +134,32 @@ const styles = StyleSheet.create({
   goalContainer: { marginBottom: spacing.lg },
   goalText: { marginBottom: spacing.sm, color:'#004D40', fontFamily:'Poppins' },
   wordCard: { backgroundColor:'#E1BEE7', padding: spacing.md, borderRadius: borderRadius.md, marginRight: spacing.md, alignItems:'center' },
-  wordText: { marginTop: spacing.sm, color:'#4A148C', fontFamily:'Poppins', fontSize:typography.fontSizes.lg }
+  wordText: { marginTop: spacing.sm, color:'#4A148C', fontFamily:'Poppins', fontSize:typography.fontSizes.lg },
+  quickAccessContainer: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap',
+    justifyContent: 'space-between', 
+    marginTop: spacing.sm
+  },
+  quickButton: { 
+    width: '48%',
+    backgroundColor: '#B2DFDB', 
+    padding: spacing.md, 
+    borderRadius: borderRadius.md, 
+    marginBottom: spacing.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1,
+  },
+  quickButtonText: { 
+    marginTop: spacing.sm, 
+    color: '#004D40', 
+    fontFamily: 'Poppins',
+    textAlign: 'center',
+    fontWeight: typography.fontWeights.medium
+  }
 });

@@ -1,9 +1,9 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Text from '../../components/ui/Typography';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Text from '../../../components/ui/Typography';
 
 // Mock data for quiz categories
 const QUIZ_CATEGORIES = [

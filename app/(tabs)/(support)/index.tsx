@@ -1,14 +1,14 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Card from '../../components/ui/Card';
-import Text from '../../components/ui/Typography';
+import Card from '../../../components/ui/Card';
+import Text from '../../../components/ui/Typography';
 
-export default function RecordingPlaybackScreen() {
+export default function HelpSupportScreen() {
   return (
     <View style={styles.container}>
       <Card variant="elevated" style={styles.card}>
-        <Text variant="h2">Recording Playback</Text>
-        <Text variant="body1" style={styles.text}>This is a placeholder for the recording playback screen.</Text>
+        <Text variant="h2">Help & Support</Text>
+        <Text variant="body1" style={styles.text}>This is a placeholder for the help/support screen.</Text>
       </Card>
     </View>
   );

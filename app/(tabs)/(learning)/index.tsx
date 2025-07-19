@@ -2,11 +2,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Button from '../../components/ui/Button';
-import Card from '../../components/ui/Card';
-import Header from '../../components/ui/Header';
-import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
-import Text from '../../components/ui/Typography';
+import Button from '../../../components/ui/Button';
+import Card from '../../../components/ui/Card';
+import Header from '../../../components/ui/Header';
+import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
 
 // Mock data for in-progress courses
 const inProgressCourses = [
@@ -15,7 +15,7 @@ const inProgressCourses = [
     title: 'British Pronunciation Basics',
     progress: 45,
     lastLesson: 'Vowel Sounds',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     nextLessonIn: '2 days'
   },
   {
@@ -23,7 +23,7 @@ const inProgressCourses = [
     title: 'Advanced Conversational English',
     progress: 23,
     lastLesson: 'Small Talk Techniques',
-    image: require('../../assets/images/app-logo.png'),
+    image: require('../../../assets/images/app-logo.png'),
     nextLessonIn: '3 days'
   }
 ];
@@ -115,7 +115,7 @@ export default function MyLearningScreen() {
         title="My Learning" 
         showLogo={true}
         rightIcon={<Ionicons name="settings-outline" size={22} color={colors.neutral.darkGray} />}
-        onRightIconPress={() => router.push('/(tabs)/profile')}
+        onRightIconPress={() => router.push('/(tabs)/(profile)')}
       />
       <ScrollView style={styles.scrollView}>
         <View style={styles.content}>
@@ -202,7 +202,7 @@ export default function MyLearningScreen() {
               <Button
                 title="Browse Courses"
                 variant="primary"
-                onPress={() => router.push('/(tabs)/courses-catalog')}
+                onPress={() => router.push('/(tabs)/(courses)/catalog')}
                 style={styles.emptyStateButton}
               />
             </View>
