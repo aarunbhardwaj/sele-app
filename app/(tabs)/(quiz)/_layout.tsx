@@ -11,6 +11,7 @@ export default function QuizLayout() {
         animation: 'slide_from_right',
       }}
     >
+      <Stack.Screen name="index" options={{ title: 'Quizzes' }} />
       <Stack.Screen name="categories" options={{ title: 'Quiz Categories' }} />
       <Stack.Screen name="history" options={{ title: 'Quiz History' }} />
     </Stack>

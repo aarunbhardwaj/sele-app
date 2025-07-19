@@ -281,7 +281,31 @@ export default function ClassesIndex() {
               style={styles.categoriesContainer}
               contentContainerStyle={styles.categoriesContentContainer}
             >
-              {classCategories.map(category => renderCategoryButton(category))}
+              {classCategories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.categoryButton,
+                    activeCategory === category.id && styles.activeCategory
+                  ]}
+                  onPress={() => setActiveCategory(category.id)}
+                >
+                  <Ionicons 
+                    name={category.icon} 
+                    size={18} 
+                    color={activeCategory === category.id ? colors.neutral.white : colors.neutral.darkGray} 
+                  />
+                  <Text 
+                    variant="caption"
+                    style={[
+                      styles.categoryText,
+                      activeCategory === category.id && styles.activeCategoryText
+                    ]}
+                  >
+                    {category.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </ScrollView>
             
             {/* Upcoming Classes */}

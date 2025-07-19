@@ -69,7 +69,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="(courses)" options={{ href: null }} />
       <Tabs.Screen name="(learning)" options={{ href: null }} />
       <Tabs.Screen name="(support)" options={{ href: null }} />
-      <Tabs.Screen name="(drawer)" options={{ href: null }} />
     </Tabs>
   );
 }

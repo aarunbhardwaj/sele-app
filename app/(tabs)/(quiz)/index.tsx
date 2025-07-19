@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Button from '../../../components/ui/Button';
 import { borderRadius, colors } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
@@ -17,76 +17,82 @@ export default function QuizIndex() {
   const router = useRouter();
   
   return (
-    <View style={styles.container}>
-      <PreAuthHeader title="Quizzes" />
-      
-      <ScrollView style={styles.scrollView}>
-        <View style={styles.content}>
-          <Text variant="h4" style={styles.heading}>Quiz Center</Text>
-          <Text variant="body1" style={styles.subtitle}>
-            Test your knowledge with our interactive quizzes
-          </Text>
-          
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text variant="h3" style={styles.statNumber}>12</Text>
-              <Text variant="caption" style={styles.statLabel}>Completed</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text variant="h3" style={styles.statNumber}>86%</Text>
-              <Text variant="caption" style={styles.statLabel}>Avg. Score</Text>
-            </View>
-          </View>
-          
-          <Text variant="h5" style={styles.sectionTitle}>Categories</Text>
-          
-          <View style={styles.categoriesContainer}>
-            {quizCategories.map((category) => (
-              <TouchableOpacity 
-                key={category.id} 
-                style={[styles.categoryCard, { backgroundColor: category.color }]}
-                onPress={() => router.push(`/(tabs)/(quiz)/categories?initial=${category.id}`)}
-              >
-                <Ionicons name={category.icon} size={32} color="#333333" />
-                <Text variant="subtitle2" style={styles.categoryTitle}>{category.title}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          
-          <Text variant="h5" style={styles.sectionTitle}>Actions</Text>
-          
-          <View style={styles.buttonContainer}>
-            <Button 
-              title="Browse All Categories" 
-              variant="primary"
-              onPress={() => router.push('/(tabs)/(quiz)/categories')}
-              style={styles.button}
-              leftIcon={<Ionicons name="grid-outline" size={20} color="white" />}
-            />
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <PreAuthHeader title="Quizzes" />
+        
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.content}>
+            <Text variant="h4" style={styles.heading}>Quiz Center</Text>
+            <Text variant="body1" style={styles.subtitle}>
+              Test your knowledge with our interactive quizzes
+            </Text>
             
-            <Button 
-              title="My Quiz History" 
-              variant="outline"
-              onPress={() => router.push('/(tabs)/(quiz)/history')}
-              style={styles.button}
-              leftIcon={<Ionicons name="time-outline" size={20} color={colors.primary.main} />}
-            />
+            <View style={styles.statsContainer}>
+              <View style={styles.statCard}>
+                <Text variant="h3" style={styles.statNumber}>12</Text>
+                <Text variant="caption" style={styles.statLabel}>Completed</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Text variant="h3" style={styles.statNumber}>86%</Text>
+                <Text variant="caption" style={styles.statLabel}>Avg. Score</Text>
+              </View>
+            </View>
             
-            <Button 
-              title="Take Practice Quiz" 
-              variant="secondary"
-              onPress={() => router.push('/quiz-interface?mode=practice')}
-              style={styles.button}
-              leftIcon={<Ionicons name="fitness-outline" size={20} color={colors.secondary.main} />}
-            />
+            <Text variant="h5" style={styles.sectionTitle}>Categories</Text>
+            
+            <View style={styles.categoriesContainer}>
+              {quizCategories.map((category) => (
+                <TouchableOpacity 
+                  key={category.id} 
+                  style={[styles.categoryCard, { backgroundColor: category.color }]}
+                  onPress={() => router.push(`/(tabs)/(quiz)/categories?initial=${category.id}`)}
+                >
+                  <Ionicons name={category.icon} size={32} color="#333333" />
+                  <Text variant="subtitle2" style={styles.categoryTitle}>{category.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
+            <Text variant="h5" style={styles.sectionTitle}>Actions</Text>
+            
+            <View style={styles.buttonContainer}>
+              <Button 
+                title="Browse All Categories" 
+                variant="primary"
+                onPress={() => router.push('/(tabs)/(quiz)/categories')}
+                style={styles.button}
+                leftIcon={<Ionicons name="grid-outline" size={20} color="white" />}
+              />
+              
+              <Button 
+                title="My Quiz History" 
+                variant="outline"
+                onPress={() => router.push('/(tabs)/(quiz)/history')}
+                style={styles.button}
+                leftIcon={<Ionicons name="time-outline" size={20} color={colors.primary.main} />}
+              />
+              
+              <Button 
+                title="Take Practice Quiz" 
+                variant="secondary"
+                onPress={() => router.push('/quiz-interface?mode=practice')}
+                style={styles.button}
+                leftIcon={<Ionicons name="fitness-outline" size={20} color={colors.secondary.main} />}
+              />
+            </View>
           </View>
-        </View>
-      </ScrollView>
-    </View>
+        </ScrollView>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: colors.neutral.white,
+  },
   container: {
     flex: 1,
     backgroundColor: colors.neutral.background,
