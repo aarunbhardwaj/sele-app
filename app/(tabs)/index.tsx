@@ -3,9 +3,9 @@ import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
-import PreAuthHeader from '../../components/ui2/pre-auth-header';
 import Text from '../../components/ui/Typography';
 import { borderRadius, spacing, typography } from '../../components/ui/theme';
+import PreAuthHeader from '../../components/ui2/pre-auth-header';
 
 const streakDays = 12;
 const continueLessons = [
