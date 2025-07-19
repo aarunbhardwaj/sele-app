@@ -70,24 +70,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
       
       const currentUser = await appwriteService.getCurrentUser();
-      setUser(currentUser);
-      setIsAuthenticated(true);
       
-      // Check if user is admin to redirect to admin panel
-      const userProfile = await appwriteService.getUserProfile(currentUser.$id);
-      console.log('User logged in:', currentUser.$id);
-      console.log('User profile for routing:', userProfile);
-      
-      // Store admin status in global state
-      const isAdmin = userProfile && userProfile.isAdmin === true;
-      
-      if (isAdmin) {
-        console.log('Detected admin user - redirecting to admin area');
-        // Using replace instead of navigate for more reliable redirection
-        router.replace('/(admin)');
+      // Only proceed if we have a valid user
+      if (currentUser) {
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        
+        // Check if user is admin to redirect to admin panel
+        try {
+          const userProfile = await appwriteService.getUserProfile(currentUser.$id);
+          console.log('User logged in:', currentUser.$id);
+          
+          // Store admin status in global state
+          const isAdmin = userProfile && userProfile.isAdmin === true;
+          
+          // Use setTimeout to avoid React state update issues
+          setTimeout(() => {
+            if (isAdmin) {
+              console.log('Detected admin user - redirecting to admin area');
+              router.replace('/(admin)');
+            } else {
+              console.log('Standard user - redirecting to app');
+              router.replace('/(tabs)');
+            }
+          }, 0);
+        } catch (profileError) {
+          console.error('Error fetching user profile:', profileError);
+          // Default to regular user view on profile fetch error
+          setTimeout(() => router.replace('/(tabs)'), 0);
+        }
       } else {
-        console.log('Standard user - redirecting to app');
-        router.replace('/(tabs)');
+        throw new Error('Could not retrieve user details');
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -145,9 +158,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       setIsLoading(true);
       await appwriteService.logout();
+      
+      // Clear authentication state first
       setUser(null);
       setIsAuthenticated(false);
-      router.replace('/(pre-auth)');
+      
+      // Use setTimeout to avoid React state update issues during navigation
+      setTimeout(() => {
+        router.replace('/(pre-auth)');
+      }, 0);
     } catch (error) {
       console.error('Logout failed:', error);
       Alert.alert('Logout Failed', 'An error occurred while logging out. Please try again.');

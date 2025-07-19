@@ -16,7 +16,7 @@ export default function ClassesIndex() {
         <Header 
           title="Live Classes" 
           showLogo={true}
-          showDrawerToggle={true}
+          showDrawerToggle={false}
         />
         <View style={styles.content}>
           <Text variant="h4" style={styles.heading}>Live Classes</Text>

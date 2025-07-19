@@ -36,7 +36,7 @@ export default function HomeScreen() {
       <Header 
         title="Home" 
         showLogo={true}
-        showDrawerToggle={true}
+        showDrawerToggle={false}
       />
       <Animated.View style={[styles.content, fadeStyle]}>
         {/* Welcome Header */}

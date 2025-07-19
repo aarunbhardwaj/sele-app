@@ -14,6 +14,7 @@ interface HeaderProps {
   rightIcon?: React.ReactNode;
   onRightIconPress?: () => void;
   transparent?: boolean;
+  onMenuPress?: () => void; // Optional custom handler for menu button
 }
 
 const Header: React.FC<HeaderProps> = ({
@@ -24,6 +25,7 @@ const Header: React.FC<HeaderProps> = ({
   rightIcon,
   onRightIconPress,
   transparent = false,
+  onMenuPress,
 }) => {
   const router = useRouter();
   const navigation = useNavigation();
@@ -33,7 +35,24 @@ const Header: React.FC<HeaderProps> = ({
   };
 
   const openDrawer = () => {
-    navigation.dispatch(DrawerActions.openDrawer());
+    // Use custom handler if provided, otherwise try to open drawer safely
+    if (onMenuPress) {
+      onMenuPress();
+      return;
+    }
+    
+    try {
+      // Check if drawer navigation is available
+      if (navigation.getState().type === 'drawer') {
+        navigation.dispatch(DrawerActions.openDrawer());
+      } else {
+        console.warn('Drawer navigation not available');
+        // Could navigate to a menu screen as fallback
+        // router.push('/menu');
+      }
+    } catch (error) {
+      console.warn('Error opening drawer:', error);
+    }
   };
 
   return (

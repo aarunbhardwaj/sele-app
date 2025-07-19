@@ -15,7 +15,7 @@ export default function CoursesIndex() {
         <Header 
           title="Courses" 
           showLogo={true}
-          showDrawerToggle={true}
+          showDrawerToggle={false}
         />
         <View style={styles.content}>
           <Text variant="h4" style={styles.heading}>Courses</Text>

@@ -41,7 +41,7 @@ export default function QuizCategoriesScreen() {
       <Header 
         title="Quiz Categories" 
         showLogo={true}
-        showDrawerToggle={true} 
+        showDrawerToggle={false} 
       />
       <View style={styles.header}>
         <Text variant="h2">Quiz Categories</Text>
