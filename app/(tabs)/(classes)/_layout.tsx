@@ -11,6 +11,7 @@ export default function ClassesLayout() {
         animation: 'slide_from_right',
       }}
     >
+      <Stack.Screen name="index" options={{ title: 'Classes' }} />
       <Stack.Screen name="schedule" options={{ title: 'Class Schedule' }} />
       <Stack.Screen name="booking" options={{ title: 'Book a Class' }} />
       <Stack.Screen name="history" options={{ title: 'Class History' }} />

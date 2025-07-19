@@ -89,7 +89,7 @@ export default function HomeScreen() {
         <View style={styles.quickAccessContainer}>
           <TouchableOpacity 
             style={styles.quickButton}
-            onPress={() => router.push('/(tabs)/(courses)')}
+            onPress={() => router.push('/(tabs)/(courses)/catalog')}
           >
             <Ionicons name="book-outline" size={24} color="#004D40" />
             <Text variant="body2" style={styles.quickButtonText}>Courses</Text>
@@ -113,10 +113,10 @@ export default function HomeScreen() {
           
           <TouchableOpacity 
             style={styles.quickButton}
-            onPress={() => router.push('/(tabs)/(profile)')}
+            onPress={() => router.push('/(tabs)/(learning)/dashboard')}
           >
-            <Ionicons name="person-outline" size={24} color="#004D40" />
-            <Text variant="body2" style={styles.quickButtonText}>Profile</Text>
+            <Ionicons name="analytics-outline" size={24} color="#004D40" />
+            <Text variant="body2" style={styles.quickButtonText}>Progress</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>

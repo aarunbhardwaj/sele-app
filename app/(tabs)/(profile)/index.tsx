@@ -446,6 +446,84 @@ const Profile = () => {
                         </View>
                     )}
 
+                    {/* Learning & Courses */}
+                    <View style={styles.sectionContainer}>
+                        <Text variant="h5" style={styles.sectionTitle}>Learning</Text>
+                        <Card style={styles.sectionCard}>
+                            <TouchableOpacity 
+                                style={[styles.menuItem, styles.menuItemBordered]}
+                                onPress={() => router.push('/(tabs)/(courses)/catalog')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="book-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Course Catalog</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={[styles.menuItem, styles.menuItemBordered]}
+                                onPress={() => router.push('/(tabs)/(courses)/enrolled')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="library-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>My Courses</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={[styles.menuItem, styles.menuItemBordered]}
+                                onPress={() => router.push('/(tabs)/(learning)/dashboard')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="analytics-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Learning Progress</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.menuItem}
+                                onPress={() => router.push('/(tabs)/(learning)/preferences')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="options-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Learning Preferences</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                        </Card>
+                    </View>
+                    
+                    {/* Practice & Assessment */}
+                    <View style={styles.sectionContainer}>
+                        <Text variant="h5" style={styles.sectionTitle}>Practice & Assessment</Text>
+                        <Card style={styles.sectionCard}>
+                            <TouchableOpacity 
+                                style={[styles.menuItem, styles.menuItemBordered]}
+                                onPress={() => router.push('/(tabs)/(classes)/schedule')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="calendar-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Class Schedule</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                            
+                            <TouchableOpacity 
+                                style={styles.menuItem}
+                                onPress={() => router.push('/(tabs)/(quiz)/categories')}
+                            >
+                                <View style={styles.menuItemLeft}>
+                                    <Ionicons name="help-circle-outline" size={22} color={colors.neutral.darkGray} />
+                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Take a Quiz</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                            </TouchableOpacity>
+                        </Card>
+                    </View>
+                    
                     {/* Settings */}
                     <View style={styles.sectionContainer}>
                         <Text variant="h5" style={styles.sectionTitle}>Settings</Text>
