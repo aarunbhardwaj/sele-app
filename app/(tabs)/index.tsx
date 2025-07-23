@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { FlatList, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Text from '../../components/ui/Typography';
-import { borderRadius, spacing, typography } from '../../components/ui/theme';
+import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
 import PreAuthHeader from '../../components/ui2/pre-auth-header';
 
 const streakDays = 12;
@@ -125,7 +125,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex:1, backgroundColor: '#E0F7FA' /* light blue pastel */ },
+  container: { flex:1, backgroundColor: colors.neutral.white },
   content: { flex:1, padding: spacing.lg },
   welcomeText: { color: '#00796B', fontFamily: 'Poppins', marginBottom: spacing.md },
   streakCard: { flexDirection:'row', alignItems:'center', backgroundColor:'#B2DFDB', padding:spacing.sm, borderRadius:borderRadius.md, marginBottom:spacing.lg },

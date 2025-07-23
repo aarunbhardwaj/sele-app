@@ -1,14 +1,14 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import Card from '../../components/ui/Card';
-import Text from '../../components/ui/Typography';
+import Card from '../../../components/ui/Card';
+import Text from '../../../components/ui/Typography';
 
-export default function UploadContentScreen() {
+export default function ClassSchedulerScreen() {
   return (
     <View style={styles.container}>
       <Card variant="elevated" style={styles.card}>
-        <Text variant="h2">Upload Content</Text>
-        <Text variant="body1" style={styles.text}>This is a placeholder for the upload content screen.</Text>
+        <Text variant="h2">Class Scheduler</Text>
+        <Text variant="body1" style={styles.text}>This is a placeholder for the class scheduler screen.</Text>
       </Card>
     </View>
   );

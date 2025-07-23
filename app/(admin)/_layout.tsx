@@ -3,16 +3,20 @@ import { Tabs, useRouter } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { DrawerLayoutAndroid, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography } from '../../components/ui/theme';
-import Footer from '../../components/ui2/Footer';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
 
-const adminMenuItems = [
-  { label: 'Dashboard', icon: 'grid-outline', route: '/(admin)/index' },
-  { label: 'Users', icon: 'people-outline', route: '/(admin)/users' },
-  { label: 'Content', icon: 'book-outline', route: '/(admin)/course-library' },
-  { label: 'Classes', icon: 'videocam-outline', route: '/(admin)/class-scheduler' },
-  { label: 'Analytics', icon: 'bar-chart-outline', route: '/(admin)/analytics' },
+// Navigation items for our tabs and drawer
+const navigationItems = [
+  { label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/(admin)/(dashboard)/index' },
+  { label: 'Users', icon: 'people-outline', activeIcon: 'people', route: '/(admin)/(users)/index' },
+  { label: 'Courses', icon: 'book-outline', activeIcon: 'book', route: '/(admin)/(courses)/index' },
+  { label: 'Analytics', icon: 'bar-chart-outline', activeIcon: 'bar-chart', route: '/(admin)/(analytics)/index' },
+];
+
+// Additional items only for drawer menu
+const drawerOnlyItems = [
+  { label: 'Classes', icon: 'videocam-outline', route: '/(admin)/(classes)/class-scheduler' },
   { label: 'Settings', icon: 'settings-outline', route: '/(admin)/settings' },
   { label: 'Help & Support', icon: 'help-buoy-outline', route: '/(admin)/help-support' },
 ];
@@ -53,7 +57,6 @@ export default function AdminLayout() {
     }
   };
 
-  // Fixed: Simple drawer-first navigation without unnecessary async complexity
   const handleNavigation = (route: string) => {
     if (isNavigating) return;
     setIsNavigating(true);
@@ -63,7 +66,6 @@ export default function AdminLayout() {
       drawer.current.closeDrawer();
     }
     
-    // Navigate after drawer close animation completes
     setTimeout(() => {
       router.push(route as any);
       setIsNavigating(false);
@@ -74,12 +76,10 @@ export default function AdminLayout() {
     if (isNavigating) return;
     setIsNavigating(true);
     
-    // Close drawer first
     if (drawer.current) {
       drawer.current.closeDrawer();
     }
     
-    // Execute logout after drawer closes
     setTimeout(() => {
       logout();
       setIsNavigating(false);
@@ -99,7 +99,8 @@ export default function AdminLayout() {
   const renderDrawer = () => (
     <SafeAreaView style={styles.drawerContainer}>
       <Text style={styles.drawerTitle}>Admin Menu</Text>
-      {adminMenuItems.map((item) => (
+      
+      {navigationItems.map((item) => (
         <TouchableOpacity
           key={item.label}
           style={styles.drawerItem}
@@ -110,6 +111,19 @@ export default function AdminLayout() {
           <Text style={styles.drawerLabel}>{item.label}</Text>
         </TouchableOpacity>
       ))}
+      
+      {drawerOnlyItems.map((item) => (
+        <TouchableOpacity
+          key={item.label}
+          style={styles.drawerItem}
+          onPress={() => handleNavigation(item.route)}
+          disabled={isNavigating}
+        >
+          <Ionicons name={item.icon as any} size={22} color={colors.primary.main} style={styles.drawerIcon} />
+          <Text style={styles.drawerLabel}>{item.label}</Text>
+        </TouchableOpacity>
+      ))}
+      
       <TouchableOpacity
         style={[styles.drawerItem, { marginTop: 24 }]}
         onPress={handleLogout}
@@ -121,7 +135,6 @@ export default function AdminLayout() {
     </SafeAreaView>
   );
 
-  // Show loading state
   if (isLoading || checkingAdmin) {
     return (
       <View style={styles.loadingContainer}>
@@ -138,155 +151,96 @@ export default function AdminLayout() {
     );
   }
 
-  // Android DrawerLayout
-  if (Platform.OS === 'android') {
-    return (
-      <DrawerLayoutAndroid
-        ref={drawer}
-        drawerWidth={260}
-        drawerPosition="left"
-        renderNavigationView={renderDrawer}
-        onDrawerOpen={() => setDrawerOpen(true)}
-        onDrawerClose={() => setDrawerOpen(false)}
-      >
-        <>
-          <Tabs
-            screenOptions={({ route }) => ({
-              tabBarStyle: styles.tabBar,
-              tabBarActiveTintColor: colors.primary.main, // Changed to match pre-auth
-              tabBarInactiveTintColor: colors.neutral.darkGray, // Changed to match pre-auth
-              tabBarShowLabel: true,
-              headerShown: true,
-              headerStyle: styles.headerStyle,
-              headerTintColor: colors.neutral.white,
-              headerTitleStyle: styles.headerTitle,
-              headerTitle: 'Admin Panel',
-              headerLeft: () => (
-                <TouchableOpacity 
-                  onPress={handleDrawerToggle} 
-                  style={{ marginLeft: 16 }}
-                  disabled={isNavigating}
-                >
-                  <Ionicons name="menu-outline" size={28} color={colors.neutral.white} />
-                </TouchableOpacity>
-              ),
-              headerRight: () => (
-                <TouchableOpacity
-                  onPress={handleLogout}
-                  style={{ marginRight: 16, padding: 8, backgroundColor: colors.status.error, borderRadius: 6 }}
-                  disabled={isNavigating}
-                >
-                  <Ionicons name="log-out-outline" size={22} color={colors.neutral.white} />
-                </TouchableOpacity>
-              ),
-              tabBarLabelStyle: styles.tabBarLabel,
-              tabBarItemStyle: styles.tabBarItem,
-              tabBarIcon: ({ color, size, focused }) => {
-                let iconName: any = 'grid-outline';
-                if (route.name === 'index') {
-                  iconName = focused ? 'grid' : 'grid-outline';
-                } else if (route.name === 'users') {
-                  iconName = focused ? 'people' : 'people-outline';
-                } else if (route.name === 'roles') {
-                  iconName = focused ? 'key' : 'key-outline';
-                } else if (route.name === 'courses') {
-                  iconName = focused ? 'book' : 'book-outline';
-                } else if (route.name === 'lessons') {
-                  iconName = focused ? 'document-text' : 'document-text-outline';
-                } else if (route.name === 'exercises') {
-                  iconName = focused ? 'fitness' : 'fitness-outline';
-                } else if (route.name === 'analytics') {
-                  iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-                }
-                return (
-                  <View style={styles.iconContainer}>
-                    <Ionicons name={iconName} size={size} color={color} />
-                    {focused && <View style={styles.activeIndicator} />}
-                  </View>
-                );
-              },
-            })}
-          >
-            <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
-            <Tabs.Screen name="users" options={{ title: 'Users' }} />
-            <Tabs.Screen name="roles" options={{ title: 'Roles', tabBarItemStyle: { display: 'none' }, tabBarLabelStyle: { display: 'none' } }} />
-            <Tabs.Screen name="courses" options={{ title: 'Courses' }} />
-            <Tabs.Screen name="lessons" options={{ title: 'Lessons' }} />
-            <Tabs.Screen name="exercises" options={{ title: 'Exercises', tabBarItemStyle: { display: 'none' }, tabBarLabelStyle: { display: 'none' } }} />
-            <Tabs.Screen name="analytics" options={{ title: 'Analytics' }} />
-          </Tabs>
-          <Footer
-            options={[
-              { label: 'Dashboard', onPress: () => handleNavigation('/(admin)/index') },
-              { label: 'Settings', onPress: () => handleNavigation('/(admin)/settings') },
-              { label: 'Log out', onPress: handleLogout },
-            ]}
-          />
-        </>
-      </DrawerLayoutAndroid>
-    );
-  }
-
-  // iOS/web fallback: just render Tabs, but you can add a modal drawer if needed
+  // Using Stack instead of Tabs for the main navigation structure
   return (
     <>
-      <Tabs
-        screenOptions={({ route }) => ({
-          tabBarStyle: styles.tabBar,
-          tabBarActiveTintColor: colors.primary.main, // Changed to match pre-auth
-          tabBarInactiveTintColor: colors.neutral.darkGray, // Changed to match pre-auth
-          tabBarShowLabel: true,
-          headerShown: true,
-          headerStyle: styles.headerStyle,
-          headerTintColor: colors.neutral.white,
-          headerTitleStyle: styles.headerTitle,
-          headerTitle: 'Admin Panel',
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleLogout}
-              style={{ marginRight: 16, padding: 8, backgroundColor: colors.status.error, borderRadius: 6 }}
-              disabled={isNavigating}
-            >
-              <Ionicons name="log-out-outline" size={22} color={colors.neutral.white} />
-            </TouchableOpacity>
-          ),
-          tabBarLabelStyle: styles.tabBarLabel,
-          tabBarItemStyle: styles.tabBarItem,
-          tabBarIcon: ({ color, size, focused }) => {
-            let iconName: any = 'grid-outline';
-            if (route.name === 'index') {
-              iconName = focused ? 'grid' : 'grid-outline';
-            } else if (route.name === 'users') {
-              iconName = focused ? 'people' : 'people-outline';
-            } else if (route.name === 'roles') {
-              iconName = focused ? 'key' : 'key-outline';
-            } else if (route.name === 'courses') {
-              iconName = focused ? 'book' : 'book-outline';
-            } else if (route.name === 'lessons') {
-              iconName = focused ? 'document-text' : 'document-text-outline';
-            } else if (route.name === 'exercises') {
-              iconName = focused ? 'fitness' : 'fitness-outline';
-            } else if (route.name === 'analytics') {
-              iconName = focused ? 'bar-chart' : 'bar-chart-outline';
-            }
-            return (
-              <View style={styles.iconContainer}>
-                <Ionicons name={iconName} size={size} color={color} />
-                {focused && <View style={styles.activeIndicator} />}
-              </View>
-            );
-          },
-        })}
-      >
-        <Tabs.Screen name="index" options={{ title: 'Dashboard' }} />
-        <Tabs.Screen name="users" options={{ title: 'Users' }} />
-        <Tabs.Screen name="roles" options={{ title: 'Roles', tabBarItemStyle: { display: 'none' }, tabBarLabelStyle: { display: 'none' } }} />
-        <Tabs.Screen name="courses" options={{ title: 'Courses' }} />
-        <Tabs.Screen name="lessons" options={{ title: 'Lessons' }} />
-        <Tabs.Screen name="exercises" options={{ title: 'Exercises', tabBarItemStyle: { display: 'none' }, tabBarLabelStyle: { display: 'none' } }} />
-        <Tabs.Screen name="analytics" options={{ title: 'Analytics' }} />
-      </Tabs>
+      {Platform.OS === 'android' ? (
+        <DrawerLayoutAndroid
+          ref={drawer}
+          drawerWidth={260}
+          drawerPosition="left"
+          renderNavigationView={renderDrawer}
+          onDrawerOpen={() => setDrawerOpen(true)}
+          onDrawerClose={() => setDrawerOpen(false)}
+        >
+          <AdminTabs />
+        </DrawerLayoutAndroid>
+      ) : (
+        <AdminTabs />
+      )}
     </>
+  );
+}
+
+// Separate component for tabs to ensure clean implementation
+function AdminTabs() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.neutral.darkGray,
+        tabBarShowLabel: true,
+        // Hide all screens from tab bar by default
+        tabBarItemStyle: { display: 'none' }
+      }}
+    >
+      <Tabs.Screen 
+        name="index" 
+        options={{
+          title: 'Dashboard',
+          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'grid' : 'grid-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="(users)" 
+        options={{
+          title: 'Users',
+          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="(courses)" 
+        options={{
+          title: 'Courses',
+          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="(analytics)" 
+        options={{
+          title: 'Analytics',
+          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'bar-chart' : 'bar-chart-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      {/* These screens will exist for routing but be hidden in the tab bar */}
+      <Tabs.Screen name="(classes)" />
+      <Tabs.Screen name="(quiz)" />
+      <Tabs.Screen name="(dashboard)" />
+    </Tabs>
+  );
+}
+
+// Helper component for tab bar icons
+function TabBarIcon({ name, color, focused }: { name: any; color: string; focused: boolean }) {
+  return (
+    <View style={styles.iconContainer}>
+      <Ionicons name={name} size={24} color={color} />
+      {focused && <View style={styles.activeIndicator} />}
+    </View>
   );
 }
 
@@ -302,9 +256,8 @@ const styles = StyleSheet.create({
     color: colors.primary.main,
     fontWeight: typography.fontWeights.medium as any
   },
-  // Updated to match pre-auth styling
   tabBar: {
-    backgroundColor: colors.primary.veryLightBlue, // Changed to match pre-auth
+    backgroundColor: colors.primary.veryLightBlue,
     borderTopWidth: 1,
     borderTopColor: colors.neutral.lightGray,
     height: 60,
@@ -317,21 +270,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 5,
-  },
-  headerStyle: {
-    backgroundColor: colors.primary.main,
-    shadowColor: colors.neutral.black,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 5,
-  },
-  headerTitle: {
-    fontWeight: typography.fontWeights.bold as any,
-    fontSize: typography.fontSizes.lg
   },
   tabBarItem: {
     paddingVertical: spacing.xs,
@@ -354,7 +292,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: colors.secondary.main, // Consistent with your existing style
+    backgroundColor: colors.secondary.main,
   },
   drawerContainer: {
     flex: 1,

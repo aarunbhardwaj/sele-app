@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../../components/ui/theme';
-import PreAuthHeader from '../../components/ui2/pre-auth-header';
-import appwriteService from '../../services/appwrite';
-import { useAuth } from '../../services/AuthContext';
+import { colors } from '../../../components/ui/theme';
+import PreAuthHeader from '../../../components/ui2/pre-auth-header';
+import appwriteService from '../../../services/appwrite';
+import { useAuth } from '../../../services/AuthContext';
 
 interface AnalyticsData {
   totalUsers: number;
