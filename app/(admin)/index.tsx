@@ -1,50 +1,73 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../components/ui/theme';
 import PreAuthHeader from '../../components/ui2/pre-auth-header';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
 
-interface AnalyticsData {
-  totalUsers: number;
-  activeUsers: number;
-  totalCourses: number;
-  totalLessons: number;
-  totalExercises: number;
-  usersByLevel: {
-    beginner: number;
-    intermediate: number;
-    advanced: number;
-  };
-  completionRate: number;
-  averageScore: number;
-  mostPopularCourse: string;
-  mostActiveUser: string;
+// Define the feature card interface
+interface AdminFeatureCardProps {
+  title: string;
+  description: string;
+  icon: any;
+  route: string;
+  color?: string;
+  badge?: number | string;
 }
 
-export default function AdminDashboard() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [showingAnalytics, setShowingAnalytics] = useState(false);
-  const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
-    totalUsers: 0,
-    activeUsers: 0,
-    totalCourses: 0,
-    totalLessons: 0,
-    totalExercises: 0,
-    usersByLevel: {
-      beginner: 0,
-      intermediate: 0,
-      advanced: 0,
-    },
-    completionRate: 0,
-    averageScore: 0,
-    mostPopularCourse: '',
-    mostActiveUser: '',
-  });
+// Feature Card Component
+const AdminFeatureCard = ({ 
+  title, 
+  description, 
+  icon, 
+  route, 
+  color = colors.primary.main,
+  badge
+}: AdminFeatureCardProps) => {
+  const router = useRouter();
+  
+  return (
+    <TouchableOpacity 
+      style={styles.featureCard} 
+      onPress={() => {
+        // Fix route pattern: Remove trailing '/index' and use proper format
+        const fixedRoute = route.endsWith('/index') 
+          ? route.substring(0, route.length - 6) 
+          : route;
+        router.push(fixedRoute);
+      }}
+    >
+      <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
+        <Ionicons name={icon} size={28} color={color} />
+        {badge && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+      </View>
+      <View style={styles.cardContent}>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardDescription}>{description}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={colors.neutral.gray} />
+    </TouchableOpacity>
+  );
+};
 
-  const screenWidth = Dimensions.get('window').width;
+// Main Component
+export default function AdminControlCenter() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  
+  // Stats data state
+  const [stats, setStats] = useState([
+    { number: 2, label: 'Roles' },
+    { number: 5, label: 'Users' },
+    { number: 12, label: 'Courses' }
+  ]);
 
   useEffect(() => {
     loadDashboardData();
@@ -58,9 +81,6 @@ export default function AdminDashboard() {
       const users = await appwriteService.getAllUsers();
       const totalUsers = users.length;
       
-      // Get active users (mock calculation)
-      const activeUsers = Math.floor(totalUsers * 0.6);
-      
       // Get courses
       const courses = await appwriteService.getAllCourses();
       const totalCourses = courses.length;
@@ -73,37 +93,6 @@ export default function AdminDashboard() {
       } catch (error) {
         console.log("Couldn't load roles, using default value");
       }
-      
-      // Mock data for analytics
-      const usersByLevel = {
-        beginner: Math.floor(totalUsers * 0.5),
-        intermediate: Math.floor(totalUsers * 0.3),
-        advanced: Math.floor(totalUsers * 0.2),
-      };
-      
-      const totalLessons = totalCourses * 5; // Assume 5 lessons per course
-      const totalExercises = totalLessons * 3; // Assume 3 exercises per lesson
-      const completionRate = 68; // 68%
-      const averageScore = 72; // 72/100
-      
-      // Most popular course
-      const mostPopularCourse = courses.length > 0 ? courses[0].title : 'None';
-      
-      // Most active user
-      const mostActiveUser = users.length > 0 ? users[0].displayName || 'Unknown' : 'None';
-      
-      setAnalyticsData({
-        totalUsers,
-        activeUsers,
-        totalCourses,
-        totalLessons,
-        totalExercises,
-        usersByLevel,
-        completionRate,
-        averageScore,
-        mostPopularCourse,
-        mostActiveUser,
-      });
 
       // Update the stat cards with real data
       setStats([
@@ -118,16 +107,11 @@ export default function AdminDashboard() {
     }
   };
 
-  // State for the stats cards
-  const [stats, setStats] = useState([
-    { number: 2, label: 'Roles' },
-    { number: 5, label: 'Users' },
-    { number: 12, label: 'Courses' }
-  ]);
-
-  const renderDashboard = () => (
+  // Admin Navigation Dashboard
+  const renderAdminNavigation = () => (
     <>
       <View style={styles.welcomeSection}>
+        <Text style={styles.welcomeTitle}>Admin Control Center</Text>
         <Text style={styles.headerSubtitle}>Welcome, {user?.name || 'Admin'}</Text>
       </View>
       
@@ -140,40 +124,83 @@ export default function AdminDashboard() {
         ))}
       </View>
       
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
-      <View style={styles.actionsGrid}>
-        <TouchableOpacity 
-          style={styles.actionCard} 
-          onPress={() => console.log('Manage roles')}
-        >
-          <Ionicons name="key-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Manage Roles</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionCard} 
-          onPress={() => console.log('Manage users')}
-        >
-          <Ionicons name="people-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Manage Users</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionCard} 
-          onPress={() => setShowingAnalytics(true)}
-        >
-          <Ionicons name="bar-chart-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Analytics</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionCard} 
-          onPress={() => console.log('System settings')}
-        >
-          <Ionicons name="settings-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Settings</Text>
-        </TouchableOpacity>
-      </View>
+      <Text style={styles.sectionTitle}>Administration</Text>
+      
+      {/* Dashboard */}
+      <AdminFeatureCard
+        title="Dashboard & Analytics"
+        description="View system metrics and performance data"
+        icon="pie-chart-outline"
+        route="/(admin)/(dashboard)/index"
+        color="#3B82F6"
+      />
+      
+      {/* Courses */}
+      <AdminFeatureCard
+        title="Course Management"
+        description="Create, edit, and manage courses"
+        icon="book-outline"
+        route="/(admin)/(courses)/index"
+        color="#8B5CF6"
+        badge="New"
+      />
+      
+      {/* Classes */}
+      <AdminFeatureCard
+        title="Class Management"
+        description="Schedule and manage live classes"
+        icon="calendar-outline"
+        route="/(admin)/(classes)/index"
+        color="#10B981"
+      />
+      
+      {/* Users */}
+      <AdminFeatureCard
+        title="User Management"
+        description="Manage accounts, roles, and permissions"
+        icon="people-outline"
+        route="/(admin)/(users)/index"
+        color="#F59E0B"
+        badge={3}
+      />
+      
+      {/* Quiz */}
+      <AdminFeatureCard
+        title="Quiz Management"
+        description="Create and manage language assessments"
+        icon="help-circle-outline"
+        route="/(admin)/(quiz)/index"
+        color="#EC4899"
+      />
+      
+      {/* Analytics */}
+      <AdminFeatureCard
+        title="Advanced Analytics"
+        description="In-depth system and learning analytics"
+        icon="stats-chart-outline"
+        route="/(admin)/(analytics)/index"
+        color="#14B8A6"
+      />
+      
+      <Text style={styles.sectionTitle}>System</Text>
+      
+      {/* Settings */}
+      <AdminFeatureCard
+        title="System Settings"
+        description="Configure platform settings and options"
+        icon="settings-outline"
+        route="/(admin)/(settings)/index"
+        color="#6B7280"
+      />
+      
+      {/* Help & Support */}
+      <AdminFeatureCard
+        title="Help & Support"
+        description="Documentation and support resources"
+        icon="help-outline"
+        route="/(admin)/(support)/index"
+        color="#6B7280"
+      />
       
       <Text style={styles.sectionTitle}>Recent Activity</Text>
       <View style={styles.activityList}>
@@ -188,7 +215,7 @@ export default function AdminDashboard() {
         <View style={styles.activityItem}>
           <View style={styles.activityDot}></View>
           <View>
-            <Text style={styles.activityText}>Course "React Basics" published</Text>
+            <Text style={styles.activityText}>Course "Beginner Spanish" published</Text>
             <Text style={styles.activityTime}>Yesterday, 10:15 AM</Text>
           </View>
         </View>
@@ -204,193 +231,12 @@ export default function AdminDashboard() {
     </>
   );
 
-  const renderAnalytics = () => (
-    <>
-      <View style={styles.welcomeSection}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Text style={styles.headerSubtitle}>Platform performance metrics</Text>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => setShowingAnalytics(false)}
-          >
-            <Ionicons name="arrow-back" size={24} color="#3B82F6" />
-          </TouchableOpacity>
-        </View>
-      </View>
-      
-      {/* Key Metrics */}
-      <View style={styles.analyticsRow}>
-        {/* Total Users */}
-        <View style={styles.analyticsCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="people" size={24} color="#3B82F6" />
-            <Text style={{ color: '#3B82F6', fontSize: 12 }}>Total</Text>
-          </View>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{analyticsData.totalUsers}</Text>
-          <Text style={{ color: '#6B7280' }}>Users</Text>
-        </View>
-        
-        {/* Active Users */}
-        <View style={styles.analyticsCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="people-circle" size={24} color="#10B981" />
-            <Text style={{ color: '#10B981', fontSize: 12 }}>Active</Text>
-          </View>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{analyticsData.activeUsers}</Text>
-          <Text style={{ color: '#6B7280' }}>Active Users</Text>
-        </View>
-      </View>
-      
-      <View style={styles.analyticsRow}>
-        {/* Total Courses */}
-        <View style={styles.analyticsCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="book" size={24} color="#8B5CF6" />
-            <Text style={{ color: '#8B5CF6', fontSize: 12 }}>Total</Text>
-          </View>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{analyticsData.totalCourses}</Text>
-          <Text style={{ color: '#6B7280' }}>Courses</Text>
-        </View>
-        
-        {/* Completion Rate */}
-        <View style={styles.analyticsCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <Ionicons name="checkmark-circle" size={24} color="#F59E0B" />
-            <Text style={{ color: '#F59E0B', fontSize: 12 }}>Rate</Text>
-          </View>
-          <Text style={{ fontSize: 24, fontWeight: 'bold' }}>{analyticsData.completionRate}%</Text>
-          <Text style={{ color: '#6B7280' }}>Completion Rate</Text>
-        </View>
-      </View>
-      
-      {/* User Levels Distribution */}
-      <View style={[styles.analyticsFullCard, { marginTop: 8 }]}>
-        <Text style={styles.cardTitle}>User Levels Distribution</Text>
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ color: '#4B5563' }}>Beginner</Text>
-            <Text style={{ color: '#4B5563' }}>{analyticsData.usersByLevel.beginner} users</Text>
-          </View>
-          <View style={{ backgroundColor: '#E5E7EB', borderRadius: 10, height: 10 }}>
-            <View 
-              style={{
-                backgroundColor: '#10B981',
-                borderRadius: 10,
-                height: 10,
-                width: `${(analyticsData.usersByLevel.beginner / analyticsData.totalUsers) * 100}%`
-              }}
-            />
-          </View>
-        </View>
-        <View style={{ marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ color: '#4B5563' }}>Intermediate</Text>
-            <Text style={{ color: '#4B5563' }}>{analyticsData.usersByLevel.intermediate} users</Text>
-          </View>
-          <View style={{ backgroundColor: '#E5E7EB', borderRadius: 10, height: 10 }}>
-            <View 
-              style={{
-                backgroundColor: '#3B82F6',
-                borderRadius: 10,
-                height: 10,
-                width: `${(analyticsData.usersByLevel.intermediate / analyticsData.totalUsers) * 100}%`
-              }}
-            />
-          </View>
-        </View>
-        <View>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={{ color: '#4B5563' }}>Advanced</Text>
-            <Text style={{ color: '#4B5563' }}>{analyticsData.usersByLevel.advanced} users</Text>
-          </View>
-          <View style={{ backgroundColor: '#E5E7EB', borderRadius: 10, height: 10 }}>
-            <View 
-              style={{
-                backgroundColor: '#8B5CF6',
-                borderRadius: 10,
-                height: 10,
-                width: `${(analyticsData.usersByLevel.advanced / analyticsData.totalUsers) * 100}%`
-              }}
-            />
-          </View>
-        </View>
-      </View>
-      
-      {/* Content Statistics */}
-      <View style={styles.analyticsFullCard}>
-        <Text style={styles.cardTitle}>Content Statistics</Text>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 16 }}>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#3B82F6' }}>{analyticsData.totalCourses}</Text>
-            <Text style={{ color: '#6B7280', marginTop: 4 }}>Courses</Text>
-          </View>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#10B981' }}>{analyticsData.totalLessons}</Text>
-            <Text style={{ color: '#6B7280', marginTop: 4 }}>Lessons</Text>
-          </View>
-          <View style={{ alignItems: 'center' }}>
-            <Text style={{ fontSize: 28, fontWeight: 'bold', color: '#8B5CF6' }}>{analyticsData.totalExercises}</Text>
-            <Text style={{ color: '#6B7280', marginTop: 4 }}>Exercises</Text>
-          </View>
-        </View>
-      </View>
-      
-      {/* Performance Metrics */}
-      <View style={styles.analyticsFullCard}>
-        <Text style={styles.cardTitle}>Performance Metrics</Text>
-        <View style={{ marginVertical: 16 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ color: '#4B5563' }}>Average Score</Text>
-            <Text style={{ fontWeight: 'bold' }}>{analyticsData.averageScore}/100</Text>
-          </View>
-          <View style={{ backgroundColor: '#E5E7EB', borderRadius: 10, height: 10, marginBottom: 16 }}>
-            <View 
-              style={{
-                backgroundColor: '#3B82F6',
-                borderRadius: 10,
-                height: 10,
-                width: `${analyticsData.averageScore}%`
-              }}
-            />
-          </View>
-          
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
-            <Text style={{ color: '#4B5563' }}>Course Completion</Text>
-            <Text style={{ fontWeight: 'bold' }}>{analyticsData.completionRate}%</Text>
-          </View>
-          <View style={{ backgroundColor: '#E5E7EB', borderRadius: 10, height: 10 }}>
-            <View 
-              style={{
-                backgroundColor: '#10B981',
-                borderRadius: 10,
-                height: 10,
-                width: `${analyticsData.completionRate}%`
-              }}
-            />
-          </View>
-        </View>
-      </View>
-      
-      {/* Top Performers */}
-      <View style={styles.analyticsFullCard}>
-        <Text style={styles.cardTitle}>Top Performers</Text>
-        <View style={{ marginVertical: 12 }}>
-          <Text style={{ color: '#4B5563' }}>Most Popular Course</Text>
-          <Text style={{ fontWeight: 'bold', fontSize: 18, marginBottom: 12 }}>{analyticsData.mostPopularCourse}</Text>
-          
-          <Text style={{ color: '#4B5563' }}>Most Active User</Text>
-          <Text style={{ fontWeight: 'bold', fontSize: 18 }}>{analyticsData.mostActiveUser}</Text>
-        </View>
-      </View>
-    </>
-  );
-
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
           <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={{ color: '#6B7280', marginTop: 16 }}>Loading dashboard...</Text>
+          <Text style={{ color: '#6B7280', marginTop: 16 }}>Loading admin center...</Text>
         </View>
       </SafeAreaView>
     );
@@ -399,15 +245,18 @@ export default function AdminDashboard() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <PreAuthHeader 
-        title={showingAnalytics ? "Analytics Dashboard" : "Admin Dashboard"}
+        title="Admin Control Center"
         rightComponent={
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="settings-outline" size={24} color="#333333" />
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => {}}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#333333" />
           </TouchableOpacity>
         }
       />
       <ScrollView style={styles.container}>
-        {showingAnalytics ? renderAnalytics() : renderDashboard()}
+        {renderAdminNavigation()}
       </ScrollView>
     </SafeAreaView>
   );
@@ -426,15 +275,15 @@ const styles = StyleSheet.create({
   welcomeSection: {
     marginBottom: 20,
   },
+  welcomeTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary.main,
+  },
   headerSubtitle: {
     fontSize: 16,
     color: '#6B7280',
     marginTop: 4,
-  },
-  backButton: {
-    padding: 8,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 20,
   },
   notificationButton: {
     padding: 8,
@@ -476,30 +325,57 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 12,
   },
-  actionsGrid: {
+  featureCard: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  actionCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    width: '48%',
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    marginBottom: 16,
+    padding: 16,
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  actionTitle: {
+  iconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+    position: 'relative',
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+  },
+  badgeText: {
+    color: colors.neutral.white,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  cardContent: {
+    flex: 1,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.text,
+    marginBottom: 4,
+  },
+  cardDescription: {
     fontSize: 14,
-    color: '#4B5563',
-    marginTop: 8,
-    textAlign: 'center',
+    color: colors.neutral.gray,
   },
   activityList: {
     backgroundColor: 'white',
@@ -535,37 +411,4 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 2,
   },
-  // Analytics styles
-  analyticsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  analyticsCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    width: '48%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  analyticsFullCard: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  }
 });

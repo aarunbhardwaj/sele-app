@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors } from '../../../components/ui/theme';
@@ -25,6 +26,7 @@ interface AnalyticsData {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [showingAnalytics, setShowingAnalytics] = useState(false);
   const [analyticsData, setAnalyticsData] = useState<AnalyticsData>({
@@ -144,7 +146,7 @@ export default function AdminDashboard() {
       <View style={styles.actionsGrid}>
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => console.log('Manage roles')}
+          onPress={() => router.push("/(admin)/(users)/roles")}
         >
           <Ionicons name="key-outline" size={32} color="#3B82F6" />
           <Text style={styles.actionTitle}>Manage Roles</Text>
@@ -152,7 +154,7 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => console.log('Manage users')}
+          onPress={() => router.push("/(admin)/(users)/index")}
         >
           <Ionicons name="people-outline" size={32} color="#3B82F6" />
           <Text style={styles.actionTitle}>Manage Users</Text>
@@ -168,7 +170,7 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => console.log('System settings')}
+          onPress={() => router.push("/(admin)/(settings)/index")}
         >
           <Ionicons name="settings-outline" size={32} color="#3B82F6" />
           <Text style={styles.actionTitle}>Settings</Text>
@@ -401,8 +403,11 @@ export default function AdminDashboard() {
       <PreAuthHeader 
         title={showingAnalytics ? "Analytics Dashboard" : "Admin Dashboard"}
         rightComponent={
-          <TouchableOpacity style={styles.notificationButton}>
-            <Ionicons name="settings-outline" size={24} color="#333333" />
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={() => {}}
+          >
+            <Ionicons name="notifications-outline" size={24} color="#333333" />
           </TouchableOpacity>
         }
       />

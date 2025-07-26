@@ -1,22 +1,23 @@
-import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
-import Card from '../../../components/ui/Card';
+import { useRouter } from 'expo-router';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { colors } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
-import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
 export default function AdminDashboardScreen() {
+  const router = useRouter();
+  
+  useEffect(() => {
+    // Redirect to the main dashboard index to avoid duplicate dashboards
+    router.replace('/(admin)/(dashboard)/index');
+  }, []);
+  
   return (
     <SafeAreaView style={styles.safeArea}>
-      <PreAuthHeader title="Admin Dashboard" />
-      <ScrollView style={styles.container}>
-        <View style={styles.contentContainer}>
-          <Card variant="elevated" style={styles.card}>
-            <Text variant="h2">Admin Dashboard</Text>
-            <Text variant="body1" style={styles.text}>This is a placeholder for the admin dashboard screen.</Text>
-          </Card>
-        </View>
-      </ScrollView>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color={colors.primary.main} />
+        <Text variant="body1" style={styles.text}>Redirecting to main dashboard...</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -29,18 +30,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.neutral.background,
-  },
-  contentContainer: {
-    padding: 16,
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  card: { 
-    width: '100%', 
-    padding: 24 
+    padding: 16
   },
   text: { 
-    marginVertical: 16 
-  },
+    marginTop: 16,
+    textAlign: 'center',
+    color: colors.neutral.darkGray
+  }
 });
