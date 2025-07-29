@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
 import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
@@ -29,14 +29,30 @@ export default function CourseLibraryScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterPublished, setFilterPublished] = useState<boolean | null>(null);
+  const [loadError, setLoadError] = useState('');
 
   const fetchCourses = async () => {
     try {
       setLoading(true);
-      const allCourses = await appwriteService.getAllCourses();
-      setCourses(allCourses);
+      setLoadError('');
+      
+      // Add a timeout to prevent infinite loading
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Request timed out after 15 seconds')), 15000)
+      );
+      
+      // Race between the actual request and the timeout
+      const allCourses = await Promise.race([
+        appwriteService.getAllCourses(),
+        timeoutPromise
+      ]);
+      
+      console.log('Courses fetched successfully:', allCourses?.length || 0);
+      setCourses(allCourses || []);
     } catch (error) {
       console.error('Failed to fetch courses:', error);
+      setLoadError(error.message || 'Failed to load courses. Please check your connection.');
+      setCourses([]);
       Alert.alert('Error', 'Failed to load courses. Please try again.');
     } finally {
       setLoading(false);
@@ -158,38 +174,43 @@ export default function CourseLibraryScreen() {
       </TouchableOpacity>
       
       <View style={styles.actionContainer}>
-        <Button 
-          title="View"
-          variant="outline"
+        <TouchableOpacity 
+          style={styles.iconButton}
           onPress={() => router.push(`/(admin)/(courses)/course-details?id=${item.$id}`)}
-          leftIcon={<Ionicons name="eye-outline" size={16} color={colors.secondary.main} />}
-          style={styles.actionButton}
-        />
-        <Button 
-          title="Edit"
-          variant="outline"
+        >
+          <Ionicons name="eye-outline" size={20} color={colors.secondary.main} />
+          <Text variant="caption" style={styles.iconButtonText}>View</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.iconButton}
           onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${item.$id}`)}
-          leftIcon={<Ionicons name="pencil-outline" size={16} color={colors.primary.main} />}
-          style={styles.actionButton}
-        />
-        <Button 
-          title={item.isPublished ? "Unpublish" : "Publish"}
-          variant="outline"
+        >
+          <Ionicons name="pencil-outline" size={20} color={colors.primary.main} />
+          <Text variant="caption" style={styles.iconButtonText}>Edit</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.iconButton}
           onPress={() => handleTogglePublish(item)}
-          leftIcon={<Ionicons 
+        >
+          <Ionicons 
             name={item.isPublished ? "eye-off-outline" : "eye-outline"} 
-            size={16} 
-            color={colors.secondary.main} 
-          />}
-          style={styles.actionButton}
-        />
-        <Button 
-          title="Delete"
-          variant="outline"
+            size={20} 
+            color={colors.secondary.main}
+          />
+          <Text variant="caption" style={styles.iconButtonText}>
+            {item.isPublished ? "Unpub" : "Pub"}
+          </Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.iconButton}
           onPress={() => handleDeleteCourse(item.$id, item.title)}
-          leftIcon={<Ionicons name="trash-outline" size={16} color={colors.status.error} />}
-          style={styles.actionButton}
-        />
+        >
+          <Ionicons name="trash-outline" size={20} color={colors.status.error} />
+          <Text variant="caption" style={styles.iconButtonText}>Delete</Text>
+        </TouchableOpacity>
       </View>
     </Card>
   );
@@ -200,6 +221,20 @@ export default function CourseLibraryScreen() {
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary.main} />
           <Text style={styles.loadingText}>Loading courses...</Text>
+        </View>
+      );
+    }
+
+    if (loadError) {
+      return (
+        <View style={styles.centerContainer}>
+          <Ionicons name="alert-circle-outline" size={64} color={colors.status.error} />
+          <Text style={styles.errorText}>{loadError}</Text>
+          <Button 
+            title="Retry" 
+            onPress={fetchCourses}
+            style={styles.retryButton}
+          />
         </View>
       );
     }
@@ -220,59 +255,66 @@ export default function CourseLibraryScreen() {
 
     return (
       <>
-        <View style={styles.filterContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.filterButton, 
-              filterPublished === null && styles.activeFilter
-            ]}
-            onPress={() => setFilterPublished(null)}
-          >
-            <Text 
-              variant="button" 
-              color={filterPublished === null ? colors.neutral.white : colors.neutral.text}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.filtersScrollView}
+        >
+          <View style={styles.filterContainer}>
+            <TouchableOpacity 
+              style={[
+                styles.filterButton, 
+                filterPublished === null && styles.activeFilter
+              ]}
+              onPress={() => setFilterPublished(null)}
             >
-              All
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.filterButton, 
-              filterPublished === true && styles.activeFilter
-            ]}
-            onPress={() => setFilterPublished(true)}
-          >
-            <Text 
-              variant="button" 
-              color={filterPublished === true ? colors.neutral.white : colors.neutral.text}
+              <Text 
+                variant="button" 
+                color={filterPublished === null ? colors.neutral.white : colors.neutral.text}
+              >
+                All
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.filterButton, 
+                filterPublished === true && styles.activeFilter
+              ]}
+              onPress={() => setFilterPublished(true)}
             >
-              Published
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.filterButton, 
-              filterPublished === false && styles.activeFilter
-            ]}
-            onPress={() => setFilterPublished(false)}
-          >
-            <Text 
-              variant="button" 
-              color={filterPublished === false ? colors.neutral.white : colors.neutral.text}
+              <Text 
+                variant="button" 
+                color={filterPublished === true ? colors.neutral.white : colors.neutral.text}
+              >
+                Published
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[
+                styles.filterButton, 
+                filterPublished === false && styles.activeFilter
+              ]}
+              onPress={() => setFilterPublished(false)}
             >
-              Drafts
-            </Text>
-          </TouchableOpacity>
-          
-          <View style={{ flex: 1 }} />
-          
-          <Button
-            title="+ New Course"
-            onPress={() => router.push('/(admin)/(courses)/course-creator')}
-          />
-        </View>
+              <Text 
+                variant="button" 
+                color={filterPublished === false ? colors.neutral.white : colors.neutral.text}
+              >
+                Drafts
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.newCourseButton}
+              onPress={() => router.push('/(admin)/(courses)/course-creator')}
+            >
+              <Ionicons name="add" size={18} color={colors.neutral.white} />
+              <Text variant="button" color={colors.neutral.white}>New Course</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
         
         <FlatList
           data={filteredCourses}
@@ -341,14 +383,14 @@ const styles = StyleSheet.create({
   filterContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    paddingVertical: spacing.xs,
   },
   filterButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
     borderRadius: borderRadius.full,
     backgroundColor: colors.neutral.lightGray,
-    marginRight: spacing.sm,
+    marginRight: spacing.xs,
   },
   activeFilter: {
     backgroundColor: colors.primary.main,
@@ -424,9 +466,24 @@ const styles = StyleSheet.create({
     borderTopColor: colors.neutral.lightGray,
     paddingTop: spacing.md,
   },
-  actionButton: {
-    marginRight: spacing.sm,
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral.white,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+    marginRight: spacing.xs,
     flex: 1,
+    minWidth: 50,
+  },
+  iconButtonText: {
+    marginTop: 4,
+    fontSize: typography.fontSizes.xs,
+    color: colors.neutral.text,
+    textAlign: 'center',
   },
   centerContainer: {
     flex: 1,
@@ -450,5 +507,25 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 16,
     backgroundColor: '#E5E5E5',
+  },
+  filtersScrollView: {
+    marginBottom: spacing.xs,
+  },
+  newCourseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.primary.main,
+    marginLeft: spacing.xs,
+  },
+  errorText: {
+    color: colors.status.error,
+    marginTop: spacing.md,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: spacing.md,
   },
 });

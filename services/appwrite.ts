@@ -338,16 +338,40 @@ export const appwriteService = {
   
   // Course methods
   getAllCourses: async (filters = []) => {
+    console.log('getAllCourses: Starting request to Appwrite...');
+    console.log('Database ID:', DATABASE_ID);
+    console.log('Courses Collection ID:', COURSES_COLLECTION_ID);
+    
     try {
+      console.log('Sending listDocuments request with filters:', filters);
+      
       const response = await databases.listDocuments(
         DATABASE_ID,
         COURSES_COLLECTION_ID,
         filters
       );
       
+      console.log('getAllCourses: Request successful, received', response.documents.length, 'courses');
       return response.documents;
     } catch (error) {
-      console.error('Appwrite service :: getAllCourses :: error', error);
+      console.error('Appwrite service :: getAllCourses :: error:', error);
+      
+      // More detailed error logging
+      if (error.code) {
+        console.error('Error code:', error.code);
+      }
+      
+      if (error.response) {
+        console.error('Response details:', error.response);
+      }
+      
+      // Check for common issues
+      if (error.message && error.message.includes('Collection not found')) {
+        console.error('Collection not found. Please check your COURSES_COLLECTION_ID:', COURSES_COLLECTION_ID);
+      } else if (error.message && error.message.includes('Database not found')) {
+        console.error('Database not found. Please check your DATABASE_ID:', DATABASE_ID);
+      }
+      
       throw error;
     }
   },

@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
-import { ActivityIndicator } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { colors } from '../../../components/ui/theme';
 
 export default function CoursesIndex() {

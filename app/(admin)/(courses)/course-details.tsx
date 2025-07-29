@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -221,22 +221,26 @@ export default function CourseDetailsScreen() {
             
             <View style={styles.lessonActions}>
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={styles.lessonIconButton}
                 onPress={() => router.push(`/(admin)/(courses)/edit-lesson?id=${lesson.$id}`)}
               >
                 <Ionicons name="pencil-outline" size={18} color={colors.primary.main} />
+                <Text variant="caption" style={styles.lessonIconButtonText}>Edit</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={styles.lessonIconButton}
                 onPress={() => {
                   // Handle viewing the lesson
                   Alert.alert('View Lesson', 'View lesson functionality will be implemented soon.');
                 }}
               >
                 <Ionicons name="eye-outline" size={18} color={colors.secondary.main} />
+                <Text variant="caption" style={styles.lessonIconButtonText}>View</Text>
               </TouchableOpacity>
+              
               <TouchableOpacity 
-                style={styles.actionButton}
+                style={styles.lessonIconButton}
                 onPress={() => {
                   Alert.alert(
                     'Delete Lesson',
@@ -263,6 +267,7 @@ export default function CourseDetailsScreen() {
                 }}
               >
                 <Ionicons name="trash-outline" size={18} color={colors.status.error} />
+                <Text variant="caption" style={styles.lessonIconButtonText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </Card>
@@ -397,23 +402,16 @@ export default function CourseDetailsScreen() {
             </View>
             
             <View style={styles.courseActions}>
-              <Button 
-                title="Edit Course" 
-                variant="outline"
-                leftIcon={<Ionicons name="pencil-outline" size={18} color={colors.primary.main} />}
+              <TouchableOpacity 
+                style={styles.iconButton}
                 onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${course.$id}`)}
-                style={styles.courseActionButton}
-              />
-              <Button 
-                title={course.isPublished ? "Unpublish" : "Publish"} 
-                variant={course.isPublished ? "outline" : "primary"}
-                leftIcon={
-                  <Ionicons 
-                    name={course.isPublished ? "eye-off-outline" : "eye-outline"} 
-                    size={18} 
-                    color={course.isPublished ? colors.secondary.main : colors.neutral.white} 
-                  />
-                }
+              >
+                <Ionicons name="pencil-outline" size={20} color={colors.primary.main} />
+                <Text variant="caption" style={styles.iconButtonText}>Edit</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.iconButton}
                 onPress={async () => {
                   try {
                     const updatedCourse = await appwriteService.updateCourse(course.$id, {
@@ -432,8 +430,24 @@ export default function CourseDetailsScreen() {
                     Alert.alert('Error', 'Failed to update course status');
                   }
                 }}
-                style={styles.courseActionButton}
-              />
+              >
+                <Ionicons 
+                  name={course.isPublished ? "eye-off-outline" : "eye-outline"} 
+                  size={20} 
+                  color={course.isPublished ? colors.secondary.main : colors.secondary.main} 
+                />
+                <Text variant="caption" style={styles.iconButtonText}>
+                  {course.isPublished ? "Unpublish" : "Publish"}
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.iconButton}
+                onPress={() => router.push(`/(admin)/(courses)/lessons?courseId=${course.$id}`)}
+              >
+                <Ionicons name="list-outline" size={20} color={colors.primary.dark} />
+                <Text variant="caption" style={styles.iconButtonText}>Lessons</Text>
+              </TouchableOpacity>
             </View>
             
             <View style={styles.courseDescription}>
@@ -561,10 +575,26 @@ const styles = StyleSheet.create({
     borderTopColor: colors.neutral.lightGray,
     paddingTop: spacing.md,
     marginBottom: spacing.md,
+    justifyContent: 'space-between',
   },
-  courseActionButton: {
+  iconButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.xs,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral.white,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+    marginRight: spacing.xs,
     flex: 1,
-    marginRight: spacing.sm,
+    minWidth: 70,
+  },
+  iconButtonText: {
+    marginTop: 4,
+    fontSize: typography.fontSizes.xs,
+    color: colors.neutral.text,
+    textAlign: 'center',
   },
   courseDescription: {
     marginBottom: spacing.md,
@@ -665,9 +695,21 @@ const styles = StyleSheet.create({
     borderTopColor: colors.neutral.lightGray,
     paddingTop: spacing.sm,
   },
-  actionButton: {
-    padding: spacing.xs,
+  lessonIconButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: borderRadius.md,
     marginLeft: spacing.sm,
+    backgroundColor: colors.neutral.white,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+  },
+  lessonIconButtonText: {
+    marginLeft: spacing.xs,
+    color: colors.primary.main,
+    ...typography.caption,
   },
   emptyState: {
     alignItems: 'center',

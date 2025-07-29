@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography } from '../../../components/ui/theme';
-import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
 interface FeatureCardProps {
   title: string;
@@ -51,110 +50,6 @@ export default function CoursesIndexPage() {
     </SafeAreaView>
   );
   
-  // The rest of the UI won't be displayed because we're redirecting
-  // but keeping it here in case the redirection approach needs to be changed later
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <PreAuthHeader 
-        title="Course Management" 
-        rightComponent={
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => {}}
-          >
-            <Ionicons name="notifications-outline" size={24} color="#333333" />
-          </TouchableOpacity>
-        }
-      />
-      <ScrollView style={styles.container}>
-        <View style={styles.welcome}>
-          <Text style={styles.welcomeSubtitle}>Create, edit, and manage all course content</Text>
-        </View>
-        
-        <View style={styles.contentContainer}>
-          <Text style={styles.sectionTitle}>Course Features</Text>
-          
-          <CourseFeatureCard
-            title="Course Library"
-            description="View and manage all available courses"
-            icon="library-outline"
-            route="/(admin)/(courses)/course-library"
-          />
-          
-          <CourseFeatureCard
-            title="Course Creator"
-            description="Create new courses from scratch"
-            icon="create-outline"
-            route="/(admin)/(courses)/course-creator"
-          />
-          
-          <CourseFeatureCard
-            title="Edit Course"
-            description="Modify existing course content"
-            icon="pencil-outline"
-            route="/(admin)/(courses)/edit-course"
-          />
-          
-          <CourseFeatureCard
-            title="Upload Content"
-            description="Add videos, audio, and documents to courses"
-            icon="cloud-upload-outline"
-            route="/(admin)/(courses)/upload-content"
-          />
-          
-          <CourseFeatureCard
-            title="Curriculum Designer"
-            description="Create and organize course structure"
-            icon="git-branch-outline"
-            route="/(admin)/(courses)/set-curriculum"
-          />
-          
-          <CourseFeatureCard
-            title="Category Management"
-            description="Organize courses into categories"
-            icon="folder-outline"
-            route="/(admin)/(courses)/set-categories"
-          />
-          
-          <CourseFeatureCard
-            title="Instructor Assignment"
-            description="Assign instructors to courses"
-            icon="person-outline"
-            route="/(admin)/(courses)/set-instructor"
-          />
-          
-          <CourseFeatureCard
-            title="Lesson Management"
-            description="Create and edit individual lessons"
-            icon="document-text-outline"
-            route="/(admin)/(courses)/lessons"
-          />
-          
-          <CourseFeatureCard
-            title="Exercise Creator"
-            description="Create interactive language exercises"
-            icon="fitness-outline"
-            route="/(admin)/(courses)/exercises"
-          />
-          
-          <CourseFeatureCard
-            title="Course Publishing"
-            description="Publish or unpublish courses"
-            icon="globe-outline"
-            route="/(admin)/(courses)/publish-course"
-          />
-          
-          <CourseFeatureCard
-            title="Course Analytics"
-            description="View detailed course performance metrics"
-            icon="stats-chart-outline"
-            route="/(admin)/(courses)/course-analytics"
-            color={colors.secondary.main}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
 }
 
 const styles = StyleSheet.create({
