@@ -145,7 +145,8 @@ const roleManagement = {
   getUserRoles: async (userId: string) => {
     try {
       const userProfile = await appwriteService.getUserProfile(userId);
-      if (userProfile && userProfile.roles) {
+      if (userProfile && Array.isArray(userProfile.roles) && userProfile.roles.length > 0) {
+        // Only try to fetch roles if they exist as an array with values
         const roles = await Promise.all(
           userProfile.roles.map(roleId => 
             databases.getDocument(DATABASE_ID, ROLES_COLLECTION_ID, roleId)
@@ -156,7 +157,8 @@ const roleManagement = {
       return [];
     } catch (error) {
       console.error('Appwrite service :: getUserRoles :: error', error);
-      throw error;
+      // Return empty array instead of throwing to make the function more resilient
+      return [];
     }
   }
 };
@@ -361,38 +363,57 @@ export const appwriteService = {
       
       console.log('Current User:', currentUser.$id);
       
-      // Get user's roles and check permissions
-      const userRoles = await appwriteService.getUserRoles(currentUser.$id);
+      // Get user profile - we primarily rely on isAdmin flag
+      const userProfile = await appwriteService.getUserProfile(currentUser.$id);
       
-      // Check if any of the user's roles have 'create:courses' permission
-      const hasCreatePermission = userRoles.some(role => 
-        role.permissions && role.permissions.includes('create:courses')
-      );
-      
-      if (!hasCreatePermission) {
+      // Check permissions - simplify to just check isAdmin flag
+      // since our roles functionality isn't fully implemented yet
+      if (!userProfile || userProfile.isAdmin !== true) {
         throw new Error('User does not have permission to create courses');
       }
       
-      // First create the document payload
+      // Ensure totalLessons is properly converted to a number
+      let totalLessonsValue = 0;
+      if (courseData.totalLessons !== undefined && courseData.totalLessons !== null) {
+        // Handle if it's already a number or a string that needs conversion
+        totalLessonsValue = typeof courseData.totalLessons === 'number' 
+          ? courseData.totalLessons 
+          : parseInt(courseData.totalLessons, 10);
+      }
+      
+      // Create the document payload - omit creatorId as it's not in the schema
       const coursePayload = {
         title: courseData.title,
         description: courseData.description,
         level: courseData.level || 'beginner',
-        duration: courseData.duration || '4 weeks',
+        category: courseData.category || 'general',
+        totalLessons: totalLessonsValue,
+        estimatedDuration: courseData.estimatedDuration || courseData.duration || '4 weeks',
         isPublished: courseData.isPublished || false,
-        coverImage: courseData.coverImage || '',
-        tags: courseData.tags || [],
-        creatorId: currentUser.$id,
+        imageUrl: courseData.imageUrl || '',
+        // Store creator info as metadata if needed
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
       
-      // Create the document - with simple permissions that should work
+      // Add tags if present
+
+      
+      // Debug logging
+      console.log('Course payload being sent to Appwrite:', JSON.stringify(coursePayload, null, 2));
+      console.log('totalLessons value and type:', coursePayload.totalLessons, typeof coursePayload.totalLessons);
+      
+      // Create the document with explicit permissions
       const result = await databases.createDocument(
         DATABASE_ID,
         COURSES_COLLECTION_ID,
         ID.unique(),
-        coursePayload
+        coursePayload,
+        [
+          Permission.read(Role.users()),
+          Permission.update(Role.user(currentUser.$id)),
+          Permission.delete(Role.user(currentUser.$id))
+        ]
       );
       
       console.log('Course created successfully:', result.$id);
@@ -406,14 +427,38 @@ export const appwriteService = {
   
   updateCourse: async (courseId, courseData) => {
     try {
+      // Prepare data for update - handle field mismatches
+      const updateData = { ...courseData };
+      
+      // Convert totalLessons to a number if present
+      if (updateData.totalLessons !== undefined) {
+        updateData.totalLessons = typeof updateData.totalLessons === 'number'
+          ? updateData.totalLessons
+          : parseInt(updateData.totalLessons, 10);
+      }
+      
+      // Handle duration/estimatedDuration field name mismatch
+      if (updateData.duration && !updateData.estimatedDuration) {
+        updateData.estimatedDuration = updateData.duration;
+        delete updateData.duration; // Remove the duration field as it's not in the schema
+      }
+      
+      // Remove tags field as it's not in the Appwrite schema
+      if (updateData.tags) {
+        delete updateData.tags;
+      }
+      
+      // Add updated timestamp
+      updateData.updatedAt = new Date().toISOString();
+      
+      // Log the update data for debugging
+      console.log('Course update data:', JSON.stringify(updateData, null, 2));
+      
       return await databases.updateDocument(
         DATABASE_ID,
         COURSES_COLLECTION_ID,
         courseId,
-        {
-          ...courseData,
-          updatedAt: new Date().toISOString()
-        }
+        updateData
       );
     } catch (error) {
       console.error('Appwrite service :: updateCourse :: error', error);
@@ -515,6 +560,121 @@ export const appwriteService = {
       return response.documents;
     } catch (error) {
       console.error('Appwrite service :: getLessonsByCourse :: error', error);
+      throw error;
+    }
+  },
+  
+  createLesson: async (lessonData) => {
+    try {
+      // Get current user
+      const currentUser = await account.get();
+      
+      if (!currentUser) {
+        throw new Error('User must be logged in to create a lesson');
+      }
+      
+      // Get the course to determine order for new lesson
+      const courseLessons = await appwriteService.getLessonsByCourse(lessonData.courseId);
+      
+      // Calculate next order number (max order + 1 or 1 if no lessons)
+      const nextOrder = courseLessons.length > 0 
+        ? Math.max(...courseLessons.map(lesson => lesson.order || 0)) + 1 
+        : 1;
+      
+      // Convert duration to integer minutes if it's a string
+      let durationInMinutes = 15; // Default 15 minutes
+      if (lessonData.duration) {
+        if (typeof lessonData.duration === 'number') {
+          durationInMinutes = lessonData.duration;
+        } else if (typeof lessonData.duration === 'string') {
+          // Try to extract number from string like "15 minutes"
+          const match = lessonData.duration.match(/(\d+)/);
+          if (match && match[1]) {
+            durationInMinutes = parseInt(match[1], 10);
+          }
+        }
+      }
+      
+      // Create the document payload
+      const lessonPayload = {
+        title: lessonData.title,
+        content: lessonData.content || '',
+        description: lessonData.description || lessonData.content?.substring(0, 100) + '...' || 'No description provided',
+        courseId: lessonData.courseId,
+        order: lessonData.order || nextOrder,
+        isPublished: lessonData.isPublished || false,
+        duration: durationInMinutes, // Integer value
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      console.log('Creating lesson with payload:', lessonPayload);
+      
+      // Create the document with permissions
+      const result = await databases.createDocument(
+        DATABASE_ID,
+        LESSONS_COLLECTION_ID,
+        ID.unique(),
+        lessonPayload
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('Appwrite service :: createLesson :: error', error);
+      throw error;
+    }
+  },
+  
+  updateLesson: async (lessonId, lessonData) => {
+    try {
+      // Add updated timestamp
+      const updateData = {
+        ...lessonData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      return await databases.updateDocument(
+        DATABASE_ID,
+        LESSONS_COLLECTION_ID,
+        lessonId,
+        updateData
+      );
+    } catch (error) {
+      console.error('Appwrite service :: updateLesson :: error', error);
+      throw error;
+    }
+  },
+  
+  deleteLesson: async (lessonId) => {
+    try {
+      // First, check if there are any exercises associated with this lesson
+      const associatedExercises = await databases.listDocuments(
+        DATABASE_ID,
+        EXERCISES_COLLECTION_ID,
+        [Query.equal('lessonId', lessonId)]
+      );
+      
+      // Delete all associated exercises first
+      if (associatedExercises.documents.length > 0) {
+        for (const exercise of associatedExercises.documents) {
+          await databases.deleteDocument(
+            DATABASE_ID,
+            EXERCISES_COLLECTION_ID,
+            exercise.$id
+          );
+        }
+      }
+      
+      // Now delete the lesson
+      await databases.deleteDocument(
+        DATABASE_ID,
+        LESSONS_COLLECTION_ID,
+        lessonId
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Appwrite service :: deleteLesson :: error', error);
       throw error;
     }
   },

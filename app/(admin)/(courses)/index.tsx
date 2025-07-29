@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
@@ -36,6 +36,23 @@ const CourseFeatureCard = ({ title, description, icon, route, color = colors.pri
 export default function CoursesIndexPage() {
   const router = useRouter();
   
+  // Automatically redirect to course library when this page loads
+  useEffect(() => {
+    router.replace('/(admin)/(courses)/course-library');
+  }, []);
+  
+  // Show a loading indicator while redirecting
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary.main} />
+        <Text style={styles.loadingText}>Loading course library...</Text>
+      </View>
+    </SafeAreaView>
+  );
+  
+  // The rest of the UI won't be displayed because we're redirecting
+  // but keeping it here in case the redirection approach needs to be changed later
   return (
     <SafeAreaView style={styles.safeArea}>
       <PreAuthHeader 
@@ -144,6 +161,17 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.neutral.white,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.neutral.background,
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.primary.main,
+    fontSize: typography.fontSizes.md,
   },
   container: {
     flex: 1,

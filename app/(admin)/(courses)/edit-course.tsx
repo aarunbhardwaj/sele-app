@@ -1,18 +1,18 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -22,40 +22,72 @@ import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 
 const levelOptions = ["beginner", "intermediate", "advanced", "all levels"];
-const categoryOptions = ["grammar", "vocabulary", "speaking", "writing", "reading", "listening", "general"];
 
-export default function CourseCreatorScreen() {
+export default function EditCourseScreen() {
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const { id } = useLocalSearchParams<{ id: string }>();
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   
   // Course form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [level, setLevel] = useState('beginner');
-  const [category, setCategory] = useState('general');
-  const [estimatedDuration, setEstimatedDuration] = useState('4 weeks');
-  const [totalLessons, setTotalLessons] = useState('0');
+  const [duration, setDuration] = useState('');
   const [isPublished, setIsPublished] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const [tags, setTags] = useState('');
   
   // Validation state
   const [errors, setErrors] = useState({
     title: '',
     description: '',
-    estimatedDuration: '',
-    totalLessons: '',
-    category: ''
+    duration: ''
   });
+  
+  // Fetch course data when component mounts
+  useEffect(() => {
+    if (id) {
+      fetchCourseData(id);
+    } else {
+      setLoading(false);
+      Alert.alert('Error', 'Course ID not found', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    }
+  }, [id]);
+  
+  const fetchCourseData = async (courseId: string) => {
+    try {
+      const courseData = await appwriteService.getCourseById(courseId);
+      
+      // Populate form with course data
+      setTitle(courseData.title);
+      setDescription(courseData.description);
+      setLevel(courseData.level || 'beginner');
+      setDuration(courseData.duration);
+      setIsPublished(courseData.isPublished);
+      
+      // Convert tags array to comma-separated string
+      if (courseData.tags && Array.isArray(courseData.tags)) {
+        setTags(courseData.tags.join(', '));
+      }
+    } catch (error) {
+      console.error('Error fetching course:', error);
+      Alert.alert('Error', 'Failed to load course data', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const validateForm = () => {
     let isValid = true;
     const newErrors = {
       title: '',
       description: '',
-      estimatedDuration: '',
-      totalLessons: '',
-      category: ''
+      duration: ''
     };
     
     if (!title.trim()) {
@@ -71,18 +103,8 @@ export default function CourseCreatorScreen() {
       isValid = false;
     }
     
-    if (!estimatedDuration.trim()) {
-      newErrors.estimatedDuration = 'Duration is required';
-      isValid = false;
-    }
-
-    if (!totalLessons.trim() || isNaN(Number(totalLessons))) {
-      newErrors.totalLessons = 'Total lessons must be a valid number';
-      isValid = false;
-    }
-
-    if (!category.trim()) {
-      newErrors.category = 'Category is required';
+    if (!duration.trim()) {
+      newErrors.duration = 'Duration is required';
       isValid = false;
     }
     
@@ -90,12 +112,12 @@ export default function CourseCreatorScreen() {
     return isValid;
   };
   
-  const handleCreateCourse = async () => {
-    if (!validateForm()) {
+  const handleUpdateCourse = async () => {
+    if (!validateForm() || !id) {
       return;
     }
     
-    setLoading(true);
+    setSaving(true);
     
     try {
       // Format tags as array
@@ -108,47 +130,44 @@ export default function CourseCreatorScreen() {
         title,
         description,
         level,
-        category,
-        estimatedDuration,
-        totalLessons: parseInt(totalLessons, 10),
+        duration,
         isPublished,
-        imageUrl: imageUrl || '',
-        tags: tagsArray
+        tags: tagsArray,
       };
       
-      // Create course using appwrite service
-      const newCourse = await appwriteService.createCourse(courseData);
+      // Update course using appwrite service
+      await appwriteService.updateCourse(id, courseData);
       
       Alert.alert(
         'Success', 
-        'Course created successfully!',
+        'Course updated successfully!',
         [
           {
             text: 'OK',
-            onPress: () => router.push(`/(admin)/(courses)/course-library`)
+            onPress: () => router.push('/(admin)/(courses)/course-library')
           }
         ]
       );
     } catch (error) {
-      console.error('Failed to create course:', error);
+      console.error('Failed to update course:', error);
       Alert.alert(
         'Error',
-        'Failed to create course: ' + (error.message || error),
+        'Failed to update course. Please try again.',
         [{ text: 'OK' }]
       );
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
   
   const renderLevelSelection = () => (
-    <View style={styles.optionsSelector}>
+    <View style={styles.levelSelector}>
       {levelOptions.map((option) => (
         <TouchableOpacity
           key={option}
           style={[
-            styles.option,
-            level === option && styles.selectedOption
+            styles.levelOption,
+            level === option && styles.selectedLevelOption
           ]}
           onPress={() => setLevel(option)}
         >
@@ -162,33 +181,27 @@ export default function CourseCreatorScreen() {
       ))}
     </View>
   );
-
-  const renderCategorySelection = () => (
-    <View style={styles.optionsSelector}>
-      {categoryOptions.map((option) => (
-        <TouchableOpacity
-          key={option}
-          style={[
-            styles.option,
-            category === option && styles.selectedOption
-          ]}
-          onPress={() => setCategory(option)}
-        >
-          <Text 
-            variant="button" 
-            color={category === option ? colors.neutral.white : colors.neutral.text}
-          >
-            {option.charAt(0).toUpperCase() + option.slice(1)}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
+  
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <PreAuthHeader 
+          title="Edit Course"
+          leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
+          onLeftIconPress={() => router.back()}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text style={styles.loadingText}>Loading course data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
   
   return (
     <SafeAreaView style={styles.safeArea}>
       <PreAuthHeader 
-        title="Create Course"
+        title="Edit Course"
         leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
         onLeftIconPress={() => router.back()}
       />
@@ -200,15 +213,15 @@ export default function CourseCreatorScreen() {
         <ScrollView style={styles.scrollView}>
           <View style={styles.contentContainer}>
             <View style={styles.headerContainer}>
-              <Text variant="h4" style={styles.pageTitle}>Create New Course</Text>
+              <Text variant="h4" style={styles.pageTitle}>Edit Course</Text>
               <Text variant="body2" style={styles.pageSubtitle}>
-                Fill out the form below to create a new course for your students
+                Update the course information below
               </Text>
             </View>
             
             <Card style={styles.formCard}>
               <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Course Title *</Text>
+                <Text variant="subtitle1" style={styles.label}>Course Title</Text>
                 <TextInput 
                   style={[styles.input, errors.title ? styles.inputError : null]}
                   value={title}
@@ -224,7 +237,7 @@ export default function CourseCreatorScreen() {
               </View>
               
               <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Description *</Text>
+                <Text variant="subtitle1" style={styles.label}>Description</Text>
                 <TextInput 
                   style={[styles.input, styles.textArea, errors.description ? styles.inputError : null]}
                   value={description}
@@ -241,64 +254,26 @@ export default function CourseCreatorScreen() {
                   </Text>
                 ) : null}
               </View>
-
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Category *</Text>
-                {renderCategorySelection()}
-                {errors.category ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.category}
-                  </Text>
-                ) : null}
-              </View>
               
               <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Course Level *</Text>
+                <Text variant="subtitle1" style={styles.label}>Course Level</Text>
                 {renderLevelSelection()}
               </View>
               
               <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Estimated Duration *</Text>
+                <Text variant="subtitle1" style={styles.label}>Duration</Text>
                 <TextInput 
-                  style={[styles.input, errors.estimatedDuration ? styles.inputError : null]}
-                  value={estimatedDuration}
-                  onChangeText={setEstimatedDuration}
+                  style={[styles.input, errors.duration ? styles.inputError : null]}
+                  value={duration}
+                  onChangeText={setDuration}
                   placeholder="e.g. 4 weeks, 10 hours, etc."
                   placeholderTextColor={colors.neutral.gray}
                 />
-                {errors.estimatedDuration ? (
+                {errors.duration ? (
                   <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.estimatedDuration}
+                    {errors.duration}
                   </Text>
                 ) : null}
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Total Lessons *</Text>
-                <TextInput 
-                  style={[styles.input, errors.totalLessons ? styles.inputError : null]}
-                  value={totalLessons}
-                  onChangeText={setTotalLessons}
-                  placeholder="Enter number of lessons"
-                  placeholderTextColor={colors.neutral.gray}
-                  keyboardType="numeric"
-                />
-                {errors.totalLessons ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.totalLessons}
-                  </Text>
-                ) : null}
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Image URL</Text>
-                <TextInput 
-                  style={styles.input}
-                  value={imageUrl}
-                  onChangeText={setImageUrl}
-                  placeholder="Enter course image URL"
-                  placeholderTextColor={colors.neutral.gray}
-                />
               </View>
               
               <View style={styles.formGroup}>
@@ -313,7 +288,7 @@ export default function CourseCreatorScreen() {
               </View>
               
               <View style={styles.switchContainer}>
-                <Text variant="subtitle1">Publish immediately</Text>
+                <Text variant="subtitle1">Published</Text>
                 <Switch
                   value={isPublished}
                   onValueChange={setIsPublished}
@@ -330,11 +305,11 @@ export default function CourseCreatorScreen() {
                   style={styles.actionButton}
                 />
                 <Button 
-                  title={loading ? 'Creating...' : 'Create Course'}
-                  onPress={handleCreateCourse}
-                  disabled={loading}
+                  title={saving ? 'Saving...' : 'Update Course'}
+                  onPress={handleUpdateCourse}
+                  disabled={saving}
                   style={styles.actionButton}
-                  icon={loading ? <ActivityIndicator size="small" color={colors.neutral.white} /> : null}
+                  icon={saving ? <ActivityIndicator size="small" color={colors.neutral.white} /> : null}
                 />
               </View>
             </Card>
@@ -401,12 +376,12 @@ const styles = StyleSheet.create({
     height: 120,
     paddingTop: spacing.sm,
   },
-  optionsSelector: {
+  levelSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     marginTop: spacing.xs,
   },
-  option: {
+  levelOption: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     borderRadius: borderRadius.full,
@@ -414,7 +389,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     marginBottom: spacing.sm,
   },
-  selectedOption: {
+  selectedLevelOption: {
     backgroundColor: colors.primary.main,
   },
   switchContainer: {
@@ -432,9 +407,13 @@ const styles = StyleSheet.create({
     marginLeft: spacing.sm,
     minWidth: 120,
   },
-  notificationButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: colors.neutral.darkGray,
+    marginTop: spacing.md,
   },
 });

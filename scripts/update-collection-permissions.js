@@ -1,7 +1,7 @@
-// This script creates a more direct approach to enabling admin users to create courses
-// by updating the course collection permissions directly
+// This script updates the permissions on the Courses collection to allow any authenticated user
+// with the right role permissions to create courses, instead of relying on team membership
 
-const { Client, Databases, Permission, Role } = require('node-appwrite');
+const { Client, Databases, ID, Permission, Role } = require('node-appwrite');
 require('dotenv').config();
 
 // Initialize the Appwrite client
@@ -16,11 +16,11 @@ const databases = new Databases(client);
 const DATABASE_ID = '6865602f000c8cc789bc';
 const COURSES_COLLECTION_ID = '6865dcb4001f03a2d904';
 
-async function updateCollectionPermissions() {
+async function updateCoursesCollectionPermissions() {
     try {
-        console.log('Updating course collection permissions to allow admin users to create courses...');
+        console.log('Updating Courses collection permissions...');
         
-        // Get current collection
+        // Get current collection info
         const collection = await databases.getCollection(
             DATABASE_ID,
             COURSES_COLLECTION_ID
@@ -28,20 +28,20 @@ async function updateCollectionPermissions() {
         
         console.log('Current permissions:', collection.permissions);
         
-        // Update with permissions for all users - we'll handle authorization at the application level
+        // Update the collection permissions to allow any authenticated user to create
         const updatedCollection = await databases.updateCollection(
             DATABASE_ID,
             COURSES_COLLECTION_ID,
             collection.name,
             [
-                Permission.read(Role.users()), // Any authenticated user can read
-                Permission.create(Role.users()), // Any authenticated user can create
-                Permission.update(Role.users()), // Any authenticated user can update
-                Permission.delete(Role.users())  // Any authenticated user can delete
+                Permission.read(Role.users()), // All authenticated users can read
+                Permission.create(Role.users()), // All authenticated users can create - document level permissions will be handled in app logic
+                Permission.update(Role.users()), // All authenticated users can update - document level permissions will be handled in app logic
+                Permission.delete(Role.users())  // All authenticated users can delete - document level permissions will be handled in app logic
             ]
         );
         
-        console.log('Permissions updated successfully');
+        console.log('Collection permissions updated successfully.');
         console.log('New permissions:', updatedCollection.permissions);
         
         return updatedCollection;
@@ -52,6 +52,6 @@ async function updateCollectionPermissions() {
 }
 
 // Run the update function
-updateCollectionPermissions()
-    .then(() => console.log('Done! Users can now create courses. Authorization will be handled at the application level.'))
+updateCoursesCollectionPermissions()
+    .then(() => console.log('Done!'))
     .catch(err => console.error('Failed:', err));
