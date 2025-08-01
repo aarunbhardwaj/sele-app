@@ -65,6 +65,13 @@ export default function QuizIndexPage() {
           />
           
           <QuizFeatureCard
+            title="Manage Quizzes"
+            description="View, edit, and organize your quizzes"
+            icon="list-outline"
+            route="/(admin)/(quiz)/quiz-list"
+          />
+          
+          <QuizFeatureCard
             title="Question Bank"
             description="Manage your library of quiz questions"
             icon="help-circle-outline"

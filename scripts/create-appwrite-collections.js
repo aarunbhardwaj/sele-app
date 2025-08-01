@@ -21,11 +21,15 @@ const collectionIds = {
     user_progress: '',
     lesson_completions: '',
     user_activities: '',
-    roles: ''
+    roles: '',
+    // Adding quiz-related collections with specific IDs
+    quizzes: '686abc1200191456ee9b',
+    quiz_questions: '686abc1400034c7aa22d',
+    quiz_attempts: '686abc15000240637fc7'
 };
 
 // Helper function to create a collection if it doesn't exist
-async function createCollectionIfNotExists(databaseId, collectionName, permissions) {
+async function createCollectionIfNotExists(databaseId, collectionName, permissions, collectionId = null) {
     try {
         // List collections to check if it exists
         const collections = await databases.listCollections(databaseId);
@@ -39,7 +43,7 @@ async function createCollectionIfNotExists(databaseId, collectionName, permissio
         // Create collection if it doesn't exist
         const newCollection = await databases.createCollection(
             databaseId,
-            ID.unique(),
+            collectionId || ID.unique(),
             collectionName,
             permissions
         );
@@ -89,6 +93,11 @@ async function createAllCollections() {
     await createLessonCompletionsCollection();
     await createUserActivitiesCollection();
     await createRolesCollection();
+    
+    // Create quiz-related collections
+    await createQuizzesCollection();
+    await createQuizQuestionsCollection();
+    await createQuizAttemptsCollection();
 }
 
 // 1. Users Profiles Collection
@@ -375,6 +384,396 @@ async function createRolesCollection() {
     } catch (error) {
         console.error('Error creating indexes:', error);
         console.log('Roles collection setup completed with some issues');
+    }
+}
+
+// 8. Quizzes Collection
+async function createQuizzesCollection() {
+    console.log('\n--- Creating quizzes collection ---');
+    
+    // Create the collection with appropriate permissions
+    const collection = await createCollectionIfNotExists(
+        DATABASE_ID,
+        'quizzes',
+        [
+            Permission.read(Role.users()), // All authenticated users can read quizzes
+            Permission.create(Role.team("admin")), // Only admin team can create
+            Permission.update(Role.team("admin")), // Only admin team can update
+            Permission.delete(Role.team("admin")) // Only admin team can delete
+        ],
+        collectionIds.quizzes // Use the predefined ID
+    );
+    
+    collectionIds.quizzes = collection.$id;
+    
+    // Create attributes for quizzes collection
+    console.log('Creating attributes for quizzes collection');
+    try {
+        // Check existing attributes to avoid duplicates
+        const attributes = await databases.listAttributes(DATABASE_ID, collection.$id);
+        const existingAttrs = attributes.attributes.map(attr => attr.key);
+        
+        // Define the attributes we need
+        const requiredAttributes = [
+            { key: 'title', type: 'string', size: 255, required: true },
+            { key: 'description', type: 'string', size: 5000, required: false },
+            { key: 'category', type: 'string', size: 100, required: false },
+            { key: 'difficulty', type: 'string', size: 20, required: false },
+            { key: 'timeLimit', type: 'integer', min: 0, max: 180, required: false },
+            { key: 'passScore', type: 'integer', min: 0, max: 100, required: false },
+            { key: 'isPublished', type: 'boolean', required: false, default: false },
+            { key: 'createdBy', type: 'string', size: 100, required: false },
+            { key: 'createdAt', type: 'datetime', required: false },
+            { key: 'updatedAt', type: 'datetime', required: false },
+            { key: 'courseId', type: 'string', size: 100, required: false }
+        ];
+        
+        // Create attributes if they don't exist
+        for (const attr of requiredAttributes) {
+            if (!existingAttrs.includes(attr.key)) {
+                console.log(`Creating ${attr.key} attribute...`);
+                try {
+                    if (attr.type === 'string') {
+                        await databases.createStringAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.size,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'integer') {
+                        await databases.createIntegerAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.min,
+                            attr.max,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'boolean') {
+                        await databases.createBooleanAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'datetime') {
+                        await databases.createDatetimeAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    }
+                    console.log(`Created ${attr.key} attribute successfully`);
+                } catch (error) {
+                    console.error(`Error creating ${attr.key} attribute:`, error);
+                }
+            } else {
+                console.log(`Attribute ${attr.key} already exists, skipping...`);
+            }
+        }
+        
+        // Create indexes for faster queries
+        const indexes = await databases.listIndexes(DATABASE_ID, collection.$id);
+        
+        // Create an index on courseId for faster lookups
+        const hasCourseIdIndex = indexes.indexes.some(index => index.key === 'course_id_index');
+        if (!hasCourseIdIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'course_id_index',
+                'key',
+                ['courseId'],
+                false, // not unique - multiple quizzes per course
+                ['asc']
+            );
+            console.log('Created index on courseId');
+        }
+        
+        console.log('Quizzes collection setup completed');
+    } catch (error) {
+        console.error('Error setting up quizzes attributes:', error);
+        console.log('Quizzes collection setup completed with some issues');
+    }
+}
+
+// 9. Quiz Questions Collection
+async function createQuizQuestionsCollection() {
+    console.log('\n--- Creating quiz_questions collection ---');
+    
+    // Create the collection with appropriate permissions
+    const collection = await createCollectionIfNotExists(
+        DATABASE_ID,
+        'quiz_questions',
+        [
+            Permission.read(Role.users()), // All authenticated users can read questions
+            Permission.create(Role.team("admin")), // Only admin team can create
+            Permission.update(Role.team("admin")), // Only admin team can update
+            Permission.delete(Role.team("admin")) // Only admin team can delete
+        ],
+        collectionIds.quiz_questions // Use the predefined ID
+    );
+    
+    collectionIds.quiz_questions = collection.$id;
+    
+    // Create attributes for quiz_questions collection
+    console.log('Creating attributes for quiz_questions collection');
+    try {
+        // Check existing attributes to avoid duplicates
+        const attributes = await databases.listAttributes(DATABASE_ID, collection.$id);
+        const existingAttrs = attributes.attributes.map(attr => attr.key);
+        
+        // Define the attributes we need
+        const requiredAttributes = [
+            { key: 'quizId', type: 'string', size: 100, required: true },
+            { key: 'text', type: 'string', size: 5000, required: true },
+            { key: 'type', type: 'string', size: 50, required: false }, // multiple-choice, true-false, text, etc.
+            { key: 'options', type: 'string', size: 10000, required: false }, // JSON string for options array
+            { key: 'correctAnswer', type: 'string', size: 1000, required: true },
+            { key: 'explanation', type: 'string', size: 5000, required: false },
+            { key: 'points', type: 'integer', min: 0, max: 100, required: false },
+            { key: 'order', type: 'integer', min: 0, max: 1000, required: false },
+            { key: 'createdAt', type: 'datetime', required: false },
+            { key: 'updatedAt', type: 'datetime', required: false }
+        ];
+        
+        // Create attributes if they don't exist
+        for (const attr of requiredAttributes) {
+            if (!existingAttrs.includes(attr.key)) {
+                console.log(`Creating ${attr.key} attribute...`);
+                try {
+                    if (attr.type === 'string') {
+                        await databases.createStringAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.size,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'integer') {
+                        await databases.createIntegerAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.min,
+                            attr.max,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'boolean') {
+                        await databases.createBooleanAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'datetime') {
+                        await databases.createDatetimeAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    }
+                    console.log(`Created ${attr.key} attribute successfully`);
+                } catch (error) {
+                    console.error(`Error creating ${attr.key} attribute:`, error);
+                }
+            } else {
+                console.log(`Attribute ${attr.key} already exists, skipping...`);
+            }
+        }
+        
+        // Create indexes for faster queries
+        const indexes = await databases.listIndexes(DATABASE_ID, collection.$id);
+        
+        // Create an index on quizId for faster lookups
+        const hasQuizIdIndex = indexes.indexes.some(index => index.key === 'quiz_id_index');
+        if (!hasQuizIdIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'quiz_id_index',
+                'key',
+                ['quizId'],
+                false, // not unique - multiple questions per quiz
+                ['asc']
+            );
+            console.log('Created index on quizId');
+        }
+        
+        // Create an index on order for ordered retrieval
+        const hasOrderIndex = indexes.indexes.some(index => index.key === 'order_index');
+        if (!hasOrderIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'order_index',
+                'key',
+                ['order'],
+                false, // not unique - potentially multiple questions with same order
+                ['asc']
+            );
+            console.log('Created index on order');
+        }
+        
+        console.log('Quiz questions collection setup completed');
+    } catch (error) {
+        console.error('Error setting up quiz questions attributes:', error);
+        console.log('Quiz questions collection setup completed with some issues');
+    }
+}
+
+// 10. Quiz Attempts Collection
+async function createQuizAttemptsCollection() {
+    console.log('\n--- Creating quiz_attempts collection ---');
+    
+    // Create the collection with appropriate permissions - users can read/create their own attempts
+    const collection = await createCollectionIfNotExists(
+        DATABASE_ID,
+        'quiz_attempts',
+        [
+            Permission.read(Role.users()), // All authenticated users can read (we'll implement document-level security)
+            Permission.create(Role.users()), // Any authenticated user can create attempts
+            // No update permissions - quiz attempts are immutable after creation
+            Permission.delete(Role.team("admin")) // Only admin team can delete
+        ],
+        collectionIds.quiz_attempts // Use the predefined ID
+    );
+    
+    collectionIds.quiz_attempts = collection.$id;
+    
+    // Create attributes for quiz_attempts collection
+    console.log('Creating attributes for quiz_attempts collection');
+    try {
+        // Check existing attributes to avoid duplicates
+        const attributes = await databases.listAttributes(DATABASE_ID, collection.$id);
+        const existingAttrs = attributes.attributes.map(attr => attr.key);
+        
+        // Define the attributes we need
+        const requiredAttributes = [
+            { key: 'userId', type: 'string', size: 100, required: true },
+            { key: 'quizId', type: 'string', size: 100, required: true },
+            { key: 'startedAt', type: 'datetime', required: true },
+            { key: 'completedAt', type: 'datetime', required: false },
+            { key: 'score', type: 'integer', min: 0, max: 100, required: false },
+            { key: 'totalQuestions', type: 'integer', min: 0, max: 1000, required: false },
+            { key: 'correctAnswers', type: 'integer', min: 0, max: 1000, required: false },
+            { key: 'timeSpent', type: 'integer', min: 0, max: 10000, required: false }, // Time spent in seconds
+            { key: 'answers', type: 'string', size: 100000, required: false }, // JSON string for user answers
+            { key: 'passed', type: 'boolean', required: false }
+        ];
+        
+        // Create attributes if they don't exist
+        for (const attr of requiredAttributes) {
+            if (!existingAttrs.includes(attr.key)) {
+                console.log(`Creating ${attr.key} attribute...`);
+                try {
+                    if (attr.type === 'string') {
+                        await databases.createStringAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.size,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'integer') {
+                        await databases.createIntegerAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.min,
+                            attr.max,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'boolean') {
+                        await databases.createBooleanAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    } else if (attr.type === 'datetime') {
+                        await databases.createDatetimeAttribute(
+                            DATABASE_ID,
+                            collection.$id,
+                            attr.key,
+                            attr.required,
+                            attr.default || null
+                        );
+                    }
+                    console.log(`Created ${attr.key} attribute successfully`);
+                } catch (error) {
+                    console.error(`Error creating ${attr.key} attribute:`, error);
+                }
+            } else {
+                console.log(`Attribute ${attr.key} already exists, skipping...`);
+            }
+        }
+        
+        // Create indexes for faster queries
+        const indexes = await databases.listIndexes(DATABASE_ID, collection.$id);
+        
+        // Create indexes for common queries
+        const hasUserIdIndex = indexes.indexes.some(index => index.key === 'user_id_index');
+        if (!hasUserIdIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'user_id_index',
+                'key',
+                ['userId'],
+                false, // not unique - multiple attempts per user
+                ['asc']
+            );
+            console.log('Created index on userId');
+        }
+        
+        const hasQuizIdIndex = indexes.indexes.some(index => index.key === 'quiz_id_index');
+        if (!hasQuizIdIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'quiz_id_index',
+                'key',
+                ['quizId'],
+                false, // not unique - multiple attempts per quiz
+                ['asc']
+            );
+            console.log('Created index on quizId');
+        }
+        
+        // Composite index for user+quiz combinations
+        const hasUserQuizIndex = indexes.indexes.some(index => index.key === 'user_quiz_index');
+        if (!hasUserQuizIndex) {
+            await databases.createIndex(
+                DATABASE_ID,
+                collection.$id,
+                'user_quiz_index',
+                'key',
+                ['userId', 'quizId'],
+                false, // not unique - user can attempt a quiz multiple times
+                ['asc']
+            );
+            console.log('Created composite index on userId and quizId');
+        }
+        
+        console.log('Quiz attempts collection setup completed');
+    } catch (error) {
+        console.error('Error setting up quiz attempts attributes:', error);
+        console.log('Quiz attempts collection setup completed with some issues');
     }
 }
 

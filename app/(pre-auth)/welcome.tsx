@@ -3,10 +3,10 @@ import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
-	Easing,
-	useAnimatedStyle,
-	useSharedValue,
-	withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from 'react-native-reanimated';
 import Text from '../../components/ui/Typography';
 import { Button } from '../../components/ui2/button-native';

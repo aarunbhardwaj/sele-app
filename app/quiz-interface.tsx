@@ -1,9 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { SafeAreaView, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Button from '../components/ui/Button';
 import Card from '../components/ui/Card';
+import { borderRadius, colors, spacing, typography } from '../components/ui/theme';
 import Text from '../components/ui/Typography';
+import appwriteService from '../services/appwrite';
 
 // Mock quiz data
 const MOCK_QUIZ = {
@@ -48,102 +51,437 @@ const MOCK_QUIZ = {
 };
 
 export default function QuizInterfaceScreen() {
-  const { categoryId } = useLocalSearchParams();
+  const { quizId, mode } = useLocalSearchParams();
+  const [loading, setLoading] = useState(true);
+  const [quiz, setQuiz] = useState(null);
+  const [questions, setQuestions] = useState([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState({});
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [score, setScore] = useState(0);
+  const [correctAnswers, setCorrectAnswers] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timerActive, setTimerActive] = useState(false);
+  const [results, setResults] = useState({
+    totalQuestions: 0,
+    correctAnswers: 0,
+    score: 0,
+    timeTaken: 0,
+    answers: []
+  });
 
-  const currentQuestion = MOCK_QUIZ.questions[currentQuestionIndex];
-  const totalQuestions = MOCK_QUIZ.questions.length;
-  
-  const handleSelectAnswer = (optionId) => {
-    setSelectedAnswers({
-      ...selectedAnswers,
-      [currentQuestion.id]: optionId,
-    });
+  // Animation for timer
+  const timerAnimation = useRef(new Animated.Value(1)).current;
+  const timerInterval = useRef(null);
+  const quizStartTime = useRef(Date.now());
+
+  useEffect(() => {
+    fetchQuizData();
+  }, [quizId]);
+
+  const fetchQuizData = async () => {
+    try {
+      setLoading(true);
+      
+      // If no quizId, use demo data
+      if (!quizId) {
+        // Mock quiz data for vocabulary practice
+        const mockQuiz = {
+          $id: 'demo-quiz',
+          title: 'Vocabulary Practice',
+          description: 'Test your vocabulary knowledge',
+          timeLimit: 10, // 10 seconds per question
+          passScore: 70
+        };
+        
+        const mockQuestions = [
+          {
+            $id: 'q1',
+            text: 'What is the meaning of "apple"?',
+            type: 'multiple-choice',
+            options: ["A fruit", "A vegetable", "A car", "A computer"],
+            correctAnswer: "A fruit",
+            explanation: "An apple is a round fruit with red, green, or yellow skin and firm white flesh",
+            points: 10
+          },
+          {
+            $id: 'q2',
+            text: 'What is the meaning of "book"?',
+            type: 'multiple-choice',
+            options: ["A vehicle", "A written work", "A food", "A place"],
+            correctAnswer: "A written work",
+            explanation: "A book is a written or printed work consisting of pages bound together",
+            points: 10
+          },
+          {
+            $id: 'q3',
+            text: 'What is the meaning of "car"?',
+            type: 'multiple-choice',
+            options: ["A fruit", "A building", "A vehicle", "A tool"],
+            correctAnswer: "A vehicle",
+            explanation: "A car is a road vehicle with an engine, four wheels, and seats for a small number of people",
+            points: 10
+          }
+        ];
+        
+        setQuiz(mockQuiz);
+        setQuestions(mockQuestions);
+        setTimeRemaining(mockQuiz.timeLimit);
+        setLoading(false);
+        setTimerActive(true);
+        return;
+      }
+      
+      // Fetch real quiz data from Appwrite
+      const quizData = await appwriteService.getQuizById(quizId);
+      const questionsData = await appwriteService.getQuestionsByQuiz(quizId);
+      
+      setQuiz(quizData);
+      setQuestions(questionsData);
+      setTimeRemaining(quizData.timeLimit);
+      setLoading(false);
+      setTimerActive(true);
+    } catch (error) {
+      console.error('Failed to fetch quiz:', error);
+      // Fallback to demo data
+      fetchQuizData();
+    }
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < totalQuestions - 1) {
+  // Start timer when quiz is loaded
+  useEffect(() => {
+    if (!loading && timeRemaining > 0 && timerActive) {
+      startTimer();
+      
+      // Reset timer animation
+      Animated.timing(timerAnimation, {
+        toValue: 0,
+        duration: timeRemaining * 1000,
+        useNativeDriver: false
+      }).start();
+    }
+    
+    return () => {
+      if (timerInterval.current) {
+        clearInterval(timerInterval.current);
+      }
+    };
+  }, [loading, currentQuestionIndex, timerActive]);
+
+  const startTimer = () => {
+    timerInterval.current = setInterval(() => {
+      setTimeRemaining(prevTime => {
+        if (prevTime <= 1) {
+          clearInterval(timerInterval.current);
+          handleTimeUp();
+          return 0;
+        }
+        return prevTime - 1;
+      });
+    }, 1000);
+  };
+
+  const handleTimeUp = () => {
+    // Record the answer as incorrect if no answer selected
+    const currentQuestion = questions[currentQuestionIndex];
+    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+    
+    // Store answer in results
+    setResults(prev => ({
+      ...prev,
+      answers: [
+        ...prev.answers,
+        {
+          questionId: currentQuestion.$id,
+          question: currentQuestion.text,
+          selectedAnswer: selectedAnswer || 'None (time expired)',
+          correctAnswer: currentQuestion.correctAnswer,
+          isCorrect: isCorrect
+        }
+      ]
+    }));
+    
+    // Auto-advance to next question
+    moveToNextQuestion();
+  };
+
+  const handleSelectAnswer = (option) => {
+    setSelectedAnswer(option);
+    
+    // Check if answer is correct
+    const currentQuestion = questions[currentQuestionIndex];
+    const isCorrect = option === currentQuestion.correctAnswer;
+    
+    if (isCorrect) {
+      setScore(prevScore => prevScore + (currentQuestion.points || 10));
+      setCorrectAnswers(prev => prev + 1);
+    }
+    
+    // Store answer in results
+    setResults(prev => ({
+      ...prev,
+      answers: [
+        ...prev.answers,
+        {
+          questionId: currentQuestion.$id,
+          question: currentQuestion.text,
+          selectedAnswer: option,
+          correctAnswer: currentQuestion.correctAnswer,
+          isCorrect: isCorrect
+        }
+      ]
+    }));
+    
+    // Stop the timer
+    setTimerActive(false);
+    clearInterval(timerInterval.current);
+    
+    // Wait a moment to show feedback, then move to next question
+    setTimeout(() => {
+      moveToNextQuestion();
+    }, 1500);
+  };
+
+  const moveToNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
+      setSelectedAnswer(null);
+      setTimerActive(true);
+      // Reset timer to quiz's time limit
+      setTimeRemaining(quiz.timeLimit);
     } else {
-      setQuizCompleted(true);
+      // Quiz completed
+      finishQuiz();
     }
   };
 
-  const handlePreviousQuestion = () => {
-    if (currentQuestionIndex > 0) {
-      setCurrentQuestionIndex(currentQuestionIndex - 1);
-    }
+  const finishQuiz = () => {
+    const timeTaken = Math.floor((Date.now() - quizStartTime.current) / 1000);
+    const finalScore = Math.round((correctAnswers / questions.length) * 100);
+    
+    setResults(prev => ({
+      ...prev,
+      totalQuestions: questions.length,
+      correctAnswers: correctAnswers,
+      score: finalScore,
+      timeTaken: timeTaken
+    }));
+    
+    setQuizCompleted(true);
+    
+    // If logged in, record the quiz attempt
+    const recordAttempt = async () => {
+      try {
+        const currentUser = await appwriteService.getCurrentUser();
+        if (currentUser && quiz.$id !== 'demo-quiz') {
+          await appwriteService.recordQuizAttempt(
+            currentUser.$id,
+            quiz.$id,
+            {
+              score: finalScore,
+              totalQuestions: questions.length,
+              correctAnswers: correctAnswers,
+              timeSpent: timeTaken,
+              answers: results.answers,
+              passed: finalScore >= quiz.passScore,
+              completedAt: new Date().toISOString()
+            }
+          );
+        }
+      } catch (error) {
+        console.error('Failed to record quiz attempt:', error);
+      }
+    };
+    
+    recordAttempt();
   };
 
   const handleFinishQuiz = () => {
-    router.push('/quiz-results');
+    // Navigate to results page with quiz results
+    router.replace({
+      pathname: '/quiz-results',
+      params: {
+        score: results.score,
+        totalQuestions: results.totalQuestions,
+        correctAnswers: results.correctAnswers,
+        timeTaken: results.timeTaken
+      }
+    });
   };
 
-  const isOptionSelected = (optionId) => {
-    return selectedAnswers[currentQuestion.id] === optionId;
-  };
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text style={styles.loadingText}>Loading quiz...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (quizCompleted) {
     return (
       <SafeAreaView style={styles.container}>
-        <Card variant="elevated" style={styles.completedCard}>
-          <Text variant="h3" style={styles.completedTitle}>Quiz Completed!</Text>
-          <Text variant="body1" style={styles.completedText}>
-            You've answered all {totalQuestions} questions.
+        <Card style={styles.completedCard}>
+          <Text variant="h4" style={styles.completedTitle}>Quiz Completed!</Text>
+          
+          <View style={styles.resultSummary}>
+            <View style={styles.resultItem}>
+              <Text variant="h5" style={styles.resultValue}>{results.score}%</Text>
+              <Text variant="caption" style={styles.resultLabel}>Score</Text>
+            </View>
+            
+            <View style={styles.resultItem}>
+              <Text variant="h5" style={styles.resultValue}>{results.correctAnswers}/{results.totalQuestions}</Text>
+              <Text variant="caption" style={styles.resultLabel}>Correct</Text>
+            </View>
+            
+            <View style={styles.resultItem}>
+              <Text variant="h5" style={styles.resultValue}>{results.timeTaken}s</Text>
+              <Text variant="caption" style={styles.resultLabel}>Time</Text>
+            </View>
+          </View>
+          
+          <Text variant="body1" style={styles.resultMessage}>
+            {results.score >= quiz.passScore ? 
+              "Great job! You passed the quiz." : 
+              "Keep practicing to improve your score."}
           </Text>
+          
           <Button
-            title="See Results"
+            title="See Detailed Results"
             variant="primary"
             fullWidth
             onPress={handleFinishQuiz}
             style={styles.seeResultsButton}
           />
+          
+          <Button
+            title="Try Again"
+            variant="outline"
+            fullWidth
+            onPress={() => router.replace('/quiz-interface')}
+            style={[styles.seeResultsButton, {marginTop: spacing.md}]}
+          />
+          
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text variant="button" style={styles.backButtonText}>
+              Back to Quizzes
+            </Text>
+          </TouchableOpacity>
         </Card>
       </SafeAreaView>
     );
   }
 
+  const currentQuestion = questions[currentQuestionIndex];
+  const totalQuestions = questions.length;
+  
+  // Calculate progress
+  const progress = (currentQuestionIndex / totalQuestions) * 100;
+
+  // Calculate timer color based on time remaining
+  const getTimerColor = () => {
+    if (timeRemaining > quiz.timeLimit * 0.6) return colors.status.success;
+    if (timeRemaining > quiz.timeLimit * 0.3) return colors.status.warning;
+    return colors.status.error;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text variant="h3">{MOCK_QUIZ.title}</Text>
-        <Text variant="body2">Question {currentQuestionIndex + 1} of {totalQuestions}</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+          <Ionicons name="close-outline" size={28} color={colors.neutral.darkGray} />
+        </TouchableOpacity>
+        <Text variant="h5" style={styles.quizTitle}>{quiz.title}</Text>
+        <View style={styles.progressContainer}>
+          <Text variant="caption" style={styles.progressText}>
+            {currentQuestionIndex + 1}/{totalQuestions}
+          </Text>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${progress}%` }]} />
+          </View>
+        </View>
       </View>
 
-      <Card variant="elevated" style={styles.questionCard}>
-        <Text variant="h4" style={styles.questionText}>{currentQuestion.text}</Text>
+      <View style={styles.timerContainer}>
+        <Animated.View 
+          style={[
+            styles.timerBar,
+            {
+              width: timerAnimation.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['0%', '100%']
+              }),
+              backgroundColor: getTimerColor()
+            }
+          ]} 
+        />
+        <Text style={[styles.timerText, { color: getTimerColor() }]}>
+          {timeRemaining}s
+        </Text>
+      </View>
+
+      <Card style={styles.questionCard}>
+        <Text variant="h5" style={styles.questionText}>{currentQuestion.text}</Text>
         
         <View style={styles.optionsContainer}>
-          {currentQuestion.options.map((option) => (
-            <Button
-              key={option.id}
-              title={option.text}
-              variant={isOptionSelected(option.id) ? 'primary' : 'outline'}
-              fullWidth
-              onPress={() => handleSelectAnswer(option.id)}
-              style={styles.optionButton}
-            />
+          {currentQuestion.options.map((option, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.optionButton,
+                selectedAnswer === option && styles.selectedOption,
+                selectedAnswer && option === currentQuestion.correctAnswer && styles.correctOption,
+                selectedAnswer === option && option !== currentQuestion.correctAnswer && styles.incorrectOption,
+              ]}
+              onPress={() => handleSelectAnswer(option)}
+              disabled={selectedAnswer !== null}
+            >
+              <Text 
+                style={[
+                  styles.optionText,
+                  selectedAnswer === option && styles.selectedOptionText,
+                  selectedAnswer && option === currentQuestion.correctAnswer && styles.correctOptionText,
+                  selectedAnswer === option && option !== currentQuestion.correctAnswer && styles.incorrectOptionText,
+                ]}
+              >
+                {option}
+              </Text>
+              {selectedAnswer && option === currentQuestion.correctAnswer && (
+                <Ionicons name="checkmark-circle" size={24} color="white" style={styles.optionIcon} />
+              )}
+              {selectedAnswer === option && option !== currentQuestion.correctAnswer && (
+                <Ionicons name="close-circle" size={24} color="white" style={styles.optionIcon} />
+              )}
+            </TouchableOpacity>
           ))}
         </View>
       </Card>
 
-      <View style={styles.navigationButtons}>
-        <Button
-          title="Previous"
-          variant="outline"
-          onPress={handlePreviousQuestion}
-          disabled={currentQuestionIndex === 0}
-          style={styles.navButton}
-        />
-        <Button
-          title={currentQuestionIndex === totalQuestions - 1 ? "Finish" : "Next"}
-          variant="primary"
-          onPress={handleNextQuestion}
-          disabled={!selectedAnswers[currentQuestion.id]}
-          style={styles.navButton}
-        />
+      {selectedAnswer && (
+        <View style={styles.feedbackContainer}>
+          <Text style={[
+            styles.feedbackText, 
+            selectedAnswer === currentQuestion.correctAnswer ? styles.correctFeedback : styles.incorrectFeedback
+          ]}>
+            {selectedAnswer === currentQuestion.correctAnswer ? "Correct!" : "Incorrect!"}
+          </Text>
+          {currentQuestion.explanation && (
+            <Text style={styles.explanationText}>{currentQuestion.explanation}</Text>
+          )}
+        </View>
+      )}
+
+      <View style={styles.scoreContainer}>
+        <Text variant="subtitle2" style={styles.scoreText}>Score: {score}</Text>
+        <Text variant="subtitle2" style={styles.scoreText}>
+          Correct: {correctAnswers}/{currentQuestionIndex + (selectedAnswer ? 1 : 0)}
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -152,46 +490,199 @@ export default function QuizInterfaceScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f7f9fc',
+    padding: spacing.md,
+    backgroundColor: colors.neutral.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.neutral.darkGray,
   },
   header: {
-    marginBottom: 24,
+    marginBottom: spacing.md,
+  },
+  backIcon: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    zIndex: 10,
+    padding: spacing.xs,
+  },
+  quizTitle: {
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  progressContainer: {
+    marginTop: spacing.sm,
+  },
+  progressText: {
+    textAlign: 'right',
+    marginBottom: spacing.xs,
+  },
+  progressBar: {
+    height: 6,
+    backgroundColor: colors.neutral.lightGray,
+    borderRadius: borderRadius.full,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary.main,
+  },
+  timerContainer: {
+    height: 40,
+    backgroundColor: colors.neutral.lightGray,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.md,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  timerBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    height: '100%',
+    backgroundColor: colors.primary.main,
+  },
+  timerText: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.neutral.darkGray,
   },
   questionCard: {
-    marginBottom: 24,
-    padding: 20,
+    marginBottom: spacing.md,
+    padding: spacing.lg,
   },
   questionText: {
-    marginBottom: 20,
+    marginBottom: spacing.lg,
   },
   optionsContainer: {
-    gap: 12,
+    gap: spacing.sm,
   },
   optionButton: {
-    marginBottom: 10,
-    justifyContent: 'flex-start',
-  },
-  navigationButtons: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  navButton: {
-    flex: 0.48,
-  },
-  completedCard: {
-    padding: 30,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.neutral.white,
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+    marginBottom: spacing.sm,
   },
-  completedTitle: {
-    marginBottom: 16,
+  selectedOption: {
+    borderColor: colors.primary.main,
+    backgroundColor: colors.primary.light + '20',
   },
-  completedText: {
-    marginBottom: 24,
+  correctOption: {
+    borderColor: colors.status.success,
+    backgroundColor: colors.status.success,
+  },
+  incorrectOption: {
+    borderColor: colors.status.error,
+    backgroundColor: colors.status.error,
+  },
+  optionText: {
+    fontSize: typography.fontSizes.md,
+    color: colors.neutral.text,
+    flex: 1,
+  },
+  selectedOptionText: {
+    fontWeight: typography.fontWeights.bold,
+    color: colors.primary.main,
+  },
+  correctOptionText: {
+    fontWeight: typography.fontWeights.bold,
+    color: colors.neutral.white,
+  },
+  incorrectOptionText: {
+    fontWeight: typography.fontWeights.bold,
+    color: colors.neutral.white,
+  },
+  optionIcon: {
+    marginLeft: spacing.sm,
+  },
+  feedbackContainer: {
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.md,
+    backgroundColor: colors.neutral.white,
+  },
+  feedbackText: {
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.bold,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
+  correctFeedback: {
+    color: colors.status.success,
+  },
+  incorrectFeedback: {
+    color: colors.status.error,
+  },
+  explanationText: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.neutral.darkGray,
+    textAlign: 'center',
+  },
+  scoreContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: spacing.sm,
+  },
+  scoreText: {
+    color: colors.primary.main,
+  },
+  completedCard: {
+    padding: spacing.xl,
+    alignItems: 'center',
+  },
+  completedTitle: {
+    color: colors.primary.main,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  resultSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '100%',
+    marginBottom: spacing.xl,
+  },
+  resultItem: {
+    alignItems: 'center',
+  },
+  resultValue: {
+    color: colors.primary.main,
+    fontWeight: typography.fontWeights.bold,
+  },
+  resultLabel: {
+    color: colors.neutral.darkGray,
+  },
+  resultMessage: {
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    color: colors.neutral.darkGray,
+  },
   seeResultsButton: {
-    marginTop: 16,
+    width: '100%',
+  },
+  backButton: {
+    marginTop: spacing.xl,
+    padding: spacing.sm,
+  },
+  backButtonText: {
+    color: colors.neutral.darkGray,
+    textAlign: 'center',
   },
 });

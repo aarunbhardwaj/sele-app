@@ -14,6 +14,10 @@ const EXERCISES_COLLECTION_ID = '6865e601000911331884';
 const USER_PROGRESS_COLLECTION_ID = '6865e602000810dc0714';
 const LESSON_COMPLETIONS_COLLECTION_ID = '6865e603000c430c1275';
 const USER_ACTIVITIES_COLLECTION_ID = '6865e6040018e12e103d';
+// Updated quiz collection IDs to match what's in your Appwrite console
+const QUIZZES_COLLECTION_ID = '688a4cf6000503487f6f'; // Replace with your actual collection ID
+const QUIZ_QUESTIONS_COLLECTION_ID = '688a4cf7002ab931bd1f'; // Replace with your actual collection ID
+const QUIZ_ATTEMPTS_COLLECTION_ID = '688a4cf8003e6499f5a2'; // Replace with your actual collection ID
 const STORAGE_BUCKET_ID = process.env.APPWRITE_STORAGE_BUCKET_ID || 'profile_images'; // Now loaded from .env
 
 // Initialize the client
@@ -69,11 +73,25 @@ const roleManagement = {
         ...data,
         updatedAt: new Date().toISOString()
       };
+      
+      // Get current user
+      const currentUser = await account.get();
+      
+      if (!currentUser) {
+        throw new Error('User must be logged in to update roles');
+      }
+      
+      // Add explicit permissions when updating document
       return await databases.updateDocument(
         DATABASE_ID,
         ROLES_COLLECTION_ID,
         roleId,
-        updateData
+        updateData,
+        [
+          Permission.read(Role.any()),
+          Permission.update(Role.any()),
+          Permission.delete(Role.any())
+        ]
       );
     } catch (error) {
       console.error('Appwrite service :: updateRole :: error', error);
@@ -102,14 +120,32 @@ const roleManagement = {
       // Update user profile with role
       const userProfile = await appwriteService.getUserProfile(userId);
       if (userProfile) {
+        // Store roles as comma-separated string instead of array
+        const currentRoles = userProfile.roles || '';
+        let newRoles = currentRoles;
+        
+        // If current roles is empty, just use the roleId
+        if (!currentRoles) {
+          newRoles = roleId;
+        } 
+        // If it already has roles, append the new one with a comma
+        else if (!currentRoles.includes(roleId)) {
+          newRoles = currentRoles + ',' + roleId;
+        }
+        
         return await databases.updateDocument(
           DATABASE_ID,
           USERS_COLLECTION_ID,
           userProfile.$id,
           {
-            roles: [...(userProfile.roles || []), roleId],
+            roles: newRoles,
             updatedAt: new Date().toISOString()
-          }
+          },
+          [
+            Permission.read(Role.any()),
+            Permission.update(Role.any()),
+            Permission.delete(Role.any())
+          ]
         );
       }
       throw new Error('User profile not found');
@@ -124,14 +160,25 @@ const roleManagement = {
     try {
       const userProfile = await appwriteService.getUserProfile(userId);
       if (userProfile) {
+        // Handle roles as string
+        const currentRoles = userProfile.roles || '';
+        const rolesArray = currentRoles.split(',').filter(id => id.trim() !== '');
+        const updatedRolesArray = rolesArray.filter(id => id !== roleId);
+        const updatedRoles = updatedRolesArray.join(',');
+        
         return await databases.updateDocument(
           DATABASE_ID,
           USERS_COLLECTION_ID,
           userProfile.$id,
           {
-            roles: (userProfile.roles || []).filter(id => id !== roleId),
+            roles: updatedRoles,
             updatedAt: new Date().toISOString()
-          }
+          },
+          [
+            Permission.read(Role.any()),
+            Permission.update(Role.any()),
+            Permission.delete(Role.any())
+          ]
         );
       }
       throw new Error('User profile not found');
@@ -145,14 +192,19 @@ const roleManagement = {
   getUserRoles: async (userId: string) => {
     try {
       const userProfile = await appwriteService.getUserProfile(userId);
-      if (userProfile && Array.isArray(userProfile.roles) && userProfile.roles.length > 0) {
-        // Only try to fetch roles if they exist as an array with values
-        const roles = await Promise.all(
-          userProfile.roles.map(roleId => 
-            databases.getDocument(DATABASE_ID, ROLES_COLLECTION_ID, roleId)
-          )
-        );
-        return roles;
+      if (userProfile && userProfile.roles) {
+        // Convert from string to array
+        const rolesArray = userProfile.roles.split(',').filter(id => id.trim() !== '');
+        
+        if (rolesArray.length > 0) {
+          // Only try to fetch roles if they exist
+          const roles = await Promise.all(
+            rolesArray.map(roleId => 
+              databases.getDocument(DATABASE_ID, ROLES_COLLECTION_ID, roleId)
+            )
+          );
+          return roles;
+        }
       }
       return [];
     } catch (error) {
@@ -627,9 +679,7 @@ export const appwriteService = {
         courseId: lessonData.courseId,
         order: lessonData.order || nextOrder,
         isPublished: lessonData.isPublished || false,
-        duration: durationInMinutes, // Integer value
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        duration: durationInMinutes // Integer value
       };
       
       console.log('Creating lesson with payload:', lessonPayload);
@@ -927,7 +977,448 @@ export const appwriteService = {
   deleteRole: roleManagement.deleteRole,
   assignRoleToUser: roleManagement.assignRoleToUser,
   removeRoleFromUser: roleManagement.removeRoleFromUser,
-  getUserRoles: roleManagement.getUserRoles
+  getUserRoles: roleManagement.getUserRoles,
+
+  // Course instructor methods
+  assignInstructorToCourse: async (courseId: string, instructorId: string) => {
+    try {
+      // Get the course first
+      const course = await appwriteService.getCourseById(courseId);
+      
+      if (!course) {
+        throw new Error('Course not found');
+      }
+      
+      // Update the course with the instructor ID
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COURSES_COLLECTION_ID,
+        courseId,
+        {
+          instructorId: instructorId,
+          updatedAt: new Date().toISOString()
+        }
+      );
+    } catch (error) {
+      console.error('Appwrite service :: assignInstructorToCourse :: error', error);
+      throw error;
+    }
+  },
+  
+  removeInstructorFromCourse: async (courseId: string) => {
+    try {
+      // Get the course first
+      const course = await appwriteService.getCourseById(courseId);
+      
+      if (!course) {
+        throw new Error('Course not found');
+      }
+      
+      // Update the course to remove the instructor
+      return await databases.updateDocument(
+        DATABASE_ID,
+        COURSES_COLLECTION_ID,
+        courseId,
+        {
+          instructorId: null, // Set to null to remove the instructor
+          updatedAt: new Date().toISOString()
+        }
+      );
+    } catch (error) {
+      console.error('Appwrite service :: removeInstructorFromCourse :: error', error);
+      throw error;
+    }
+  },
+  
+  getInstructors: async () => {
+    try {
+      // Get all users with instructor role (assuming there's an isInstructor field)
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [Query.equal('isInstructor', true)]
+      );
+      
+      return response.documents;
+    } catch (error) {
+      console.error('Appwrite service :: getInstructors :: error', error);
+      throw error;
+    }
+  },
+
+  // Advanced instructor management methods
+  getInstructorsByCourse: async (courseId: string) => {
+    try {
+      // Get the course first to check for instructor ID
+      const course = await appwriteService.getCourseById(courseId);
+      
+      if (!course || !course.instructorId) {
+        // No instructor assigned to this course
+        return [];
+      }
+      
+      // Get instructor details
+      const instructor = await appwriteService.getUserProfile(course.instructorId);
+      
+      return instructor ? [instructor] : [];
+    } catch (error) {
+      console.error('Appwrite service :: getInstructorsByCourse :: error', error);
+      return [];
+    }
+  },
+  
+  addInstructorToCourse: async (courseId: string, instructorData: any) => {
+    try {
+      // Check if the instructor exists by email
+      const existingUsers = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [Query.equal('email', instructorData.email)]
+      );
+      
+      let instructorId;
+      
+      // If instructor exists, use their ID
+      if (existingUsers.documents.length > 0) {
+        instructorId = existingUsers.documents[0].userId;
+      } else {
+        // Create a new user with instructor role if not exists
+        const newUser = await databases.createDocument(
+          DATABASE_ID,
+          USERS_COLLECTION_ID,
+          ID.unique(),
+          {
+            userId: ID.unique(),
+            displayName: instructorData.displayName,
+            email: instructorData.email,
+            profileImage: instructorData.profileImage || '',
+            isInstructor: true,
+            joinedDate: new Date().toISOString(),
+            lastActive: new Date().toISOString(),
+          }
+        );
+        
+        instructorId = newUser.userId;
+      }
+      
+      // Assign instructor to course
+      await appwriteService.assignInstructorToCourse(courseId, instructorId);
+      
+      return { success: true };
+    } catch (error) {
+      console.error('Appwrite service :: addInstructorToCourse :: error', error);
+      throw error;
+    }
+  },
+
+  getEligibleInstructors: async () => {
+    try {
+      // Get all users that are either instructors or admins
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        USERS_COLLECTION_ID,
+        [Query.or([
+          Query.equal('isInstructor', true),
+          Query.equal('isAdmin', true)
+        ])]
+      );
+      
+      // Sort users by displayName for easier selection
+      return response.documents.sort((a, b) => {
+        if (a.displayName && b.displayName) {
+          return a.displayName.localeCompare(b.displayName);
+        }
+        return 0;
+      });
+    } catch (error) {
+      console.error('Appwrite service :: getEligibleInstructors :: error', error);
+      return [];
+    }
+  },
+
+  // Quiz methods
+  getAllQuizzes: async (filters = []) => {
+    try {
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        filters
+      );
+      return response.documents;
+    } catch (error) {
+      console.error('Appwrite service :: getAllQuizzes :: error', error);
+      throw error;
+    }
+  },
+
+  getQuizById: async (quizId) => {
+    try {
+      return await databases.getDocument(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        quizId
+      );
+    } catch (error) {
+      console.error('Appwrite service :: getQuizById :: error', error);
+      throw error;
+    }
+  },
+
+  createQuiz: async (quizData) => {
+    try {
+      // Get current user
+      const currentUser = await account.get();
+      
+      if (!currentUser) {
+        throw new Error('User must be logged in to create a quiz');
+      }
+      
+      // Get user profile to check admin status
+      const userProfile = await appwriteService.getUserProfile(currentUser.$id);
+      
+      // Check permissions
+      if (!userProfile || userProfile.isAdmin !== true) {
+        throw new Error('User does not have permission to create quizzes');
+      }
+      
+      // Create the document payload
+      const quizPayload = {
+        title: quizData.title,
+        description: quizData.description || '',
+        category: quizData.category || 'general',
+        difficulty: quizData.difficulty || 'beginner',
+        timeLimit: quizData.timeLimit || 0, // 0 means no time limit
+        passScore: quizData.passScore || 70, // Default pass score (percentage)
+        isPublished: quizData.isPublished || false,
+        createdBy: currentUser.$id,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        // Add courseId if it exists in the quizData
+        ...(quizData.courseId && { courseId: quizData.courseId }),
+      };
+      
+      // Create the document with permissions
+      const result = await databases.createDocument(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        ID.unique(),
+        quizPayload,
+        [
+          Permission.read(Role.users()),
+          Permission.update(Role.user(currentUser.$id)),
+          Permission.delete(Role.user(currentUser.$id))
+        ]
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('Appwrite service :: createQuiz :: error', error);
+      throw error;
+    }
+  },
+
+  updateQuiz: async (quizId, quizData) => {
+    try {
+      // Add updated timestamp
+      const updateData = {
+        ...quizData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      return await databases.updateDocument(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        quizId,
+        updateData
+      );
+    } catch (error) {
+      console.error('Appwrite service :: updateQuiz :: error', error);
+      throw error;
+    }
+  },
+
+  deleteQuiz: async (quizId) => {
+    try {
+      // First, delete all associated questions
+      const associatedQuestions = await databases.listDocuments(
+        DATABASE_ID,
+        QUIZ_QUESTIONS_COLLECTION_ID,
+        [Query.equal('quizId', quizId)]
+      );
+      
+      if (associatedQuestions.documents.length > 0) {
+        for (const question of associatedQuestions.documents) {
+          await databases.deleteDocument(
+            DATABASE_ID,
+            QUIZ_QUESTIONS_COLLECTION_ID,
+            question.$id
+          );
+        }
+      }
+      
+      // Now delete the quiz
+      await databases.deleteDocument(
+        DATABASE_ID,
+        QUIZZES_COLLECTION_ID,
+        quizId
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Appwrite service :: deleteQuiz :: error', error);
+      throw error;
+    }
+  },
+
+  // Quiz question methods
+  getQuestionsByQuiz: async (quizId) => {
+    try {
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        QUIZ_QUESTIONS_COLLECTION_ID,
+        [
+          Query.equal('quizId', quizId),
+          Query.orderAsc('order')
+        ]
+      );
+      
+      return response.documents;
+    } catch (error) {
+      console.error('Appwrite service :: getQuestionsByQuiz :: error', error);
+      throw error;
+    }
+  },
+
+  createQuestion: async (questionData) => {
+    try {
+      // Get current user
+      const currentUser = await account.get();
+      
+      if (!currentUser) {
+        throw new Error('User must be logged in to create a question');
+      }
+      
+      // Get questions to determine next order number
+      const quizQuestions = await appwriteService.getQuestionsByQuiz(questionData.quizId);
+      
+      // Calculate next order number
+      const nextOrder = quizQuestions.length > 0 
+        ? Math.max(...quizQuestions.map(question => question.order || 0)) + 1 
+        : 1;
+      
+      // Create the document payload
+      const questionPayload = {
+        quizId: questionData.quizId,
+        text: questionData.text,
+        type: questionData.type || 'multiple-choice',
+        options: questionData.options || [],
+        correctAnswer: questionData.correctAnswer,
+        explanation: questionData.explanation || '',
+        points: questionData.points || 1,
+        order: questionData.order || nextOrder,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      
+      // Create the document with permissions
+      const result = await databases.createDocument(
+        DATABASE_ID,
+        QUIZ_QUESTIONS_COLLECTION_ID,
+        ID.unique(),
+        questionPayload
+      );
+      
+      return result;
+    } catch (error) {
+      console.error('Appwrite service :: createQuestion :: error', error);
+      throw error;
+    }
+  },
+
+  updateQuestion: async (questionId, questionData) => {
+    try {
+      // Add updated timestamp
+      const updateData = {
+        ...questionData,
+        updatedAt: new Date().toISOString()
+      };
+      
+      return await databases.updateDocument(
+        DATABASE_ID,
+        QUIZ_QUESTIONS_COLLECTION_ID,
+        questionId,
+        updateData
+      );
+    } catch (error) {
+      console.error('Appwrite service :: updateQuestion :: error', error);
+      throw error;
+    }
+  },
+
+  deleteQuestion: async (questionId) => {
+    try {
+      await databases.deleteDocument(
+        DATABASE_ID,
+        QUIZ_QUESTIONS_COLLECTION_ID,
+        questionId
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Appwrite service :: deleteQuestion :: error', error);
+      throw error;
+    }
+  },
+
+  // Quiz attempt methods
+  recordQuizAttempt: async (userId, quizId, attemptData) => {
+    try {
+      return await databases.createDocument(
+        DATABASE_ID,
+        QUIZ_ATTEMPTS_COLLECTION_ID,
+        ID.unique(),
+        {
+          userId: userId,
+          quizId: quizId,
+          startedAt: attemptData.startedAt || new Date().toISOString(),
+          completedAt: attemptData.completedAt || null,
+          score: attemptData.score || 0,
+          totalQuestions: attemptData.totalQuestions || 0,
+          correctAnswers: attemptData.correctAnswers || 0,
+          timeSpent: attemptData.timeSpent || 0,
+          answers: attemptData.answers || [],
+          passed: attemptData.passed || false,
+        }
+      );
+    } catch (error) {
+      console.error('Appwrite service :: recordQuizAttempt :: error', error);
+      throw error;
+    }
+  },
+
+  getUserQuizAttempts: async (userId, quizId = null) => {
+    try {
+      // If quizId is provided, get attempts for that specific quiz
+      const filters = [Query.equal('userId', userId)];
+      
+      if (quizId) {
+        filters.push(Query.equal('quizId', quizId));
+      }
+      
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        QUIZ_ATTEMPTS_COLLECTION_ID,
+        filters
+      );
+      
+      return response.documents;
+    } catch (error) {
+      console.error('Appwrite service :: getUserQuizAttempts :: error', error);
+      throw error;
+    }
+  },
+
+  // ... continue with existing methods ...
 };
 
 export default appwriteService;

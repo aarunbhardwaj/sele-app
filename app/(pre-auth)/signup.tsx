@@ -3,14 +3,14 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withDelay,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import Text from '../../components/ui/Typography';
 import { Button } from '../../components/ui2/button-native';
