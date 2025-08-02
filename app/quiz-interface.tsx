@@ -138,6 +138,16 @@ export default function QuizInterfaceScreen() {
       
       setQuiz(quizData);
       setQuestions(questionsData);
+      
+      // Check if there are any questions
+      if (questionsData.length === 0) {
+        // No questions available
+        setLoading(false);
+        // Don't start the timer for a quiz with no questions
+        setTimerActive(false);
+        return;
+      }
+      
       setTimeRemaining(quizData.timeLimit);
       setLoading(false);
       setTimerActive(true);
@@ -184,7 +194,9 @@ export default function QuizInterfaceScreen() {
   const handleTimeUp = () => {
     // Record the answer as incorrect if no answer selected
     const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+    // Support both correctAnswer and correctOption field names
+    const correctAnswerValue = currentQuestion.correctOption || currentQuestion.correctAnswer;
+    const isCorrect = selectedAnswer === correctAnswerValue;
     
     // Store answer in results
     setResults(prev => ({
@@ -195,7 +207,7 @@ export default function QuizInterfaceScreen() {
           questionId: currentQuestion.$id,
           question: currentQuestion.text,
           selectedAnswer: selectedAnswer || 'None (time expired)',
-          correctAnswer: currentQuestion.correctAnswer,
+          correctAnswer: correctAnswerValue,
           isCorrect: isCorrect
         }
       ]
@@ -210,7 +222,9 @@ export default function QuizInterfaceScreen() {
     
     // Check if answer is correct
     const currentQuestion = questions[currentQuestionIndex];
-    const isCorrect = option === currentQuestion.correctAnswer;
+    // Support both correctAnswer and correctOption field names
+    const correctAnswerValue = currentQuestion.correctOption || currentQuestion.correctAnswer;
+    const isCorrect = option === correctAnswerValue;
     
     if (isCorrect) {
       setScore(prevScore => prevScore + (currentQuestion.points || 10));
@@ -226,7 +240,7 @@ export default function QuizInterfaceScreen() {
           questionId: currentQuestion.$id,
           question: currentQuestion.text,
           selectedAnswer: option,
-          correctAnswer: currentQuestion.correctAnswer,
+          correctAnswer: correctAnswerValue,
           isCorrect: isCorrect
         }
       ]
@@ -381,15 +395,72 @@ export default function QuizInterfaceScreen() {
   const currentQuestion = questions[currentQuestionIndex];
   const totalQuestions = questions.length;
   
+  // If no questions are available, show a message
+  if (questions.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
+            <Ionicons name="close-outline" size={28} color={colors.neutral.darkGray} />
+          </TouchableOpacity>
+          <Text variant="h5" style={styles.quizTitle}>{quiz?.title || 'Quiz'}</Text>
+        </View>
+        
+        <Card style={styles.emptyStateCard}>
+          <Ionicons name="help-circle-outline" size={64} color={colors.primary.main} style={styles.emptyStateIcon} />
+          <Text variant="h5" style={styles.emptyStateTitle}>No Questions Available</Text>
+          <Text style={styles.emptyStateMessage}>
+            This quiz doesn't have any questions yet. {mode === 'preview' ? 'Add questions to this quiz before previewing.' : 'Please check back later.'}
+          </Text>
+          
+          {mode === 'preview' && (
+            <Button
+              title="Add Questions"
+              variant="primary"
+              fullWidth
+              onPress={() => router.push({
+                pathname: `/admin/quiz/edit`,
+                params: { id: quizId, tab: 'questions' }
+              })}
+              style={styles.emptyStateButton}
+            />
+          )}
+          
+          <TouchableOpacity 
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Text variant="button" style={styles.backButtonText}>
+              Back to Quizzes
+            </Text>
+          </TouchableOpacity>
+        </Card>
+      </SafeAreaView>
+    );
+  }
+  
   // Calculate progress
   const progress = (currentQuestionIndex / totalQuestions) * 100;
 
   // Calculate timer color based on time remaining
   const getTimerColor = () => {
+    if (!quiz?.timeLimit) return colors.primary.main;
     if (timeRemaining > quiz.timeLimit * 0.6) return colors.status.success;
     if (timeRemaining > quiz.timeLimit * 0.3) return colors.status.warning;
     return colors.status.error;
   };
+
+  // Guard against undefined current question
+  if (!currentQuestion) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text style={styles.loadingText}>Loading question...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -397,7 +468,7 @@ export default function QuizInterfaceScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backIcon}>
           <Ionicons name="close-outline" size={28} color={colors.neutral.darkGray} />
         </TouchableOpacity>
-        <Text variant="h5" style={styles.quizTitle}>{quiz.title}</Text>
+        <Text variant="h5" style={styles.quizTitle}>{quiz?.title || 'Quiz'}</Text>
         <View style={styles.progressContainer}>
           <Text variant="caption" style={styles.progressText}>
             {currentQuestionIndex + 1}/{totalQuestions}
@@ -430,7 +501,7 @@ export default function QuizInterfaceScreen() {
         <Text variant="h5" style={styles.questionText}>{currentQuestion.text}</Text>
         
         <View style={styles.optionsContainer}>
-          {currentQuestion.options.map((option, index) => (
+          {Array.isArray(currentQuestion.options) ? currentQuestion.options.map((option, index) => (
             <TouchableOpacity
               key={index}
               style={[
@@ -459,7 +530,9 @@ export default function QuizInterfaceScreen() {
                 <Ionicons name="close-circle" size={24} color="white" style={styles.optionIcon} />
               )}
             </TouchableOpacity>
-          ))}
+          )) : (
+            <Text style={styles.optionText}>No options available</Text>
+          )}
         </View>
       </Card>
 
@@ -684,5 +757,29 @@ const styles = StyleSheet.create({
   backButtonText: {
     color: colors.neutral.darkGray,
     textAlign: 'center',
+  },
+  emptyStateCard: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    textAlign: 'center',
+    marginTop: spacing.md,
+  },
+  emptyStateIcon: {
+    marginBottom: spacing.md,
+  },
+  emptyStateTitle: {
+    fontSize: typography.fontSizes.xl,
+    fontWeight: typography.fontWeights.bold,
+    marginBottom: spacing.sm,
+    color: colors.neutral.darkGray,
+  },
+  emptyStateMessage: {
+    fontSize: typography.fontSizes.md,
+    color: colors.neutral.text,
+    marginBottom: spacing.md,
+  },
+  emptyStateButton: {
+    width: '100%',
   },
 });

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { Query } from 'appwrite';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -19,7 +20,6 @@ import { borderRadius, colors, spacing, typography } from '../../../components/u
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
-import { Query } from 'appwrite';
 
 interface Course {
   $id: string;
