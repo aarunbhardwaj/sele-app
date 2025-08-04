@@ -241,8 +241,6 @@ function QuizListScreen() {
         
         <View style={styles.filtersContainer}>
           {renderFilterButton('All Quizzes', 'all')}
-          {renderFilterButton('Published', 'published')}
-          {renderFilterButton('Drafts', 'drafts')}
         </View>
         
         {loading ? (

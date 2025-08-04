@@ -43,10 +43,7 @@ const commonPermissions = [
   'read:quizzes',
   'write:quizzes',
   'read:users',
-  'write:users',
   'admin:dashboard',
-  'admin:analytics',
-  'admin:settings',
 ];
 
 export default function RolesManagementScreen() {
@@ -334,7 +331,7 @@ export default function RolesManagementScreen() {
           />
           
           {filteredUsers.length > 0 ? (
-            filteredUsers.map(user => (
+            filteredUsers.slice(0, 5).map(user => (
               <View key={user.$id} style={styles.userCard}>
                 <View style={styles.userInfo}>
                   <View style={styles.userAvatar}>
@@ -350,18 +347,6 @@ export default function RolesManagementScreen() {
                       {getUserRoles(user).map(role => (
                         <View key={role.$id} style={styles.userRoleTag}>
                           <Text style={styles.userRoleText}>{role.name}</Text>
-                          <TouchableOpacity
-                            onPress={() => Alert.alert(
-                              'Remove Role',
-                              `Remove ${role.name} role from ${user.displayName}?`,
-                              [
-                                { text: 'Cancel' },
-                                { text: 'Remove', onPress: () => handleRemoveRole(user.userId, role.$id) }
-                              ]
-                            )}
-                          >
-                            <Ionicons name="close-circle" size={16} color="#FFF" />
-                          </TouchableOpacity>
                         </View>
                       ))}
                       {(!user.roles || user.roles.length === 0) && (
@@ -375,12 +360,18 @@ export default function RolesManagementScreen() {
                   style={styles.assignButton}
                   onPress={() => openUserModal(user)}
                 >
-                  <Text style={styles.assignButtonText}>Assign Role</Text>
+                  <Text style={styles.assignButtonText}>Manage Roles</Text>
                 </TouchableOpacity>
               </View>
             ))
           ) : (
             <Text style={styles.noDataText}>No users found</Text>
+          )}
+          
+          {filteredUsers.length > 5 && (
+            <Text style={styles.moreUsersText}>
+              {filteredUsers.length - 5} more users available. Use search to filter results.
+            </Text>
           )}
         </View>
       </ScrollView>
@@ -857,6 +848,13 @@ const styles = StyleSheet.create({
     color: colors.neutral.gray,
     textAlign: 'center',
     marginTop: spacing.lg,
+    fontStyle: 'italic',
+  },
+  moreUsersText: {
+    fontSize: typography.fontSizes.sm,
+    color: colors.neutral.gray,
+    textAlign: 'center',
+    marginTop: spacing.sm,
     fontStyle: 'italic',
   },
 });

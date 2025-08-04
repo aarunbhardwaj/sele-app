@@ -9,16 +9,14 @@ import { useAuth } from '../../services/AuthContext';
 // Navigation items for our tabs and drawer
 const navigationItems = [
   { label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/(admin)/(dashboard)/index' },
-  { label: 'Users', icon: 'people-outline', activeIcon: 'people', route: '/(admin)/(users)/index' },
   { label: 'Courses', icon: 'book-outline', activeIcon: 'book', route: '/(admin)/(courses)/index' },
-  { label: 'Analytics', icon: 'bar-chart-outline', activeIcon: 'bar-chart', route: '/(admin)/(analytics)/index' },
+  { label: 'Users', icon: 'people-outline', activeIcon: 'people', route: '/(admin)/(users)/index' },
+  { label: 'Quizzes', icon: 'help-circle-outline', activeIcon: 'help-circle', route: '/(admin)/(quiz)/quiz-list' },
 ];
 
 // Additional items only for drawer menu
 const drawerOnlyItems = [
-  { label: 'Classes', icon: 'videocam-outline', route: '/(admin)/(classes)/class-scheduler' },
   { label: 'Settings', icon: 'settings-outline', route: '/(admin)/settings' },
-  { label: 'Help & Support', icon: 'help-buoy-outline', route: '/(admin)/help-support' },
 ];
 
 export default function AdminLayout() {
@@ -197,16 +195,6 @@ function AdminTabs() {
         }}
       />
       <Tabs.Screen 
-        name="(users)" 
-        options={{
-          title: 'Users',
-          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen 
         name="(courses)" 
         options={{
           title: 'Courses',
@@ -217,19 +205,29 @@ function AdminTabs() {
         }}
       />
       <Tabs.Screen 
-        name="(analytics)" 
+        name="(users)" 
         options={{
-          title: 'Analytics',
+          title: 'Users',
           tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
           tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'bar-chart' : 'bar-chart-outline'} color={color} focused={focused} />
+            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+          ),
+        }}
+      />
+      <Tabs.Screen 
+        name="(quiz)" 
+        options={{
+          title: 'Quizzes',
+          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon name={focused ? 'help-circle' : 'help-circle-outline'} color={color} focused={focused} />
           ),
         }}
       />
       {/* These screens will exist for routing but be hidden in the tab bar */}
-      <Tabs.Screen name="(classes)" />
-      <Tabs.Screen name="(quiz)" />
-      <Tabs.Screen name="(dashboard)" />
+      <Tabs.Screen name="(classes)" options={{ href: null }} />
+      <Tabs.Screen name="(dashboard)" options={{ href: null }} />
+      <Tabs.Screen name="(analytics)" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -74,6 +74,26 @@ const appwriteService = {
   assignRoleToUser: roleService.assignRoleToUser,
   removeRoleFromUser: roleService.removeRoleFromUser,
   getUserRoles: roleService.getUserRoles,
+  
+  // Helper method to check if a user is an admin
+  isUserAdmin: async (userId: string): Promise<boolean> => {
+    try {
+      // Get all roles assigned to the user
+      const roles = await roleService.getUserRoles(userId);
+      
+      // Check if any of the roles has admin privileges
+      // This depends on how your app defines admin roles
+      // Common patterns include: checking for a specific role name 
+      // or checking for specific permissions in the role
+      return roles.some(role => 
+        role.name?.toLowerCase() === 'admin' || 
+        role.name?.toLowerCase() === 'administrator'
+      );
+    } catch (error) {
+      console.error('Error checking admin status:', error);
+      return false; // Default to false on error
+    }
+  },
 
   // Storage Service Methods
   uploadMedia: storageService.uploadMedia,

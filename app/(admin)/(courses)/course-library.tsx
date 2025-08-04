@@ -93,24 +93,6 @@ export default function CourseLibraryScreen() {
     );
   };
 
-  const handleTogglePublish = async (course: Course) => {
-    try {
-      const updatedCourse = await appwriteService.updateCourse(course.$id, {
-        isPublished: !course.isPublished
-      });
-      
-      setCourses(courses.map(c => c.$id === course.$id ? updatedCourse : c));
-      
-      Alert.alert(
-        'Success', 
-        `Course ${course.isPublished ? 'unpublished' : 'published'} successfully`
-      );
-    } catch (error) {
-      console.error('Failed to update course:', error);
-      Alert.alert('Error', 'Failed to update course status. Please try again.');
-    }
-  };
-
   const filteredCourses = filterPublished === null 
     ? courses 
     : courses.filter(course => course.isPublished === filterPublished);
@@ -192,20 +174,6 @@ export default function CourseLibraryScreen() {
         
         <TouchableOpacity 
           style={styles.iconButton}
-          onPress={() => handleTogglePublish(item)}
-        >
-          <Ionicons 
-            name={item.isPublished ? "eye-off-outline" : "eye-outline"} 
-            size={20} 
-            color={colors.secondary.main}
-          />
-          <Text variant="caption" style={styles.iconButtonText}>
-            {item.isPublished ? "Unpub" : "Pub"}
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.iconButton}
           onPress={() => handleDeleteCourse(item.$id, item.title)}
         >
           <Ionicons name="trash-outline" size={20} color={colors.status.error} />
@@ -272,37 +240,7 @@ export default function CourseLibraryScreen() {
                 variant="button" 
                 color={filterPublished === null ? colors.neutral.white : colors.neutral.text}
               >
-                All
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[
-                styles.filterButton, 
-                filterPublished === true && styles.activeFilter
-              ]}
-              onPress={() => setFilterPublished(true)}
-            >
-              <Text 
-                variant="button" 
-                color={filterPublished === true ? colors.neutral.white : colors.neutral.text}
-              >
-                Published
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[
-                styles.filterButton, 
-                filterPublished === false && styles.activeFilter
-              ]}
-              onPress={() => setFilterPublished(false)}
-            >
-              <Text 
-                variant="button" 
-                color={filterPublished === false ? colors.neutral.white : colors.neutral.text}
-              >
-                Drafts
+                All Courses
               </Text>
             </TouchableOpacity>
             

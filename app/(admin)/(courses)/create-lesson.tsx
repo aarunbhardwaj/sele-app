@@ -1,17 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    TextInput,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -34,13 +37,19 @@ export default function CreateLessonScreen() {
   const [duration, setDuration] = useState('15');
   const [isPublished, setIsPublished] = useState(false);
   
+  // Video upload state
+  const [video, setVideo] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoId, setVideoId] = useState<string | null>(null);
+  
   // Validation state
   const [errors, setErrors] = useState({
     title: '',
     content: '',
     description: '',
     order: '',
-    duration: ''
+    duration: '',
+    video: ''
   });
   
   useEffect(() => {
@@ -72,7 +81,8 @@ export default function CreateLessonScreen() {
       content: '',
       description: '',
       order: '',
-      duration: ''
+      duration: '',
+      video: ''
     };
     
     if (!title.trim()) {
@@ -107,6 +117,63 @@ export default function CreateLessonScreen() {
     return isValid;
   };
   
+  const handlePickVideo = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'video/*',
+        copyToCacheDirectory: true
+      });
+      
+      if (result.canceled === false && result.assets && result.assets.length > 0) {
+        setVideo(result.assets[0]);
+      }
+    } catch (error) {
+      console.error('Error picking video:', error);
+      Alert.alert('Error', 'Failed to select video file');
+    }
+  };
+  
+  const handleUploadVideo = async () => {
+    if (!video) return;
+    
+    setUploadingVideo(true);
+    
+    try {
+      console.log('DEBUG: Starting video upload process');
+      
+      // Check if the file exists and is accessible
+      const fileInfo = await FileSystem.getInfoAsync(video.uri);
+      console.log('DEBUG: File info:', fileInfo);
+      
+      if (!fileInfo.exists) {
+        throw new Error("File doesn't exist at the specified URI");
+      }
+      
+      // Create a file object with the correct properties
+      // The file name is important for content-type detection on server
+      const fileObject = {
+        name: video.name || `video_${Date.now()}.mp4`,
+        type: video.mimeType || 'video/mp4',
+        size: video.size,
+        uri: video.uri
+      };
+      
+      console.log('DEBUG: Sending file object to uploadMedia');
+      const uploadResult = await appwriteService.uploadMedia(fileObject);
+      
+      if (uploadResult && uploadResult.$id) {
+        setVideoId(uploadResult.$id);
+        Alert.alert('Success', 'Video uploaded successfully');
+      }
+    } catch (error) {
+      console.error('Failed to upload video:', error);
+      Alert.alert('Error', 'Failed to upload video: ' + (error.message || error));
+      setErrors(prev => ({...prev, video: 'Failed to upload video'}));
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+  
   const handleCreateLesson = async () => {
     if (!validateForm() || !courseId) {
       return;
@@ -123,7 +190,8 @@ export default function CreateLessonScreen() {
         courseId: courseId as string,
         order: order ? parseInt(order, 10) : undefined,
         duration: duration ? parseInt(duration, 10) : undefined,
-        isPublished
+        isPublished,
+        videoId: videoId || undefined  // Include video ID if available
       };
       
       // Create lesson using appwrite service
@@ -226,6 +294,66 @@ export default function CreateLessonScreen() {
                     {errors.description}
                   </Text>
                 ) : null}
+              </View>
+              
+              {/* Video Upload Section */}
+              <View style={styles.formGroup}>
+                <Text variant="subtitle1" style={styles.label}>Lesson Video</Text>
+                <View style={styles.videoUploadContainer}>
+                  <View style={styles.videoSelectionContainer}>
+                    <TouchableOpacity 
+                      style={styles.videoPickerButton}
+                      onPress={handlePickVideo}
+                      disabled={uploadingVideo}
+                    >
+                      <Ionicons name="videocam" size={24} color={colors.primary.main} />
+                      <Text style={styles.videoPickerText}>
+                        {video ? 'Change Video' : 'Select Video'}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {video && (
+                      <View style={styles.videoInfoContainer}>
+                        <Ionicons name="document-attach" size={20} color={colors.neutral.darkGray} />
+                        <Text variant="body2" style={styles.videoFileName} numberOfLines={1}>
+                          {video.name || 'Video file'}
+                        </Text>
+                        <Text variant="caption" style={styles.videoFileSize}>
+                          {video.size ? `${(video.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  
+                  {video && !videoId && (
+                    <Button
+                      title={uploadingVideo ? 'Uploading...' : 'Upload Video'}
+                      variant="outline"
+                      onPress={handleUploadVideo}
+                      disabled={uploadingVideo || !video}
+                      style={styles.uploadButton}
+                      icon={uploadingVideo ? <ActivityIndicator size="small" color={colors.primary.main} /> : null}
+                    />
+                  )}
+                  
+                  {videoId && (
+                    <View style={styles.uploadSuccessContainer}>
+                      <Ionicons name="checkmark-circle" size={20} color={colors.status.success} />
+                      <Text variant="body2" style={styles.uploadSuccessText}>
+                        Video uploaded successfully
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {errors.video ? (
+                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
+                    {errors.video}
+                  </Text>
+                ) : (
+                  <Text variant="caption" color={colors.neutral.darkGray} style={styles.helperText}>
+                    Upload a video file for this lesson (MP4, MOV, or WebM recommended)
+                  </Text>
+                )}
               </View>
               
               <View style={styles.formGroup}>
@@ -377,5 +505,60 @@ const styles = StyleSheet.create({
   actionButton: {
     marginLeft: spacing.sm,
     minWidth: 120,
+  },
+  videoUploadContainer: {
+    borderWidth: 1,
+    borderColor: colors.neutral.lightGray,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    backgroundColor: colors.neutral.white,
+  },
+  videoSelectionContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  videoPickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.neutral.background,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.sm,
+    marginRight: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  videoPickerText: {
+    color: colors.primary.main,
+    marginLeft: spacing.xs,
+    fontWeight: '500',
+  },
+  videoInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    flexWrap: 'wrap',
+  },
+  videoFileName: {
+    marginLeft: spacing.xs,
+    color: colors.neutral.text,
+    flex: 1,
+  },
+  videoFileSize: {
+    color: colors.neutral.darkGray,
+    marginLeft: spacing.xs,
+  },
+  uploadButton: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+  },
+  uploadSuccessContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.sm,
+  },
+  uploadSuccessText: {
+    marginLeft: spacing.xs,
+    color: colors.status.success,
   },
 });

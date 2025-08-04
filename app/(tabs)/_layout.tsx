@@ -40,10 +40,10 @@ export default function TabsLayout() {
           
           if (route.name === 'index') {
             iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === '(classes)') {
-            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === '(courses)') {
             iconName = focused ? 'book' : 'book-outline';
+          } else if (route.name === '(quiz)') {
+            iconName = focused ? 'help-circle' : 'help-circle-outline';
           } else if (route.name === '(profile)') {
             iconName = focused ? 'person' : 'person-outline';
           } else {
@@ -59,14 +59,14 @@ export default function TabsLayout() {
         }
       })}
     >
-      {/* Only 4 main tabs as requested */}
+      {/* Only the most essential tabs */}
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="(classes)" options={{ title: 'Classes' }} />
       <Tabs.Screen name="(courses)" options={{ title: 'Courses' }} />
+      <Tabs.Screen name="(quiz)" options={{ title: 'Quizzes' }} />
       <Tabs.Screen name="(profile)" options={{ title: 'Profile' }} />
       
       {/* Explicitly hide other folders from tab bar */}
-      <Tabs.Screen name="(quiz)" options={{ href: null }} />
+      <Tabs.Screen name="(classes)" options={{ href: null }} />
       <Tabs.Screen name="(learning)" options={{ href: null }} />
       <Tabs.Screen name="(support)" options={{ href: null }} />
     </Tabs>

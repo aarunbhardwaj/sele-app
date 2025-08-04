@@ -1,19 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Papa from 'papaparse';
 import React, { useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    KeyboardAvoidingView,
-    Platform,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -123,35 +125,97 @@ export default function QuizCreatorScreen() {
 
   const parseCsv = async (fileUri) => {
     try {
-      // In a real app, you'd implement proper CSV parsing here
-      // For demonstration, we'll create sample questions
+      console.log('Reading CSV file from:', fileUri);
       
-      // Mock parsed questions (in production you'd actually parse the CSV)
-      const mockQuestions = [
-        {
-          text: "What is the meaning of 'apple'?",
-          options: ["A fruit", "A vegetable", "A car", "A computer"],
-          correctAnswer: "A fruit",
-          explanation: "An apple is a round fruit with red, green, or yellow skin and firm white flesh"
-        },
-        {
-          text: "What is the meaning of 'book'?",
-          options: ["A vehicle", "A written work", "A food", "A place"],
-          correctAnswer: "A written work",
-          explanation: "A book is a written or printed work consisting of pages bound together"
-        },
-        {
-          text: "What is the meaning of 'car'?",
-          options: ["A fruit", "A building", "A vehicle", "A tool"],
-          correctAnswer: "A vehicle",
-          explanation: "A car is a road vehicle with an engine, four wheels, and seats for a small number of people"
-        }
-      ];
+      // Read the file content as a string
+      const fileContent = await FileSystem.readAsStringAsync(fileUri);
       
-      return mockQuestions;
+      if (!fileContent || fileContent.trim() === '') {
+        throw new Error('CSV file is empty');
+      }
+      
+      // Parse the CSV content using PapaParse
+      return new Promise((resolve, reject) => {
+        Papa.parse(fileContent, {
+          header: true, // Treat the first row as headers
+          skipEmptyLines: true,
+          complete: (results) => {
+            if (results.errors && results.errors.length > 0) {
+              console.error('CSV parsing errors:', results.errors);
+              reject(new Error(`CSV parsing error: ${results.errors[0].message}`));
+              return;
+            }
+            
+            if (!results.data || results.data.length === 0) {
+              reject(new Error('No valid questions found in CSV file'));
+              return;
+            }
+            
+            try {
+              // Map CSV data to question format
+              const questions = results.data.map(row => {
+                // Collect all options from the row (option1, option2, etc.)
+                const options = [];
+                for (let i = 1; i <= 4; i++) {
+                  const optionKey = `option${i}`;
+                  if (row[optionKey] && row[optionKey].trim() !== '') {
+                    options.push(row[optionKey].trim());
+                  }
+                }
+                
+                // Validate the question data
+                if (!row.question || row.question.trim() === '') {
+                  throw new Error('A question is missing question text');
+                }
+                
+                if (options.length < 2) {
+                  throw new Error(`Question "${row.question}" needs at least 2 options`);
+                }
+                
+                if (!row.correctAnswer || row.correctAnswer.trim() === '') {
+                  throw new Error(`Question "${row.question}" is missing a correct answer`);
+                }
+                
+                // If correctAnswer is an index (0, 1, 2, 3), convert it to the actual option
+                let correctAnswer = row.correctAnswer.trim();
+                if (/^[0-3]$/.test(correctAnswer)) {
+                  const index = parseInt(correctAnswer, 10);
+                  if (index >= 0 && index < options.length) {
+                    correctAnswer = options[index];
+                  } else {
+                    throw new Error(`Question "${row.question}" has an invalid correct answer index`);
+                  }
+                }
+                
+                // Check if correctAnswer exists in options
+                if (!options.includes(correctAnswer)) {
+                  throw new Error(`Question "${row.question}" has a correct answer that doesn't match any option`);
+                }
+                
+                return {
+                  text: row.question.trim(),
+                  options: options,
+                  correctAnswer: options.indexOf(correctAnswer),
+                  explanation: row.explanation ? row.explanation.trim() : ''
+                };
+              });
+              
+              console.log(`Successfully parsed ${questions.length} questions from CSV`);
+              resolve(questions);
+            } catch (error) {
+              console.error('Error processing CSV data:', error);
+              reject(error);
+            }
+          },
+          error: (error) => {
+            console.error('CSV parsing failed:', error);
+            reject(new Error('Failed to parse CSV file: ' + error.message));
+          }
+        });
+      });
     } catch (error) {
-      console.error('Error parsing CSV:', error);
-      throw new Error('Failed to parse CSV file');
+      console.error('Error reading CSV file:', error);
+      throw new Error('Failed to read CSV file: ' + error.message);
     }
   };
   
@@ -326,10 +390,17 @@ export default function QuizCreatorScreen() {
       {csvImportMode && (
         <View style={styles.csvContent}>
           <Text variant="body2" style={styles.csvDescription}>
-            Upload a CSV file with vocabulary questions in the following format:
+            Upload a CSV file with questions in the following format:
           </Text>
           <Text style={styles.csvFormat}>
             question,option1,option2,option3,option4,correctAnswer,explanation
+          </Text>
+          <Text variant="caption" style={styles.csvNote}>
+            Notes: 
+            - The first row must be the header row exactly as shown above
+            - You need at least 2 options per question
+            - The correctAnswer must exactly match one of the options
+            - Alternatively, correctAnswer can be 0, 1, 2, or 3 to indicate the option index
           </Text>
           <View style={styles.csvFileSelection}>
             <Text style={styles.selectedFile}>
@@ -348,10 +419,47 @@ export default function QuizCreatorScreen() {
               {errors.csvFile}
             </Text>
           ) : null}
+          
+          <TouchableOpacity 
+            style={styles.sampleCsvLink}
+            onPress={createSampleCsv}
+          >
+            <Text variant="caption" color={colors.primary.main}>
+              Download Sample CSV Template
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
   );
+
+  const createSampleCsv = async () => {
+    try {
+      // Create a sample CSV content
+      const csvContent = 
+`question,option1,option2,option3,option4,correctAnswer,explanation
+What is the capital of France?,Paris,London,Berlin,Madrid,Paris,Paris is the capital and most populous city of France.
+What does "Hello" mean in Spanish?,Hola,Adios,Gracias,Buenos dias,Hola,Hola is the Spanish word for Hello.
+Which planet is closest to the sun?,Venus,Mercury,Earth,Mars,Mercury,Mercury is the closest planet to the sun in our solar system.`;
+      
+      // Create a temporary file in the app's cache directory
+      const fileUri = FileSystem.cacheDirectory + 'sample_questions.csv';
+      
+      // Write the CSV content to the file
+      await FileSystem.writeAsStringAsync(fileUri, csvContent);
+      
+      // Share the file with the user
+      await FileSystem.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Download Sample CSV',
+        UTI: 'public.comma-separated-values-text'
+      });
+      
+    } catch (error) {
+      console.error('Error creating sample CSV:', error);
+      Alert.alert('Error', 'Failed to create sample CSV file');
+    }
+  };
   
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -621,6 +729,11 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.sm,
     marginBottom: spacing.md,
   },
+  csvNote: {
+    marginBottom: spacing.md,
+    color: colors.neutral.darkGray,
+    fontSize: typography.fontSizes.sm,
+  },
   csvFileSelection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -631,5 +744,9 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     color: colors.neutral.darkGray,
     fontSize: typography.fontSizes.sm,
+  },
+  sampleCsvLink: {
+    marginTop: spacing.sm,
+    alignItems: 'center',
   },
 });

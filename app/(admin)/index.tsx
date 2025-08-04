@@ -124,16 +124,7 @@ export default function AdminControlCenter() {
         ))}
       </View>
       
-      <Text style={styles.sectionTitle}>Administration</Text>
-      
-      {/* Dashboard */}
-      <AdminFeatureCard
-        title="Dashboard & Analytics"
-        description="View system metrics and performance data"
-        icon="pie-chart-outline"
-        route="/(admin)/(dashboard)/index"
-        color="#3B82F6"
-      />
+      <Text style={styles.sectionTitle}>Main Features</Text>
       
       {/* Courses */}
       <AdminFeatureCard
@@ -142,16 +133,6 @@ export default function AdminControlCenter() {
         icon="book-outline"
         route="/(admin)/(courses)/index"
         color="#8B5CF6"
-        badge="New"
-      />
-      
-      {/* Classes */}
-      <AdminFeatureCard
-        title="Class Management"
-        description="Schedule and manage live classes"
-        icon="calendar-outline"
-        route="/(admin)/(classes)/index"
-        color="#10B981"
       />
       
       {/* Users */}
@@ -161,7 +142,6 @@ export default function AdminControlCenter() {
         icon="people-outline"
         route="/(admin)/(users)/index"
         color="#F59E0B"
-        badge={3}
       />
       
       {/* Quiz */}
@@ -171,35 +151,6 @@ export default function AdminControlCenter() {
         icon="help-circle-outline"
         route="/(admin)/(quiz)/index"
         color="#EC4899"
-      />
-      
-      {/* Analytics */}
-      <AdminFeatureCard
-        title="Advanced Analytics"
-        description="In-depth system and learning analytics"
-        icon="stats-chart-outline"
-        route="/(admin)/(analytics)/index"
-        color="#14B8A6"
-      />
-      
-      <Text style={styles.sectionTitle}>System</Text>
-      
-      {/* Settings */}
-      <AdminFeatureCard
-        title="System Settings"
-        description="Configure platform settings and options"
-        icon="settings-outline"
-        route="/(admin)/(settings)/index"
-        color="#6B7280"
-      />
-      
-      {/* Help & Support */}
-      <AdminFeatureCard
-        title="Help & Support"
-        description="Documentation and support resources"
-        icon="help-outline"
-        route="/(admin)/(support)/index"
-        color="#6B7280"
       />
       
       <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -217,14 +168,6 @@ export default function AdminControlCenter() {
           <View>
             <Text style={styles.activityText}>Course "Beginner Spanish" published</Text>
             <Text style={styles.activityTime}>Yesterday, 10:15 AM</Text>
-          </View>
-        </View>
-        
-        <View style={styles.activityItem}>
-          <View style={styles.activityDot}></View>
-          <View>
-            <Text style={styles.activityText}>System backup completed</Text>
-            <Text style={styles.activityTime}>Jul 2, 2025</Text>
           </View>
         </View>
       </View>

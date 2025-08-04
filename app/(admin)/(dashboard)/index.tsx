@@ -146,14 +146,6 @@ export default function AdminDashboard() {
       <View style={styles.actionsGrid}>
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(users)/roles")}
-        >
-          <Ionicons name="key-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Manage Roles</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionCard} 
           onPress={() => router.push("/(admin)/(users)/index")}
         >
           <Ionicons name="people-outline" size={32} color="#3B82F6" />
@@ -162,18 +154,26 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => setShowingAnalytics(true)}
+          onPress={() => router.push("/(admin)/(courses)/index")}
         >
-          <Ionicons name="bar-chart-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Analytics</Text>
+          <Ionicons name="book-outline" size={32} color="#8B5CF6" />
+          <Text style={styles.actionTitle}>Manage Courses</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(settings)/index")}
+          onPress={() => router.push("/(admin)/(quiz)/index")}
         >
-          <Ionicons name="settings-outline" size={32} color="#3B82F6" />
-          <Text style={styles.actionTitle}>Settings</Text>
+          <Ionicons name="help-circle-outline" size={32} color="#EC4899" />
+          <Text style={styles.actionTitle}>Manage Quizzes</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionCard} 
+          onPress={() => router.push("/(admin)/(users)/roles")}
+        >
+          <Ionicons name="key-outline" size={32} color="#F59E0B" />
+          <Text style={styles.actionTitle}>Manage Roles</Text>
         </TouchableOpacity>
       </View>
       
@@ -192,14 +192,6 @@ export default function AdminDashboard() {
           <View>
             <Text style={styles.activityText}>Course "React Basics" published</Text>
             <Text style={styles.activityTime}>Yesterday, 10:15 AM</Text>
-          </View>
-        </View>
-        
-        <View style={styles.activityItem}>
-          <View style={styles.activityDot}></View>
-          <View>
-            <Text style={styles.activityText}>System backup completed</Text>
-            <Text style={styles.activityTime}>Jul 2, 2025</Text>
           </View>
         </View>
       </View>
