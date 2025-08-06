@@ -277,17 +277,25 @@ export default function CourseDetailsScreen() {
                   <Text variant="subtitle1" style={styles.lessonTitle}>
                     {lesson.title}
                   </Text>
-                  <View style={[
-                    styles.statusBadge, 
-                    { backgroundColor: lesson.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
-                  ]}>
-                    <Text 
-                      variant="caption" 
-                      style={styles.statusText}
-                      color={lesson.isPublished ? colors.status.success : colors.neutral.darkGray}
-                    >
-                      {lesson.isPublished ? 'Published' : 'Draft'}
-                    </Text>
+                  <View style={styles.badgeContainer}>
+                    {/* Video indicator icon */}
+                    {(lesson.videoId || lesson.mediaUrl || lesson.mediaUrls) && (
+                      <View style={styles.videoBadge}>
+                        <Ionicons name="videocam" size={14} color={colors.secondary.main} />
+                      </View>
+                    )}
+                    <View style={[
+                      styles.statusBadge, 
+                      { backgroundColor: lesson.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
+                    ]}>
+                      <Text 
+                        variant="caption" 
+                        style={styles.statusText}
+                        color={lesson.isPublished ? colors.status.success : colors.neutral.darkGray}
+                      >
+                        {lesson.isPublished ? 'Published' : 'Draft'}
+                      </Text>
+                    </View>
                   </View>
                 </View>
                 
@@ -1104,6 +1112,19 @@ const styles = StyleSheet.create({
   lessonTitle: {
     flex: 1,
     marginRight: spacing.sm,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  videoBadge: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.secondary.light + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.xs,
   },
   lessonDescription: {
     color: colors.neutral.darkGray,

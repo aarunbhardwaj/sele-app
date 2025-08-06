@@ -11,15 +11,12 @@ export default function CoursesLayout() {
       <Stack.Screen name="index" />
       <Stack.Screen name="course-library" />
       <Stack.Screen name="course-creator" />
+      <Stack.Screen name="course-details" />
       <Stack.Screen name="edit-course" />
-      <Stack.Screen name="publish-course" />
       <Stack.Screen name="lessons" />
-      <Stack.Screen name="upload-content" />
-      <Stack.Screen name="course-analytics" />
-      <Stack.Screen name="set-categories" />
-      <Stack.Screen name="set-curriculum" />
-      <Stack.Screen name="exercises" />
-      <Stack.Screen name="set-instructor" />
+      <Stack.Screen name="create-lesson" />
+      <Stack.Screen name="edit-lesson" />
+      <Stack.Screen name="lesson-view" />
     </Stack>
   );
 }

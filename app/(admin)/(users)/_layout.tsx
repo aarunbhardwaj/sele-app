@@ -10,9 +10,6 @@ export default function UsersLayout() {
     }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="roles" />
-      <Stack.Screen name="student-list" />
-      <Stack.Screen name="student-details" />
-      <Stack.Screen name="user-analytics" />
     </Stack>
   );
 }

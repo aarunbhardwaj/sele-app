@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { AVPlaybackStatus, ResizeMode, Video } from 'expo-av';
+import { ResizeMode, Video } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -13,10 +13,10 @@ import {
     View
 } from 'react-native';
 
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
 import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
-import Text from '../../../components/ui/Typography';
+import { Text } from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 
@@ -38,7 +38,8 @@ interface Lesson {
 
 export default function LessonViewScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
+  const lessonId = params.id as string;
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [courseTitle, setCourseTitle] = useState('');
@@ -49,33 +50,14 @@ export default function LessonViewScreen() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const videoRef = useRef<Video>(null);
   
-  // Load video when videoUrl changes
-  useEffect(() => {
-    if (videoRef.current && videoUrl) {
-      // Reset video states when URL changes
-      setVideoLoaded(false);
-      setVideoError(null);
-      setIsPlaying(false);
-    }
-  }, [videoUrl]);
-  
-  useEffect(() => {
-    if (id) {
-      fetchLessonData(id as string);
-    } else {
-      Alert.alert('Error', 'Lesson ID not found', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
-    }
-  }, [id]);
-  
-  const fetchLessonData = async (lessonId: string) => {
+  const fetchLessonData = useCallback(async (lessonId: string) => {
     try {
       setLoading(true);
       const lessonData = await appwriteService.getLessonById(lessonId);
       
       if (lessonData) {
-        setLesson(lessonData as Lesson);
+        // Use type assertion with unknown as intermediate step to satisfy TypeScript
+        setLesson(lessonData as unknown as Lesson);
         
         // Fetch course title
         if (lessonData.courseId) {
@@ -131,7 +113,27 @@ export default function LessonViewScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [router]);
+  
+  // Load video when videoUrl changes
+  useEffect(() => {
+    if (videoRef.current && videoUrl) {
+      // Reset video states when URL changes
+      setVideoLoaded(false);
+      setVideoError(null);
+      setIsPlaying(false);
+    }
+  }, [videoUrl]);
+  
+  useEffect(() => {
+    if (lessonId) {
+      fetchLessonData(lessonId);
+    } else {
+      Alert.alert('Error', 'Lesson ID not found', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    }
+  }, [lessonId, router, fetchLessonData]);
   
   const handlePlayPause = async () => {
     if (!videoRef.current) return;
@@ -174,12 +176,12 @@ export default function LessonViewScreen() {
           setVideoLoaded(true);
         } catch (error) {
           console.error('Error loading video:', error);
-          setVideoError("Failed to load video: " + (error.message || "Unknown error"));
+          setVideoError("Failed to load video: " + ((error as Error)?.message || "Unknown error"));
         }
       }
     } catch (error) {
       console.error('Error toggling play/pause:', error);
-      setVideoError("Playback error: " + (error.message || "Unknown error"));
+      setVideoError("Playback error: " + ((error as Error)?.message || "Unknown error"));
     }
   };
   
@@ -219,14 +221,17 @@ export default function LessonViewScreen() {
       <PreAuthHeader 
         title="Lesson"
         showBackButton={true}
-        onPress={() => router.back()}
+        onBackPress={() => router.back()}
       />
       <ScrollView style={styles.container}>
         <View style={styles.contentContainer}>
           {/* Breadcrumb navigation */}
           <TouchableOpacity 
             style={styles.breadcrumbs}
-            onPress={() => router.push(`/(admin)/(courses)/course-details?id=${lesson.courseId}`)}
+            onPress={() => router.push({
+              pathname: '/(admin)/(courses)/course-details',
+              params: { id: lesson.courseId }
+            })}
           >
             <Ionicons name="chevron-back" size={16} color={colors.primary.main} />
             <Text variant="caption" color={colors.primary.main}>
@@ -278,8 +283,8 @@ export default function LessonViewScreen() {
                         setVideoLoaded(true);
                         setVideoError(null);
                       }}
-                      onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
-                        if (status.isLoaded) {
+                      onPlaybackStatusUpdate={(status) => {
+                        if ('isLoaded' in status && status.isLoaded) {
                           setIsBuffering(status.isBuffering);
                           setIsPlaying(status.isPlaying);
                         }
@@ -410,18 +415,26 @@ export default function LessonViewScreen() {
           
           {/* Action buttons */}
           <View style={styles.navigationButtons}>
-            <Button 
-              title="Edit Lesson"
-              variant="outline"
-              onPress={() => router.push(`/(admin)/(courses)/edit-lesson?id=${lesson.$id}`)}
-              leftIcon={<Ionicons name="pencil-outline" size={20} color={colors.primary.main} />}
-              style={styles.actionButton}
-            />
+            <TouchableOpacity 
+              style={[styles.customButton, styles.outlineButton, styles.actionButton]}
+              onPress={() => router.push({
+                pathname: '/(admin)/(courses)/edit-lesson',
+                params: { id: lesson.$id }
+              })}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="pencil-outline" size={20} color={colors.primary.main} style={{ marginRight: 8 }} />
+                <Text style={{ color: colors.primary.main, fontWeight: 'bold' }}>Edit Lesson</Text>
+              </View>
+            </TouchableOpacity>
             
             <Button 
               title="Back to Course"
               variant="primary"
-              onPress={() => router.push(`/(admin)/(courses)/course-details?id=${lesson.courseId}`)}
+              onPress={() => router.push({
+                pathname: '/(admin)/(courses)/course-details',
+                params: { id: lesson.courseId }
+              })}
               style={styles.actionButton}
             />
           </View>
@@ -635,5 +648,22 @@ const styles = StyleSheet.create({
   retryButtonText: {
     color: colors.neutral.white,
     fontWeight: typography.fontWeights.medium as any,
+  },
+  customButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary.main,
+    backgroundColor: colors.neutral.white,
+    elevation: 2,
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  outlineButton: {
+    backgroundColor: colors.neutral.white,
   },
 });
