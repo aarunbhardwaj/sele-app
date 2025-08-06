@@ -1,8 +1,6 @@
 import { ID } from 'appwrite';
 import * as FileSystem from 'expo-file-system';
-import { storage, STORAGE_BUCKET_ID, account } from './client';
-import { Platform } from 'react-native';
-import client from './client';
+import client, { account, storage, STORAGE_BUCKET_ID } from './client';
 
 const storageService = {
   // Media storage methods
@@ -103,6 +101,11 @@ const storageService = {
       const result = await response.json();
       console.log('File uploaded successfully:', result.$id);
       
+      // Add the direct URL to the result
+      const projectId = process.env.APPWRITE_PROJECT_ID || client.config.project;
+      const fileUrl = `${endpoint.replace('cloud.appwrite.io', 'fra.cloud.appwrite.io')}/storage/buckets/${bucketId}/files/${result.$id}/view?project=${projectId}&mode=admin`;
+      result.url = fileUrl;
+      
       return result;
     } catch (error) {
       console.error('Appwrite service :: uploadMedia :: error', error);
@@ -114,11 +117,16 @@ const storageService = {
     try {
       // Get the correct bucket ID - using the environment variable
       const bucketId = process.env.APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
+      const projectId = process.env.APPWRITE_PROJECT_ID || client.config.project;
       
-      // Use getFileView instead of getFilePreview for a direct URL
-      const previewUrl = storage.getFileView(bucketId, fileId);
-      console.log('File preview URL:', previewUrl.toString());
-      return previewUrl;
+      // Get the endpoint from client config, but ensure we use the regional endpoint if present
+      const endpoint = client.config.endpoint.replace('cloud.appwrite.io', 'fra.cloud.appwrite.io');
+      
+      // Construct the URL manually to ensure it has all required parameters
+      const fileUrl = `${endpoint}/storage/buckets/${bucketId}/files/${fileId}/view?project=${projectId}&mode=admin`;
+      
+      console.log('File preview URL:', fileUrl);
+      return fileUrl;
     } catch (error) {
       console.error('Appwrite service :: getFilePreview :: error', error);
       return null;

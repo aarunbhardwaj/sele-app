@@ -4,17 +4,17 @@ import * as FileSystem from 'expo-file-system';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Switch,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Button from '../../../components/ui/Button';
 import Card from '../../../components/ui/Card';
@@ -23,11 +23,13 @@ import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 
-export default function CreateLessonScreen() {
+export default function EditLessonScreen() {
   const router = useRouter();
-  const { courseId } = useLocalSearchParams<{ courseId: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [courseName, setCourseName] = useState('');
+  const [courseId, setCourseId] = useState('');
   
   // Lesson form state
   const [title, setTitle] = useState('');
@@ -54,24 +56,58 @@ export default function CreateLessonScreen() {
   });
   
   useEffect(() => {
-    // Fetch the course title to display which course we're adding a lesson to
-    if (courseId) {
-      fetchCourseTitle(courseId as string);
+    if (id) {
+      fetchLessonData(id as string);
     } else {
-      Alert.alert('Error', 'Course ID not found', [
+      Alert.alert('Error', 'Lesson ID not found', [
         { text: 'OK', onPress: () => router.back() }
       ]);
     }
-  }, [courseId]);
+  }, [id]);
   
-  const fetchCourseTitle = async (id: string) => {
+  const fetchLessonData = async (lessonId: string) => {
     try {
-      const courseData = await appwriteService.getCourseById(id);
-      if (courseData) {
-        setCourseName(courseData.title);
+      setInitialLoading(true);
+      const lessonData = await appwriteService.getLessonById(lessonId);
+      
+      if (lessonData) {
+        // Set form fields from lesson data
+        setTitle(lessonData.title || '');
+        setContent(lessonData.content || '');
+        setDescription(lessonData.description || '');
+        setOrder(lessonData.order?.toString() || '');
+        setDuration(lessonData.duration?.toString() || '15');
+        setIsPublished(lessonData.isPublished || false);
+        setCourseId(lessonData.courseId);
+        
+        // Set video information if available
+        if (lessonData.videoId) {
+          setVideoId(lessonData.videoId);
+        }
+        
+        if (lessonData.mediaUrl) {
+          setMediaUrl(lessonData.mediaUrl);
+        }
+        
+        // Fetch course name
+        if (lessonData.courseId) {
+          const courseData = await appwriteService.getCourseById(lessonData.courseId);
+          if (courseData) {
+            setCourseName(courseData.title);
+          }
+        }
+      } else {
+        Alert.alert('Error', 'Lesson not found', [
+          { text: 'OK', onPress: () => router.back() }
+        ]);
       }
     } catch (error) {
-      console.error('Failed to fetch course:', error);
+      console.error('Failed to fetch lesson:', error);
+      Alert.alert('Error', 'Failed to load lesson data', [
+        { text: 'OK', onPress: () => router.back() }
+      ]);
+    } finally {
+      setInitialLoading(false);
     }
   };
   
@@ -176,46 +212,46 @@ export default function CreateLessonScreen() {
     }
   };
   
-  const handleCreateLesson = async () => {
-    if (!validateForm() || !courseId) {
+  const handleUpdateLesson = async () => {
+    if (!validateForm() || !id || !courseId) {
       return;
     }
     
     setLoading(true);
     
     try {
-      // Prepare lesson data
+      // Prepare lesson data with the correct field name "mediaUrls" instead of "mediaUrl"
       const lessonData = {
         title,
         content,
         description,
-        courseId: courseId as string,
+        courseId,
         order: order ? parseInt(order, 10) : undefined,
         duration: duration ? parseInt(duration, 10) : undefined,
         isPublished,
-        videoId: videoId || undefined,  // Include video ID if available
-        mediaUrl: mediaUrl || undefined // Include media URL if available
+        mediaUrls: mediaUrl || undefined // Using the correct field name "mediaUrls"
       };
       
-      // Create lesson using appwrite service
-      const newLesson = await appwriteService.createLesson(lessonData);
+      console.log('Updating lesson with data:', lessonData);
+      
+      // Update lesson using appwrite service
+      await appwriteService.updateLesson(id as string, lessonData);
       
       Alert.alert(
         'Success', 
-        'Lesson created successfully!',
+        'Lesson updated successfully!',
         [
           {
             text: 'OK',
-            // Redirect back to course details instead of lesson management
-            onPress: () => router.push(`/(admin)/(courses)/course-details?id=${courseId}`)
+            onPress: () => router.push(`/(admin)/(courses)/lesson-view?id=${id}`)
           }
         ]
       );
     } catch (error) {
-      console.error('Failed to create lesson:', error);
+      console.error('Failed to update lesson:', error);
       Alert.alert(
         'Error',
-        'Failed to create lesson: ' + (error.message || error),
+        'Failed to update lesson: ' + (error.message || error),
         [{ text: 'OK' }]
       );
     } finally {
@@ -223,10 +259,26 @@ export default function CreateLessonScreen() {
     }
   };
   
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <PreAuthHeader 
+          title="Edit Lesson"
+          leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
+          onLeftIconPress={() => router.back()}
+        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+          <Text style={styles.loadingText}>Loading lesson data...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+  
   return (
     <SafeAreaView style={styles.safeArea}>
       <PreAuthHeader 
-        title="Create Lesson"
+        title="Edit Lesson"
         leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
         onLeftIconPress={() => router.back()}
       />
@@ -238,9 +290,9 @@ export default function CreateLessonScreen() {
         <ScrollView style={styles.scrollView}>
           <View style={styles.contentContainer}>
             <View style={styles.headerContainer}>
-              <Text variant="h4" style={styles.pageTitle}>Create New Lesson</Text>
+              <Text variant="h4" style={styles.pageTitle}>Edit Lesson</Text>
               <Text variant="body2" style={styles.pageSubtitle}>
-                {courseName ? `For course: ${courseName}` : 'Add a lesson to this course'}
+                {courseName ? `Course: ${courseName}` : 'Loading course...'}
               </Text>
             </View>
             
@@ -311,9 +363,18 @@ export default function CreateLessonScreen() {
                     >
                       <Ionicons name="videocam" size={24} color={colors.primary.main} />
                       <Text style={styles.videoPickerText}>
-                        {video ? 'Change Video' : 'Select Video'}
+                        {videoId ? 'Change Video' : 'Select Video'}
                       </Text>
                     </TouchableOpacity>
+                    
+                    {videoId && !video && (
+                      <View style={styles.videoInfoContainer}>
+                        <Ionicons name="checkmark-circle" size={20} color={colors.status.success} />
+                        <Text variant="body2" style={styles.videoFileName} numberOfLines={1}>
+                          Current video
+                        </Text>
+                      </View>
+                    )}
                     
                     {video && (
                       <View style={styles.videoInfoContainer}>
@@ -328,7 +389,7 @@ export default function CreateLessonScreen() {
                     )}
                   </View>
                   
-                  {video && !videoId && (
+                  {video && (
                     <Button
                       title={uploadingVideo ? 'Uploading...' : 'Upload Video'}
                       variant="outline"
@@ -339,11 +400,11 @@ export default function CreateLessonScreen() {
                     />
                   )}
                   
-                  {videoId && (
+                  {videoId && !video && (
                     <View style={styles.uploadSuccessContainer}>
                       <Ionicons name="checkmark-circle" size={20} color={colors.status.success} />
                       <Text variant="body2" style={styles.uploadSuccessText}>
-                        Video uploaded successfully
+                        Video already uploaded
                       </Text>
                     </View>
                   )}
@@ -375,7 +436,7 @@ export default function CreateLessonScreen() {
                   </Text>
                 ) : (
                   <Text variant="caption" color={colors.neutral.darkGray} style={styles.helperText}>
-                    Leave blank to automatically assign the next order number
+                    The order number determines where this lesson appears in the course
                   </Text>
                 )}
               </View>
@@ -402,7 +463,7 @@ export default function CreateLessonScreen() {
               </View>
               
               <View style={styles.switchContainer}>
-                <Text variant="subtitle1">Publish immediately</Text>
+                <Text variant="subtitle1">Published</Text>
                 <Switch
                   value={isPublished}
                   onValueChange={setIsPublished}
@@ -419,8 +480,8 @@ export default function CreateLessonScreen() {
                   style={styles.actionButton}
                 />
                 <Button 
-                  title={loading ? 'Creating...' : 'Create Lesson'}
-                  onPress={handleCreateLesson}
+                  title={loading ? 'Updating...' : 'Update Lesson'}
+                  onPress={handleUpdateLesson}
                   disabled={loading}
                   style={styles.actionButton}
                   icon={loading ? <ActivityIndicator size="small" color={colors.neutral.white} /> : null}
@@ -563,5 +624,14 @@ const styles = StyleSheet.create({
   uploadSuccessText: {
     marginLeft: spacing.xs,
     color: colors.status.success,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: colors.neutral.darkGray,
   },
 });

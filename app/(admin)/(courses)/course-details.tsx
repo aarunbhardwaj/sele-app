@@ -323,10 +323,7 @@ export default function CourseDetailsScreen() {
               
               <TouchableOpacity 
                 style={styles.lessonIconButton}
-                onPress={() => {
-                  // Handle viewing the lesson
-                  Alert.alert('View Lesson', 'View lesson functionality will be implemented soon.');
-                }}
+                onPress={() => router.push(`/(admin)/(courses)/lesson-view?id=${lesson.$id}`)}
               >
                 <Ionicons name="eye-outline" size={18} color={colors.secondary.main} />
                 <Text variant="caption" style={styles.lessonIconButtonText}>View</Text>
