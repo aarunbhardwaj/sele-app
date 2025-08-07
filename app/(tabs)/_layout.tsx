@@ -1,10 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { colors, spacing, typography } from '../../components/ui/theme';
 
 export default function TabsLayout() {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Custom function to handle Courses tab navigation
+  const handleCoursesTab = () => {
+    // If we're already in courses tab but not on catalog, navigate to catalog
+    if (pathname.includes('/(tabs)/(courses)') && !pathname.includes('/(tabs)/(courses)/catalog')) {
+      router.navigate('/(tabs)/(courses)/catalog');
+      return true; // Indicate we handled the navigation
+    }
+    
+    // If we're already on the catalog page, do nothing
+    if (pathname.includes('/(tabs)/(courses)/catalog')) {
+      return true; // Indicate we handled the navigation
+    }
+    
+    // Otherwise, let default navigation happen
+    return false;
+  };
+
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -36,7 +56,7 @@ export default function TabsLayout() {
           paddingVertical: 8,
         },
         tabBarIcon: ({ color, size, focused }) => {
-          let iconName;
+          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
           
           if (route.name === 'index') {
             iconName = focused ? 'home' : 'home-outline';
@@ -46,8 +66,6 @@ export default function TabsLayout() {
             iconName = focused ? 'help-circle' : 'help-circle-outline';
           } else if (route.name === '(profile)') {
             iconName = focused ? 'person' : 'person-outline';
-          } else {
-            iconName = 'home-outline';
           }
           
           return (
@@ -61,7 +79,14 @@ export default function TabsLayout() {
     >
       {/* Only the most essential tabs */}
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
-      <Tabs.Screen name="(courses)" options={{ title: 'Courses' }} />
+      <Tabs.Screen 
+        name="(courses)" 
+        options={{ 
+          title: 'Courses',
+          // We'll override the default navigation with our own
+          onPress: () => handleCoursesTab()
+        }} 
+      />
       <Tabs.Screen name="(quiz)" options={{ title: 'Quizzes' }} />
       <Tabs.Screen name="(profile)" options={{ title: 'Profile' }} />
       

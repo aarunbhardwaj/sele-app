@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, useRouter } from 'expo-router';
-import React, { useEffect, useRef, useState } from 'react';
+import { Tabs, usePathname, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DrawerLayoutAndroid, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography } from '../../components/ui/theme';
 import appwriteService from '../../services/appwrite';
@@ -25,16 +25,10 @@ export default function AdminLayout() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const drawer = useRef<DrawerLayoutAndroid>(null);
 
-  useEffect(() => {
-    if (!isLoading) {
-      checkAdminStatus();
-    }
-  }, [user, isLoading]);
-
-  const checkAdminStatus = async () => {
+  // Custom function to check admin status - using useCallback to handle dependency properly
+  const checkAdminStatus = useCallback(async () => {
     setCheckingAdmin(true);
     try {
       if (!user) {
@@ -53,7 +47,13 @@ export default function AdminLayout() {
     } finally {
       setCheckingAdmin(false);
     }
-  };
+  }, [user, router]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      checkAdminStatus();
+    }
+  }, [isLoading, checkAdminStatus]);
 
   const handleNavigation = (route: string) => {
     if (isNavigating) return;
@@ -82,16 +82,6 @@ export default function AdminLayout() {
       logout();
       setIsNavigating(false);
     }, 250);
-  };
-
-  const handleDrawerToggle = () => {
-    if (drawer.current) {
-      if (drawerOpen) {
-        drawer.current.closeDrawer();
-      } else {
-        drawer.current.openDrawer();
-      }
-    }
   };
 
   const renderDrawer = () => (
@@ -158,8 +148,8 @@ export default function AdminLayout() {
           drawerWidth={260}
           drawerPosition="left"
           renderNavigationView={renderDrawer}
-          onDrawerOpen={() => setDrawerOpen(true)}
-          onDrawerClose={() => setDrawerOpen(false)}
+          onDrawerOpen={() => {}}
+          onDrawerClose={() => {}}
         >
           <AdminTabs />
         </DrawerLayoutAndroid>
@@ -172,6 +162,9 @@ export default function AdminLayout() {
 
 // Separate component for tabs to ensure clean implementation
 function AdminTabs() {
+  const pathname = usePathname();
+  const router = useRouter();
+  
   return (
     <Tabs
       screenOptions={{
@@ -203,6 +196,14 @@ function AdminTabs() {
             <TabBarIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Always go to course library when tab is pressed
+            e.preventDefault();
+            console.log('Courses tab pressed, navigating to course library');
+            router.navigate('/(admin)/(courses)/course-library');
+          }
+        })}
       />
       <Tabs.Screen 
         name="(users)" 
