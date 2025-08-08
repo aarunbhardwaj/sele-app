@@ -164,6 +164,20 @@ export default function AdminLayout() {
 function AdminTabs() {
   const pathname = usePathname();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('');
+  
+  // Update active tab whenever pathname changes
+  useEffect(() => {
+    if (pathname.includes('/(admin)/(dashboard)')) {
+      setActiveTab('index');
+    } else if (pathname.includes('/(admin)/(courses)')) {
+      setActiveTab('(courses)');
+    } else if (pathname.includes('/(admin)/(users)')) {
+      setActiveTab('(users)');
+    } else if (pathname.includes('/(admin)/(quiz)')) {
+      setActiveTab('(quiz)');
+    }
+  }, [pathname]);
   
   return (
     <Tabs
@@ -182,24 +196,42 @@ function AdminTabs() {
         options={{
           title: 'Dashboard',
           tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'grid' : 'grid-outline'} color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon 
+              name={activeTab === 'index' ? 'grid' : 'grid-outline'} 
+              color={activeTab === 'index' ? colors.primary.main : colors.neutral.darkGray} 
+              focused={activeTab === 'index'} 
+            />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Reset to dashboard index when tab is pressed
+            e.preventDefault();
+            setActiveTab('index');
+            console.log('Dashboard tab pressed, navigating to dashboard');
+            router.navigate('/(admin)/(dashboard)');
+          }
+        })}
       />
       <Tabs.Screen 
         name="(courses)" 
         options={{
           title: 'Courses',
           tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'book' : 'book-outline'} color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon 
+              name={activeTab === '(courses)' ? 'book' : 'book-outline'} 
+              color={activeTab === '(courses)' ? colors.primary.main : colors.neutral.darkGray}
+              focused={activeTab === '(courses)'} 
+            />
           ),
         }}
         listeners={({ navigation }) => ({
           tabPress: (e) => {
             // Always go to course library when tab is pressed
             e.preventDefault();
+            setActiveTab('(courses)');
             console.log('Courses tab pressed, navigating to course library');
             router.navigate('/(admin)/(courses)/course-library');
           }
@@ -210,20 +242,46 @@ function AdminTabs() {
         options={{
           title: 'Users',
           tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'people' : 'people-outline'} color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon 
+              name={activeTab === '(users)' ? 'people' : 'people-outline'} 
+              color={activeTab === '(users)' ? colors.primary.main : colors.neutral.darkGray}
+              focused={activeTab === '(users)'} 
+            />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Reset to users index when tab is pressed
+            e.preventDefault();
+            setActiveTab('(users)');
+            console.log('Users tab pressed, navigating to users management');
+            router.navigate('/(admin)/(users)');
+          }
+        })}
       />
       <Tabs.Screen 
         name="(quiz)" 
         options={{
           title: 'Quizzes',
           tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon name={focused ? 'help-circle' : 'help-circle-outline'} color={color} focused={focused} />
+          tabBarIcon: ({ color }) => (
+            <TabBarIcon 
+              name={activeTab === '(quiz)' ? 'help-circle' : 'help-circle-outline'} 
+              color={activeTab === '(quiz)' ? colors.primary.main : colors.neutral.darkGray}
+              focused={activeTab === '(quiz)'} 
+            />
           ),
         }}
+        listeners={({ navigation }) => ({
+          tabPress: (e) => {
+            // Reset to quiz list when tab is pressed
+            e.preventDefault();
+            setActiveTab('(quiz)');
+            console.log('Quizzes tab pressed, navigating to quiz list');
+            router.navigate('/(admin)/(quiz)/quiz-list');
+          }
+        })}
       />
       {/* These screens will exist for routing but be hidden in the tab bar */}
       <Tabs.Screen name="(classes)" options={{ href: null }} />

@@ -5,7 +5,6 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
-  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -14,7 +13,6 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Button from '../../../components/ui/Button';
 import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
@@ -49,9 +47,6 @@ export default function UsersIndexPage() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [selectedRole, setSelectedRole] = useState<Role | null>(null);
-  const [isRoleModalVisible, setRoleModalVisible] = useState(false);
   const ITEMS_PER_PAGE = 10;
 
   useEffect(() => {
@@ -120,90 +115,38 @@ export default function UsersIndexPage() {
     setFilteredUsers(paginatedUsers);
   };
 
-  const handleAssignRole = async () => {
-    if (!selectedUser || !selectedRole) return;
-    
-    try {
-      await appwriteService.assignRoleToUser(selectedUser.userId, selectedRole.$id);
-      
-      // Update user in local state
-      const updatedUsers = users.map(user => {
-        if (user.$id === selectedUser.$id) {
-          return {
-            ...user,
-            roles: [...(user.roles || []), selectedRole.$id]
-          };
-        }
-        return user;
-      });
-      
-      setUsers(updatedUsers);
-      setRoleModalVisible(false);
-      Alert.alert('Success', `Role ${selectedRole.name} assigned to ${selectedUser.displayName}`);
-    } catch (error) {
-      console.error('Failed to assign role:', error);
-      Alert.alert('Error', 'Failed to assign role to user');
-    }
-  };
-
-  const handleRemoveRole = async (userId: string, roleId: string) => {
-    try {
-      await appwriteService.removeRoleFromUser(userId, roleId);
-      
-      // Update user in local state
-      const updatedUsers = users.map(user => {
-        if (user.userId === userId) {
-          return {
-            ...user,
-            roles: (user.roles || []).filter(id => id !== roleId)
-          };
-        }
-        return user;
-      });
-      
-      setUsers(updatedUsers);
-      Alert.alert('Success', 'Role removed successfully');
-    } catch (error) {
-      console.error('Failed to remove role:', error);
-      Alert.alert('Error', 'Failed to remove role from user');
-    }
-  };
-
-  const handleUpdateStatus = async (user: User, newStatus: string) => {
-    try {
-      // Update user status in the backend
-      await appwriteService.updateUserStatus(user.userId, newStatus);
-      
-      // Update user in local state
-      const updatedUsers = users.map(u => {
-        if (u.$id === user.$id) {
-          return { ...u, status: newStatus };
-        }
-        return u;
-      });
-      
-      setUsers(updatedUsers);
-      Alert.alert('Success', `User status updated to ${newStatus}`);
-    } catch (error) {
-      console.error('Failed to update user status:', error);
-      Alert.alert('Error', 'Failed to update user status');
-    }
-  };
-
   const getUserRoles = (user: User) => {
     if (!user.roles || user.roles.length === 0) return [];
     return roles.filter(role => user.roles?.includes(role.$id));
   };
 
-  const openRoleModal = (user: User) => {
-    setSelectedUser(user);
-    setSelectedRole(null);
-    setRoleModalVisible(true);
+  const getUserRoleName = (user: User): string => {
+    if (user.isAdmin) return 'Admin';
+    
+    const userRoles = getUserRoles(user);
+    if (userRoles.some(role => role.name.toLowerCase().includes('admin'))) {
+      return 'Admin';
+    } else if (userRoles.some(role => role.name.toLowerCase().includes('instructor'))) {
+      return 'Instructor';
+    } else {
+      return 'Student';
+    }
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString();
+  const navigateToUserProfile = (user: User) => {
+    // Navigate to user profile details screen with all user data
+    console.log('Navigating to user profile with ID:', user.userId || user.$id);
+    router.push({
+      pathname: '/(admin)/(users)/user-details',
+      params: { 
+        id: user.userId || user.$id,
+        // Pass more data to avoid unnecessary API calls
+        displayName: user.displayName,
+        email: user.email,
+        status: user.status,
+        isAdmin: user.isAdmin ? 'true' : 'false'
+      }
+    });
   };
 
   const renderFilterBar = () => (
@@ -229,10 +172,14 @@ export default function UsersIndexPage() {
   );
 
   const renderUserRow = (user: User) => {
-    const userRoles = getUserRoles(user);
+    const roleName = getUserRoleName(user);
     
     return (
-      <View style={styles.userRow}>
+      <TouchableOpacity 
+        style={styles.userRow}
+        onPress={() => navigateToUserProfile(user)}
+        activeOpacity={0.7}
+      >
         <View style={styles.userInfo}>
           <View style={styles.userAvatar}>
             <Text style={styles.avatarText}>
@@ -242,16 +189,6 @@ export default function UsersIndexPage() {
           <View style={styles.userDetails}>
             <Text style={styles.userName}>{user.displayName || 'Unnamed User'}</Text>
             <Text style={styles.userEmail}>{user.email}</Text>
-            <View style={styles.metaRow}>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar-outline" size={12} color={colors.neutral.gray} />
-                <Text style={styles.metaText}>Joined: {formatDate(user.createdAt)}</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={12} color={colors.neutral.gray} />
-                <Text style={styles.metaText}>Last login: {formatDate(user.lastLoginAt)}</Text>
-              </View>
-            </View>
           </View>
         </View>
         
@@ -268,47 +205,28 @@ export default function UsersIndexPage() {
           </View>
         </View>
         
-        <View style={styles.userRoles}>
-          {userRoles.length > 0 ? (
-            <View style={styles.rolesList}>
-              {userRoles.map(role => (
-                <View key={role.$id} style={styles.roleTag}>
-                  <Text style={styles.roleText}>{role.name}</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.noRolesText}>No roles</Text>
-          )}
+        <View style={styles.userRole}>
+          <View style={[
+            styles.roleBadge,
+            roleName === 'Admin' && styles.adminRoleBadge,
+            roleName === 'Instructor' && styles.instructorRoleBadge,
+            roleName === 'Student' && styles.studentRoleBadge,
+          ]}>
+            <Text style={[
+              styles.roleText,
+              roleName === 'Admin' && styles.adminRoleText,
+              roleName === 'Instructor' && styles.instructorRoleText,
+              roleName === 'Student' && styles.studentRoleText,
+            ]}>
+              {roleName}
+            </Text>
+          </View>
         </View>
         
-        <View style={styles.userActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => openRoleModal(user)}
-          >
-            <Ionicons name="key-outline" size={18} color={colors.primary.main} />
-            <Text style={styles.actionText}>Roles</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => {
-              const newStatus = user.status === 'active' ? 'suspended' : 'active';
-              handleUpdateStatus(user, newStatus);
-            }}
-          >
-            <Ionicons 
-              name={user.status === 'active' ? "lock-closed-outline" : "lock-open-outline"} 
-              size={18} 
-              color={colors.secondary.main} 
-            />
-            <Text style={styles.actionText}>
-              {user.status === 'active' ? 'Suspend' : 'Activate'}
-            </Text>
-          </TouchableOpacity>
+        <View style={styles.viewDetailsContainer}>
+          <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -385,8 +303,8 @@ export default function UsersIndexPage() {
             <View style={styles.tableHeader}>
               <Text style={[styles.headerCell, { flex: 2 }]}>User</Text>
               <Text style={styles.headerCell}>Status</Text>
-              <Text style={styles.headerCell}>Roles</Text>
-              <Text style={styles.headerCell}>Actions</Text>
+              <Text style={styles.headerCell}>Role</Text>
+              <Text style={[styles.headerCell, { flex: 0.5 }]}></Text>
             </View>
             
             <FlatList
@@ -401,74 +319,6 @@ export default function UsersIndexPage() {
           </>
         )}
       </View>
-      
-      {/* Modal for assigning roles */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={isRoleModalVisible}
-        onRequestClose={() => setRoleModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Manage Roles for {selectedUser?.displayName}
-            </Text>
-            
-            <Text style={styles.modalSubtitle}>Current Roles:</Text>
-            {selectedUser && getUserRoles(selectedUser).length > 0 ? (
-              <View style={styles.currentRoles}>
-                {getUserRoles(selectedUser).map(role => (
-                  <View key={role.$id} style={styles.modalRoleTag}>
-                    <Text style={styles.modalRoleText}>{role.name}</Text>
-                    <TouchableOpacity
-                      onPress={() => handleRemoveRole(selectedUser.userId, role.$id)}
-                    >
-                      <Ionicons name="close-circle" size={16} color={colors.status.error} />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.noRolesText}>No roles assigned</Text>
-            )}
-            
-            <Text style={styles.modalSubtitle}>Assign New Role:</Text>
-            <View style={styles.roleSelector}>
-              {roles.map(role => (
-                <TouchableOpacity
-                  key={role.$id}
-                  style={[
-                    styles.roleSelectorItem,
-                    selectedRole?.$id === role.$id && styles.selectedRoleItem
-                  ]}
-                  onPress={() => setSelectedRole(role)}
-                >
-                  <Text style={styles.roleSelectorText}>{role.name}</Text>
-                  {selectedRole?.$id === role.$id && (
-                    <Ionicons name="checkmark" size={16} color={colors.primary.main} />
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-            
-            <View style={styles.modalActions}>
-              <Button
-                title="Cancel"
-                onPress={() => setRoleModalVisible(false)}
-                variant="secondary"
-                style={styles.modalButton}
-              />
-              <Button
-                title="Assign Role"
-                onPress={handleAssignRole}
-                disabled={!selectedRole}
-                style={styles.modalButton}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -654,7 +504,7 @@ const styles = StyleSheet.create({
   },
   userRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     backgroundColor: colors.neutral.white,
     borderRadius: borderRadius.md,
     marginBottom: spacing.sm,
@@ -668,7 +518,7 @@ const styles = StyleSheet.create({
   userInfo: {
     flex: 2,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   userAvatar: {
     width: 40,
@@ -691,26 +541,12 @@ const styles = StyleSheet.create({
     fontSize: typography.fontSizes.md,
     fontWeight: typography.fontWeights.medium as any,
     color: colors.neutral.text,
+    marginBottom: 4,
   },
   userEmail: {
     fontSize: typography.fontSizes.sm,
     color: colors.neutral.gray,
-    marginBottom: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: spacing.md,
-    marginTop: 2,
-  },
-  metaText: {
-    fontSize: typography.fontSizes.xs,
-    color: colors.neutral.gray,
-    marginLeft: 4,
+    marginBottom: 6,
   },
   userStatus: {
     flex: 1,
@@ -737,46 +573,43 @@ const styles = StyleSheet.create({
     color: colors.neutral.darkGray,
     textTransform: 'capitalize',
   },
-  userRoles: {
+  userRole: {
     flex: 1,
+    alignItems: 'flex-start',
   },
-  rolesList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  roleTag: {
-    backgroundColor: colors.primary.light + '30',
-    borderRadius: borderRadius.full,
+  roleBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    margin: 2,
+    borderRadius: borderRadius.full,
+    backgroundColor: colors.neutral.lightGray,
+  },
+  adminRoleBadge: {
+    backgroundColor: colors.primary.main + '20',
+  },
+  instructorRoleBadge: {
+    backgroundColor: colors.secondary.main + '20',
+  },
+  studentRoleBadge: {
+    backgroundColor: colors.status.info + '20',
   },
   roleText: {
     fontSize: typography.fontSizes.xs,
-    color: colors.primary.dark,
+    fontWeight: typography.fontWeights.medium as any,
+    color: colors.neutral.darkGray,
   },
-  noRolesText: {
-    fontSize: typography.fontSizes.xs,
-    color: colors.neutral.gray,
-    fontStyle: 'italic',
+  adminRoleText: {
+    color: colors.primary.main,
   },
-  userActions: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+  instructorRoleText: {
+    color: colors.secondary.main,
   },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.neutral.background,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    marginLeft: spacing.xs,
+  studentRoleText: {
+    color: colors.status.info,
   },
-  actionText: {
-    fontSize: typography.fontSizes.xs,
-    marginLeft: 4,
+  viewDetailsContainer: {
+    flex: 0.5,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
   },
   emptyState: {
     flex: 1,

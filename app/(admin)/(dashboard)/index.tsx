@@ -146,7 +146,7 @@ export default function AdminDashboard() {
       <View style={styles.actionsGrid}>
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(users)/index")}
+          onPress={() => router.push("/(admin)/(users)")}
         >
           <Ionicons name="people-outline" size={32} color="#3B82F6" />
           <Text style={styles.actionTitle}>Manage Users</Text>
@@ -154,7 +154,7 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(courses)/index")}
+          onPress={() => router.push("/(admin)/(courses)/course-library")}
         >
           <Ionicons name="book-outline" size={32} color="#8B5CF6" />
           <Text style={styles.actionTitle}>Manage Courses</Text>
@@ -162,7 +162,7 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(quiz)/index")}
+          onPress={() => router.push("/(admin)/(quiz)/quiz-list")}
         >
           <Ionicons name="help-circle-outline" size={32} color="#EC4899" />
           <Text style={styles.actionTitle}>Manage Quizzes</Text>
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
-          onPress={() => router.push("/(admin)/(users)/roles")}
+          onPress={() => router.push("/(admin)/(users)/roles-management")}
         >
           <Ionicons name="key-outline" size={32} color="#F59E0B" />
           <Text style={styles.actionTitle}>Manage Roles</Text>

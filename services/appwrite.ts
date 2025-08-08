@@ -24,6 +24,36 @@ const appwriteService = {
   getUserProfile: authService.getUserProfile,
   updateUserProfile: authService.updateUserProfile,
   getAllUsers: authService.getAllUsers,
+  getUserById: authService.getUserById || (async (userId) => {
+    try {
+      // Get user from the users collection using the provided ID
+      const user = await authService.getUserProfile(userId);
+      return user;
+    } catch (error) {
+      console.error('Error getting user by ID:', error);
+      return null;
+    }
+  }),
+  updateUser: authService.updateUser || (async (userId, userData) => {
+    try {
+      // Update user in the users collection
+      const updatedUser = await authService.updateUserProfile(userId, userData);
+      return updatedUser;
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
+  }),
+  updateUserStatus: authService.updateUserStatus || (async (userId, status) => {
+    try {
+      // Update user status in the users collection
+      const updatedUser = await authService.updateUserProfile(userId, { status });
+      return updatedUser;
+    } catch (error) {
+      console.error('Error updating user status:', error);
+      throw error;
+    }
+  }),
 
   // Course Service Methods
   getAllCourses: courseService.getAllCourses,
