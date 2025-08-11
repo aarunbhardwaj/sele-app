@@ -105,3 +105,92 @@ export const theme = {
 };
 
 export default theme;
+
+// Extended design system tokens (non-breaking additions)
+export const designTokens = {
+  colors: {
+    core: {
+      primary: '#2F6EF4',
+      primaryDark: '#1D4EB2',
+      primaryLight: '#E3F0FF',
+      accent: '#FF9F1C',
+      accentDark: '#D97100',
+      success: '#1FA971',
+      warning: '#D97917',
+      error: '#D43D3D',
+      info: '#3C83D6',
+      neutral0: '#FFFFFF',
+      neutral50: '#F7F9FB',
+      neutral100: '#EDF1F5',
+      neutral200: '#D9E0E7',
+      neutral300: '#B6C2CE',
+      neutral500: '#6A7785',
+      neutral700: '#3A4652',
+      neutral900: '#12181F',
+      focus: '#6D45FF',
+    },
+    semantic: {
+      grammar: '#2F6EF4',
+      vocab: '#1FA971',
+      listening: '#7B52F8',
+      speaking: '#FF9F1C',
+    },
+    states: {
+      positiveBg: '#E6F9F0',
+      warningBg: '#FFF4E0',
+      errorBg: '#FDECEC',
+      infoBg: '#E8F3FD',
+      focusRing: '#6D45FF',
+      overlayScrim: 'rgba(18,24,31,0.5)',
+    },
+  },
+  typography: {
+    scale: {
+      h1: { fontSize: 32, lineHeight: 40, fontWeight: '600' },
+      h2: { fontSize: 24, lineHeight: 32, fontWeight: '600' },
+      h3: { fontSize: 20, lineHeight: 28, fontWeight: '600' },
+      title: { fontSize: 18, lineHeight: 26, fontWeight: '500' },
+      body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },
+      bodySmall: { fontSize: 14, lineHeight: 20, fontWeight: '400' },
+      caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' },
+      numeral: { fontSize: 20, lineHeight: 24, fontWeight: '500' },
+    },
+  },
+  spacingScale: [4,8,12,16,20,24,32,40,56],
+  radii: { xs:4, sm:6, md:8, lg:12, pill:999 },
+  elevation: {
+    0: { shadowColor: 'transparent', shadowOpacity: 0, shadowRadius: 0, elevation: 0 },
+    1: { shadowColor: '#12181F', shadowOpacity: 0.06, shadowRadius: 3, elevation: 1 },
+    2: { shadowColor: '#12181F', shadowOpacity: 0.08, shadowRadius: 6, elevation: 2 },
+    3: { shadowColor: '#12181F', shadowOpacity: 0.12, shadowRadius: 12, elevation: 4 },
+  },
+};
+
+// Theme builder to support light / dark mode; maintains legacy shape
+export type Mode = 'light' | 'dark';
+
+export function buildTheme(mode: Mode = 'light') {
+  const isDark = mode === 'dark';
+  return {
+    mode,
+    colors: {
+      ...colors,
+      background: isDark ? designTokens.colors.core.neutral900 : colors.neutral.background,
+      surface: isDark ? '#1B222A' : colors.neutral.white,
+      textPrimary: isDark ? designTokens.colors.core.neutral100 : colors.neutral.text,
+      textSecondary: isDark ? designTokens.colors.core.neutral300 : colors.neutral.darkGray,
+      divider: isDark ? '#2A313A' : colors.neutral.lightGray,
+      focus: designTokens.colors.core.focus,
+      skill: designTokens.colors.semantic,
+      state: designTokens.colors.states,
+    },
+    typography: { ...typography, roles: designTokens.typography.scale },
+    spacing,
+    radii: { ...borderRadius, ...designTokens.radii },
+    elevation: designTokens.elevation,
+    tokens: designTokens,
+  };
+}
+
+// Export a default built theme instance (light) for immediate use
+export const extendedTheme = buildTheme('light');

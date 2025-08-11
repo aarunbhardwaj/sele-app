@@ -162,6 +162,14 @@ export default function AdminDashboard() {
         
         <TouchableOpacity 
           style={styles.actionCard} 
+          onPress={() => router.push("/(admin)/(schools)")}
+        >
+          <Ionicons name="school-outline" size={32} color="#059669" />
+          <Text style={styles.actionTitle}>Manage Schools</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.actionCard} 
           onPress={() => router.push("/(admin)/(quiz)/quiz-list")}
         >
           <Ionicons name="help-circle-outline" size={32} color="#EC4899" />

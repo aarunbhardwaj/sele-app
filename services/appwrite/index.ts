@@ -5,6 +5,7 @@ export { default as courseService } from './course-service';
 export { default as progressService } from './progress-service';
 export { default as quizService } from './quiz-service';
 export { default as roleService } from './role-service';
+export { default as schoolService } from './school-service';
 export { default as storageService } from './storage-service';
 
 // Export constants

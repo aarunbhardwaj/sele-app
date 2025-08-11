@@ -6,6 +6,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-na
 import Text from '../../components/ui/Typography';
 import { borderRadius, colors, spacing, typography } from '../../components/ui/theme';
 import PreAuthHeader from '../../components/ui2/pre-auth-header';
+import { useAuth } from '../../services/AuthContext';
 
 const streakDays = 12;
 const continueLessons = [
@@ -27,14 +28,34 @@ export const unstable_settings = {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { logout } = useAuth();
   const fade = useSharedValue(0);
   useEffect(() => void (fade.value = withTiming(1, { duration: 600 })), []);
   const fadeStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       <PreAuthHeader 
         title="Home" 
+        rightComponent={
+          <TouchableOpacity 
+            onPress={handleLogout}
+            style={styles.logoutButton}
+            accessible={true}
+            accessibilityLabel="Logout"
+            accessibilityRole="button"
+          >
+            <Ionicons name="log-out-outline" size={20} color={colors.status.error} />
+          </TouchableOpacity>
+        }
       />
       <Animated.View style={[styles.content, fadeStyle]}>
         {/* Welcome Header */}
@@ -165,5 +186,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins',
     textAlign: 'center',
     fontWeight: typography.fontWeights.medium
-  }
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: colors.neutral.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

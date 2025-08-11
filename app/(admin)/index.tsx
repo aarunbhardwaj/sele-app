@@ -58,7 +58,7 @@ const AdminFeatureCard = ({
 
 // Main Component
 export default function AdminControlCenter() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   
@@ -104,6 +104,14 @@ export default function AdminControlCenter() {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout failed:', error);
     }
   };
 
@@ -190,12 +198,23 @@ export default function AdminControlCenter() {
       <PreAuthHeader 
         title="Admin Control Center"
         rightComponent={
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => {}}
-          >
-            <Ionicons name="notifications-outline" size={24} color="#333333" />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.notificationButton}
+              onPress={() => {}}
+            >
+              <Ionicons name="notifications-outline" size={24} color="#333333" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              accessible={true}
+              accessibilityLabel="Logout"
+              accessibilityRole="button"
+            >
+              <Ionicons name="log-out-outline" size={20} color={colors.status.error} />
+            </TouchableOpacity>
+          </View>
         }
       />
       <ScrollView style={styles.container}>
@@ -353,5 +372,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  logoutButton: {
+    padding: 8,
+    borderRadius: 16,
+    backgroundColor: colors.neutral.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

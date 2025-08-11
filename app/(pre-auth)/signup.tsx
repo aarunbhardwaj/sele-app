@@ -1,61 +1,54 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
-    useAnimatedStyle,
-    useSharedValue,
-    withDelay,
-    withRepeat,
-    withSequence,
-    withSpring,
-    withTiming
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
 } from 'react-native-reanimated';
+import PreAuthHeader from '../../components/ui/Header';
 import Text from '../../components/ui/Typography';
-import { Button } from '../../components/ui2/button-native';
-import { Card, CardContent } from '../../components/ui2/card-native';
-import { Input } from '../../components/ui2/input-native';
-import PreAuthHeader, { preAuthColors } from '../../components/ui2/pre-auth-header';
+import { useAuth } from '../../services/AuthContext';
 
-const { width } = Dimensions.get('window');
-
-const badges = [
-  {
-    id: '1',
-    title: 'Early Bird',
-    icon: 'sunrise',
-    color: '#f59e0b',
-    description: 'Join the early adopters of our language learning platform',
-  },
-  {
-    id: '2',
-    title: 'Quick Learner',
-    icon: 'flash',
-    color: '#14b8a6',
-    description: 'Complete your first lesson within 24 hours',
-  },
-  {
-    id: '3',
-    title: 'Social Learner',
-    icon: 'people',
-    color: '#a855f7',
-    description: 'Connect your social accounts to find friends',
-  },
-];
+// Airbnb-inspired color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+  google: '#DB4437',
+  apple: '#000000',
+  facebook: '#1877F2',
+  focus: '#FF5A5F',
+  focusLight: 'rgba(255, 90, 95, 0.1)',
+};
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const { signup } = useAuth();
   
   // Animation values
-  const headerOpacity = useSharedValue(0);
-  const headerTranslateY = useSharedValue(-50);
-  const formOpacity = useSharedValue(0);
-  const formTranslateY = useSharedValue(30);
-  const badgesTranslateX = useSharedValue(width);
-  const characterBounce = useSharedValue(1);
-  const buttonScale = useSharedValue(0.95);
-  const confettiOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.9);
+  const buttonScale = useSharedValue(1);
+  const rotation = useSharedValue(0);
   
   // Form state
   const [name, setName] = useState('');
@@ -63,631 +56,594 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [isSigningUp, setIsSigningUp] = useState(false);
-  const [step, setStep] = useState(1);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [isTermsAccepted, setIsTermsAccepted] = useState(false);
-  
-  // Animated confetti positions for celebration effect
-  const confettiPositions = Array.from({ length: 30 }).map(() => ({
-    x: useSharedValue(Math.random() * width),
-    y: useSharedValue(-20),
-    rotate: useSharedValue(Math.random() * 360),
-    size: 5 + Math.random() * 10,
-    color: ['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF69B4'][Math.floor(Math.random() * 5)],
-  }));
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
   
   useEffect(() => {
-    // Header animation
-    headerOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) });
-    headerTranslateY.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) });
-    
-    // Form animation
-    formOpacity.value = withDelay(
-      400,
-      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
-    );
-    formTranslateY.value = withDelay(
-      400,
-      withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) })
-    );
-    
-    // Animate character bounce continuously for fun
-    characterBounce.value = withRepeat(
-      withSequence(
-        withTiming(1.05, { duration: 1000, easing: Easing.bounce }),
-        withTiming(1, { duration: 1000, easing: Easing.bounce }),
-      ),
-      -1,
-      true
+    logoScale.value = withSequence(
+      withTiming(1.05, { duration: 600 }),
+      withTiming(1, { duration: 400 })
     );
   }, []);
   
-  // Show badges animation when moving to step 2
   useEffect(() => {
-    if (step === 2) {
-      badgesTranslateX.value = withSpring(0, { damping: 12, stiffness: 100 });
-      
-      // Show confetti celebration
-      showConfettiAnimation();
+    if (isSigningUp) {
+      rotation.value = withRepeat(withTiming(360, { duration: 1000 }), -1, false);
+    } else {
+      rotation.value = 0;
     }
-  }, [step]);
-  
-  const showConfettiAnimation = () => {
-    setShowConfetti(true);
-    confettiOpacity.value = 1;
-    
-    // Animate each confetti piece
-    confettiPositions.forEach((confetti, index) => {
-      confetti.y.value = withDelay(
-        index * 20,
-        withTiming(500 + Math.random() * 300, { duration: 1500 + Math.random() * 1000 })
-      );
-      confetti.rotate.value = withDelay(
-        index * 20,
-        withTiming(confetti.rotate.value + 360 * 2 + Math.random() * 360, { duration: 1500 + Math.random() * 1000 })
-      );
-    });
-    
-    // Hide confetti after animation
-    setTimeout(() => {
-      confettiOpacity.value = withTiming(0, { duration: 500 });
-      setTimeout(() => setShowConfetti(false), 500);
-    }, 3000);
-  };
+  }, [isSigningUp]);
   
   // Animated styles
-  const formAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: formOpacity.value,
-    transform: [{ translateY: formTranslateY.value }],
-  }));
-  
-  const badgesAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: badgesTranslateX.value }],
-  }));
-  
-  const characterAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: characterBounce.value }],
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
   }));
   
   const buttonAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: buttonScale.value }],
   }));
   
-  const confettiAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: confettiOpacity.value,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
-    pointerEvents: 'none',
+  const spinnerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
   }));
   
-  const handleContinue = () => {
-    // Animate button press
-    buttonScale.value = withSequence(
-      withTiming(0.9, { duration: 100 }),
-      withTiming(1, { duration: 200, easing: Easing.bounce })
-    );
+  // Validation functions
+  const validateName = (name: string): boolean => {
+    const isValid = name.trim().length >= 2;
+    setErrors(prev => ({
+      ...prev,
+      name: isValid ? '' : 'Please enter your name (minimum 2 characters)'
+    }));
+    return isValid;
+  };
+  
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(email);
+    setErrors(prev => ({
+      ...prev,
+      email: isValid ? '' : 'Please enter a valid email address'
+    }));
+    return isValid;
+  };
+  
+  const validatePassword = (password: string): boolean => {
+    const isValid = password.length >= 6;
+    setErrors(prev => ({
+      ...prev, 
+      password: isValid ? '' : 'Password must be at least 6 characters'
+    }));
+    return isValid;
+  };
+  
+  const handleSignup = async () => {
+    const isNameValid = validateName(name);
+    const isEmailValid = validateEmail(email);
+    const isPasswordValid = validatePassword(password);
     
-    if (step === 1) {
-      if (name && email && password && isTermsAccepted) {
-        setStep(2);
-      }
-    } else {
-      setIsSigningUp(true);
-      
-      // Simulate signup process
-      setTimeout(() => {
-        setIsSigningUp(false);
-        router.replace('/(tabs)');
-      }, 1500);
+    if (!isNameValid || !isEmailValid || !isPasswordValid) {
+      buttonScale.value = withSequence(
+        withTiming(0.95, { duration: 100 }),
+        withTiming(1, { duration: 300 })
+      );
+      return;
+    }
+    
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 200 })
+    );
+    setIsSigningUp(true);
+    
+    try {
+      await signup(email, password, name);
+    } catch (error) {
+      // Error handled in AuthContext
+    } finally {
+      setIsSigningUp(false);
     }
   };
   
-  const goBack = () => {
-    if (step === 2) {
-      setStep(1);
-      badgesTranslateX.value = width;
-    } else {
-      router.back();
-    }
+  const handleFocus = (field: string) => {
+    setIsFocused(prev => ({ ...prev, [field]: true }));
   };
-
-  // Custom component for step indicator in the header
-  const StepIndicator = () => (
-    <View style={styles.stepIndicatorContainer}>
-      <View style={[styles.stepDot, { backgroundColor: step >= 1 ? preAuthColors.emerald : preAuthColors.lightGrey }]} />
-      <View style={styles.stepLine} />
-      <View style={[styles.stepDot, { backgroundColor: step >= 2 ? preAuthColors.emerald : preAuthColors.lightGrey }]} />
-    </View>
-  );
-
+  
+  const handleBlur = (field: string) => {
+    setIsFocused(prev => ({ ...prev, [field]: false }));
+    if (field === 'name' && name) validateName(name);
+    if (field === 'email' && email) validateEmail(email);
+    if (field === 'password' && password) validatePassword(password);
+  };
+  
   return (
-    <View style={styles.container}>
-      {/* Using shared PreAuthHeader component */}
-      <View>
-        <PreAuthHeader 
-          title={step === 1 ? 'Create Account' : 'Almost Done!'} 
-        />
-        <StepIndicator />
-      </View>
-      
-      {/* Confetti animation overlay */}
-      {showConfetti && (
-        <Animated.View style={[confettiAnimatedStyle]} pointerEvents="none">
-          {confettiPositions.map((confetti, index) => (
-            <Animated.View 
-              key={index}
-              style={{
-                position: 'absolute',
-                width: confetti.size,
-                height: confetti.size,
-                backgroundColor: confetti.color,
-                borderRadius: confetti.size / 2,
-                top: 0,
-                left: 0,
-                transform: [
-                  { translateX: confetti.x },
-                  { translateY: confetti.y },
-                  { rotate: confetti.rotate },
-                ],
-              }}
-            />
-          ))}
-        </Animated.View>
-      )}
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+    >
+      {/* Airbnb-styled header */}
+      <PreAuthHeader 
+        title="Join Our Community"
+        subtitle="Create your learning account"
+        showNotifications={true}
+        onNotificationPress={() => console.log('Notifications pressed')}
+      />
       
       <ScrollView 
-        showsVerticalScrollIndicator={false} 
-        contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 24 }}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {step === 1 ? (
-          <View style={styles.content}>
-            <Animated.View style={characterAnimatedStyle}>
+        {/* Main content container */}
+        <Animated.View 
+          entering={FadeIn.delay(200).duration(800)}
+          style={styles.contentContainer}
+        >
+          {/* Logo section */}
+          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+            <View style={styles.logoWrapper}>
               <Image
                 source={require('../../assets/images/app-logo.png')}
-                style={styles.character}
+                style={styles.logo}
                 resizeMode="contain"
+                accessible={true}
+                accessibilityLabel="Application logo"
               />
-            </Animated.View>
-            
-            <Text style={styles.title}>Join Our Community</Text>
-            <Text style={styles.subtitle}>Create an account to start your language learning journey</Text>
-            
-            {/* Form section */}
-            <Animated.View style={[styles.formContainer, formAnimatedStyle]}>
-              <Card style={styles.formCard}>
-                <CardContent style={styles.cardContent}>
-                  {/* Name input */}
-                  <View style={styles.inputWrapper}>
-                    <Input
-                      placeholder="Your Name"
-                      value={name}
-                      onChangeText={setName}
-                      autoCapitalize="words"
-                      leftIcon={<Ionicons name="person-outline" size={20} color={preAuthColors.textLight} />}
-                    />
-                  </View>
-                  
-                  {/* Email input */}
-                  <View style={styles.inputWrapper}>
-                    <Input
-                      placeholder="Email Address"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      leftIcon={<Ionicons name="mail-outline" size={20} color={preAuthColors.textLight} />}
-                    />
-                  </View>
-                  
-                  {/* Password input */}
-                  <View style={styles.inputWrapper}>
-                    <Input
-                      placeholder="Password"
-                      value={password}
-                      onChangeText={setPassword}
-                      secureTextEntry={!isPasswordVisible}
-                      leftIcon={<Ionicons name="lock-closed-outline" size={20} color={preAuthColors.textLight} />}
-                      rightIcon={
-                        <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
-                          <Ionicons 
-                            name={isPasswordVisible ? "eye-off-outline" : "eye-outline"} 
-                            size={20} 
-                            color={preAuthColors.textLight} 
-                          />
-                        </TouchableOpacity>
-                      }
-                    />
-                  </View>
-                  
-                  {/* Terms and Conditions Checkbox */}
-                  <View style={styles.checkboxContainer}>
-                    <TouchableOpacity 
-                      style={styles.checkbox}
-                      onPress={() => setIsTermsAccepted(!isTermsAccepted)}
-                    >
-                      {isTermsAccepted ? (
-                        <Ionicons name="checkmark" size={16} color={preAuthColors.emerald} />
-                      ) : null}
-                    </TouchableOpacity>
-                    <Text style={styles.checkboxText}>
-                      I accept the{' '}
-                      <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                      <Text style={styles.termsLink}>Privacy Policy</Text>
-                    </Text>
-                  </View>
-                  
-                  {/* Continue button */}
-                  <Animated.View style={buttonAnimatedStyle}>
-                    <Button
-                      onPress={handleContinue}
-                      className="bg-emerald-500 w-full py-3 mt-4"
-                      textClassName="text-white font-bold"
-                      disabled={!name || !email || !password || !isTermsAccepted}
-                    >
-                      <View style={styles.buttonContent}>
-                        <Text className="text-white font-bold mr-2">Continue</Text>
-                        <Ionicons name="arrow-forward" size={20} color="white" />
-                      </View>
-                    </Button>
-                  </Animated.View>
-                </CardContent>
-              </Card>
-              
-              {/* Terms and conditions */}
-              <Text style={styles.termsText}>
-                By signing up, you agree to our{' '}
-                <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                <Text style={styles.termsLink}>Privacy Policy</Text>
-              </Text>
-              
-              {/* Social signup options */}
-              <View style={styles.socialContainer}>
-                <Text style={styles.socialText}>Or sign up with</Text>
-                <View style={styles.socialButtonsContainer}>
-                  <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons name="logo-google" size={20} color={preAuthColors.textDark} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons name="logo-apple" size={20} color={preAuthColors.textDark} />
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.socialButton}>
-                    <Ionicons name="logo-facebook" size={20} color={preAuthColors.textDark} />
-                  </TouchableOpacity>
-                </View>
+            </View>
+          </Animated.View>
+          
+          {/* Welcome text */}
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(800)}
+            style={styles.welcomeSection}
+          >
+            <Text style={styles.welcomeTitle}>Join Our Community</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Create an account to start your language learning journey
+            </Text>
+          </Animated.View>
+          
+          {/* Form section */}
+          <Animated.View
+            entering={FadeInUp.delay(400).duration(800)}
+            style={styles.formContainer}
+          >
+            {/* Name input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Full Name</Text>
+              <View style={[
+                styles.inputWrapper,
+                isFocused.name && styles.inputWrapperFocused,
+                errors.name && styles.inputWrapperError
+              ]}>
+                <TextInput
+                  placeholder="Enter your full name"
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  value={name}
+                  onChangeText={(text) => {
+                    setName(text);
+                    if (errors.name) validateName(text);
+                  }}
+                  autoCapitalize="words"
+                  onFocus={() => handleFocus('name')}
+                  onBlur={() => handleBlur('name')}
+                  style={styles.textInput}
+                  accessibilityLabel="Full Name"
+                  accessibilityHint="Enter your full name"
+                />
               </View>
-            </Animated.View>
-          </View>
-        ) : (
-          // Step 2 - Badges and gamification elements
-          <View style={styles.content}>
-            <Text style={styles.title}>You're Almost There!</Text>
-            <Text style={styles.subtitle}>Claim your first badges and start learning</Text>
+              {errors.name ? (
+                <Text style={styles.errorText}>{errors.name}</Text>
+              ) : null}
+            </View>
             
-            {/* Badges section */}
-            <Animated.View style={[styles.badgesContainer, badgesAnimatedStyle]}>
-              {badges.map((badge) => (
-                <Card key={badge.id} style={styles.badgeCard}>
-                  <CardContent style={styles.badgeContent}>
-                    <View 
-                      style={[styles.badgeIconContainer, { backgroundColor: badge.color + '20' }]}
-                    >
-                      <Ionicons name={badge.icon} size={28} color={badge.color} />
-                    </View>
-                    <Text style={styles.badgeTitle}>{badge.title}</Text>
-                    <Text style={styles.badgeDescription}>{badge.description}</Text>
-                    
-                    {/* Badge progress indicator */}
-                    <View style={styles.badgeProgressContainer}>
-                      <View style={styles.badgeProgressBar}>
-                        <View 
-                          style={[
-                            styles.badgeProgressFill, 
-                            { backgroundColor: badge.color, width: badge.id === '1' ? '100%' : '0%' }
-                          ]} 
-                        />
-                      </View>
-                      <Text style={[styles.badgeProgressText, { color: badge.color }]}>
-                        {badge.id === '1' ? 'Unlocked' : 'Coming Soon'}
-                      </Text>
-                    </View>
-                  </CardContent>
-                </Card>
-              ))}
-              
-              {/* XP bonus card - Duolingo style */}
-              <Card style={styles.xpBonusCard}>
-                <CardContent style={styles.xpBonusContent}>
-                  <View style={styles.xpIconContainer}>
-                    <Text style={styles.xpText}>+100</Text>
-                    <Text style={styles.xpLabel}>XP</Text>
-                  </View>
-                  <View style={styles.xpTextContainer}>
-                    <Text style={styles.xpBonusTitle}>Sign-up Bonus!</Text>
-                    <Text style={styles.xpBonusDescription}>
-                      Get a head start with 100 XP when you create your account today
-                    </Text>
-                  </View>
-                </CardContent>
-              </Card>
-              
-              {/* Final signup button */}
-              <Animated.View style={buttonAnimatedStyle}>
-                <Button
-                  onPress={handleContinue}
-                  className="bg-emerald-500 w-full py-3 mt-6"
-                  textClassName="text-white font-bold"
-                  disabled={isSigningUp}
+            {/* Email input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email</Text>
+              <View style={[
+                styles.inputWrapper,
+                isFocused.email && styles.inputWrapperFocused,
+                errors.email && styles.inputWrapperError
+              ]}>
+                <TextInput
+                  placeholder="Enter your email address"
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    if (errors.email) validateEmail(text);
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  onFocus={() => handleFocus('email')}
+                  onBlur={() => handleBlur('email')}
+                  style={styles.textInput}
+                  accessibilityLabel="Email Address"
+                  accessibilityHint="Enter your email address"
+                />
+              </View>
+              {errors.email ? (
+                <Text style={styles.errorText}>{errors.email}</Text>
+              ) : null}
+            </View>
+            
+            {/* Password input */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Password</Text>
+              <View style={[
+                styles.inputWrapper,
+                isFocused.password && styles.inputWrapperFocused,
+                errors.password && styles.inputWrapperError
+              ]}>
+                <TextInput
+                  placeholder="Create a secure password"
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (errors.password) validatePassword(text);
+                  }}
+                  secureTextEntry={!isPasswordVisible}
+                  onFocus={() => handleFocus('password')}
+                  onBlur={() => handleBlur('password')}
+                  style={styles.textInput}
+                  accessibilityLabel="Password"
+                  accessibilityHint="Create a secure password"
+                />
+                <TouchableOpacity 
+                  onPress={() => setIsPasswordVisible(!isPasswordVisible)}
+                  style={styles.eyeButton}
+                  accessible={true}
+                  accessibilityLabel={isPasswordVisible ? "Hide password" : "Show password"}
                 >
-                  {isSigningUp ? (
-                    <View style={styles.buttonContent}>
-                      <Text className="text-white mr-2">Creating account</Text>
-                      <Animated.View 
-                        style={{ 
-                          width: 16, 
-                          height: 16,
-                          transform: [{ rotate: withRepeat(withTiming('360deg', { duration: 1000 }), -1) }]
-                        }}
-                      >
-                        <Ionicons name="refresh" size={16} color="white" />
-                      </Animated.View>
-                    </View>
-                  ) : (
-                    <View style={styles.buttonContent}>
-                      <Text className="text-white font-bold mr-2">Start Learning Now</Text>
-                      <Ionicons name="rocket-outline" size={20} color="white" />
-                    </View>
-                  )}
-                </Button>
-              </Animated.View>
+                  <Ionicons 
+                    name={isPasswordVisible ? "eye-off" : "eye"} 
+                    size={22} 
+                    color={airbnbColors.mediumGray}
+                  />
+                </TouchableOpacity>
+              </View>
+              {errors.password ? (
+                <Text style={styles.errorText}>{errors.password}</Text>
+              ) : null}
+            </View>
+            
+            {/* Sign up button */}
+            <Animated.View style={[styles.signupButtonContainer, buttonAnimatedStyle]}>
+              <TouchableOpacity
+                onPress={handleSignup}
+                disabled={isSigningUp}
+                style={[
+                  styles.signupButton,
+                  isSigningUp && styles.signupButtonDisabled
+                ]}
+                accessible={true}
+                accessibilityLabel={isSigningUp ? "Creating account" : "Create Account"}
+              >
+                {isSigningUp ? (
+                  <View style={styles.loadingContainer}>
+                    <Animated.View style={[styles.spinner, spinnerAnimatedStyle]}>
+                      <Ionicons name="refresh" size={20} color={airbnbColors.white} />
+                    </Animated.View>
+                    <Text style={styles.buttonText}>Creating account...</Text>
+                  </View>
+                ) : (
+                  <Text style={styles.buttonText}>Create Account</Text>
+                )}
+              </TouchableOpacity>
             </Animated.View>
-          </View>
-        )}
+          </Animated.View>
+          
+          {/* Social signup section */}
+          <Animated.View 
+            entering={FadeInUp.delay(600).duration(800)}
+            style={styles.socialSection}
+          >
+            <View style={styles.dividerContainer}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+            
+            <View style={styles.socialButtonsContainer}>
+              <TouchableOpacity 
+                style={styles.socialButton}
+                accessible={true}
+                accessibilityLabel="Sign up with Google"
+              >
+                <View style={[styles.socialIcon, { backgroundColor: airbnbColors.google }]}>
+                  <Text style={styles.socialIconText}>G</Text>
+                </View>
+                <Text style={styles.socialButtonText}>Google</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.socialButton}
+                accessible={true}
+                accessibilityLabel="Sign up with Apple"
+              >
+                <Ionicons name="logo-apple" size={20} color={airbnbColors.apple} />
+                <Text style={styles.socialButtonText}>Apple</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+          
+          {/* Terms text */}
+          <Animated.View 
+            entering={FadeInUp.delay(700).duration(800)}
+            style={styles.termsContainer}
+          >
+            <Text style={styles.termsText}>
+              By creating an account, you agree to our{' '}
+              <TouchableOpacity onPress={() => router.push('/terms')}>
+                <Text style={styles.termsLink}>Terms of Service</Text>
+              </TouchableOpacity>
+              {' '}and{' '}
+              <TouchableOpacity onPress={() => router.push('/privacy')}>
+                <Text style={styles.termsLink}>Privacy Policy</Text>
+              </TouchableOpacity>
+            </Text>
+          </Animated.View>
+        </Animated.View>
       </ScrollView>
       
       {/* Footer */}
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>Already have an account?</Text>
-        <TouchableOpacity onPress={() => router.push('/(pre-auth)/login')}>
-          <Text style={styles.loginLink}>Log in</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      <Animated.View 
+        entering={FadeInUp.delay(800).duration(800)}
+        style={styles.footer}
+      >
+        <Text style={styles.footerText}>
+          Already have an account?{' '}
+          <TouchableOpacity 
+            onPress={() => router.push('/(pre-auth)/login')}
+            accessible={true}
+            accessibilityLabel="Log in to existing account"
+          >
+            <Text style={styles.loginLink}>Log in</Text>
+          </TouchableOpacity>
+        </Text>
+      </Animated.View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: preAuthColors.white,
+    backgroundColor: airbnbColors.white,
   },
-  stepIndicatorContainer: {
-    flexDirection: 'row',
+  header: {
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    backgroundColor: airbnbColors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.gray,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.lightGray,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 16,
-    marginTop: -16,
-    backgroundColor: preAuthColors.lightGrey,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
   },
-  stepDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  stepLine: {
-    width: 80,
-    height: 2,
-    backgroundColor: preAuthColors.lightGrey,
-    marginHorizontal: 5,
-  },
-  content: {
+  scrollView: {
     flex: 1,
-    alignItems: 'center',
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 24,
     paddingTop: 20,
   },
-  character: {
-    width: 100,
-    height: 100,
-    marginBottom: 24,
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: preAuthColors.textDark,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: preAuthColors.textLight,
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  formContainer: {
-    width: '100%',
-  },
-  formCard: {
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  cardContent: {
-    padding: 20,
-  },
-  inputWrapper: {
-    marginBottom: 16,
-  },
-  buttonContent: {
-    flexDirection: 'row',
+  logoWrapper: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: airbnbColors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: airbnbColors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  termsText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: preAuthColors.textLight,
-    marginTop: 16,
-  },
-  termsLink: {
-    color: preAuthColors.emerald,
-    fontWeight: '600',
-  },
-  socialContainer: {
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 20,
-  },
-  socialText: {
-    fontSize: 14,
-    color: preAuthColors.textLight,
-    marginBottom: 16,
-  },
-  socialButtonsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-  },
-  socialButton: {
+  logo: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: preAuthColors.lightGrey,
-    justifyContent: 'center',
+  },
+  welcomeSection: {
     alignItems: 'center',
-    marginHorizontal: 8,
+    marginBottom: 40,
   },
-  badgesContainer: {
-    width: '100%',
-    paddingVertical: 16,
-  },
-  badgeCard: {
-    marginBottom: 16,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  badgeContent: {
-    padding: 16,
-  },
-  badgeIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  badgeTitle: {
-    fontSize: 18,
+  welcomeTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    color: preAuthColors.textDark,
-    marginBottom: 4,
+    color: airbnbColors.charcoal,
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  badgeDescription: {
-    fontSize: 14,
-    color: preAuthColors.textLight,
-    marginBottom: 12,
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    lineHeight: 24,
   },
-  badgeProgressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  formContainer: {
+    marginBottom: 32,
   },
-  badgeProgressBar: {
-    flex: 1,
-    height: 6,
-    backgroundColor: preAuthColors.lightGrey,
-    borderRadius: 3,
-    marginRight: 12,
-    overflow: 'hidden',
+  inputContainer: {
+    marginBottom: 20,
   },
-  badgeProgressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  badgeProgressText: {
-    fontSize: 12,
+  inputLabel: {
+    fontSize: 16,
     fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginBottom: 8,
   },
-  xpBonusCard: {
-    marginVertical: 8,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: '#FFF9C4',
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    paddingHorizontal: 16,
+    height: 56,
   },
-  xpBonusContent: {
-    padding: 16,
+  inputWrapperFocused: {
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.white,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  inputWrapperError: {
+    borderColor: airbnbColors.error,
+    backgroundColor: airbnbColors.white,
+  },
+  textInput: {
+    flex: 1,
+    fontSize: 16,
+    color: airbnbColors.charcoal,
+    paddingVertical: 0,
+  },
+  eyeButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: airbnbColors.error,
+    marginTop: 6,
+    marginLeft: 4,
+  },
+  signupButtonContainer: {
+    marginTop: 8,
+  },
+  signupButton: {
+    backgroundColor: airbnbColors.primary,
+    borderRadius: 12,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: airbnbColors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  signupButtonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  loadingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  xpIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f59e0b',
-    justifyContent: 'center',
+  spinner: {
+    marginRight: 8,
+  },
+  socialSection: {
+    marginBottom: 24,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginBottom: 24,
   },
-  xpText: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: 'white',
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: airbnbColors.gray,
   },
-  xpLabel: {
+  dividerText: {
+    marginHorizontal: 16,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+  },
+  socialButtonsContainer: {
+    gap: 12,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: airbnbColors.white,
+    borderRadius: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: airbnbColors.gray,
+    gap: 12,
+  },
+  socialIcon: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  socialIconText: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: 'white',
+    color: airbnbColors.white,
   },
-  xpTextContainer: {
-    flex: 1,
-  },
-  xpBonusTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#f59e0b',
-    marginBottom: 4,
-  },
-  xpBonusDescription: {
+  socialButtonText: {
     fontSize: 14,
-    color: '#7D6E00',
+    fontWeight: '500',
+    color: airbnbColors.charcoal,
+  },
+  termsContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  termsText: {
+    fontSize: 12,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  termsLink: {
+    color: airbnbColors.primary,
+    fontWeight: '500',
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 20,
+    backgroundColor: airbnbColors.white,
+    borderTopWidth: 1,
+    borderTopColor: airbnbColors.gray,
     alignItems: 'center',
-    paddingVertical: 24,
   },
   footerText: {
     fontSize: 14,
-    color: preAuthColors.textLight,
-    marginRight: 4,
+    color: airbnbColors.darkGray,
   },
   loginLink: {
-    fontSize: 14,
-    color: preAuthColors.emerald,
+    color: airbnbColors.primary,
     fontWeight: '600',
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: preAuthColors.emerald,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  checkboxText: {
-    fontSize: 14,
-    color: preAuthColors.textDark,
-    flex: 1,
   },
 });

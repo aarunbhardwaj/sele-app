@@ -40,21 +40,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#111827',
     height: '100%',
+    paddingVertical: 0, // Remove vertical padding to maximize text space
   },
   inputWithLeftIcon: {
-    paddingLeft: 45,
+    paddingLeft: 48, // Increased from 45 to give more space
   },
   inputWithRightIcon: {
-    paddingRight: 45,
+    paddingRight: 48, // Increased from 45 to give more space
   },
   leftIconContainer: {
     position: 'absolute',
-    left: 16,
+    left: 12, // Moved closer to edge to give more text space
     zIndex: 1,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   rightIconContainer: {
     position: 'absolute',
-    right: 16,
+    right: 12, // Moved closer to edge to give more text space
     zIndex: 1,
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

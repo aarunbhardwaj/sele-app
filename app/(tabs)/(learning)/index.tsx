@@ -2,11 +2,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import { FlatList, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
 import Header from '../../../components/ui/Header';
 import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
-import Text from '../../../components/ui/Typography';
+import { Text } from '../../../components/ui/Typography';
+import { useLearningProgress } from '../../../services/LearningProgressContext';
 
 // Mock data for in-progress courses
 const inProgressCourses = [
@@ -46,10 +47,27 @@ const upcomingLessons = [
   }
 ];
 
-const ProgressBar = ({ progress, color = colors.primary.main }) => (
-  <View style={styles.progressBarContainer}>
-    <View 
-      style={[styles.progressBar, { width: `${progress}%`, backgroundColor: color }]} 
+interface CourseItem {
+  id: string;
+  title: string;
+  progress: number;
+  lastLesson: string;
+  image: any; // React Native require asset
+  nextLessonIn: string;
+}
+
+interface UpcomingLessonItem {
+  id: string;
+  title: string;
+  time: string;
+  duration: string;
+  tutor: string;
+}
+
+const ProgressBar: React.FC<{ progress: number; color?: string }> = ({ progress, color = colors.primary.main }) => (
+  <View style={styles.progressBarContainer as any}>
+    <View
+      style={[styles.progressBar as any, { width: `${progress}%`, backgroundColor: color }]}
     />
   </View>
 );
@@ -57,8 +75,9 @@ const ProgressBar = ({ progress, color = colors.primary.main }) => (
 export default function MyLearningScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('progress');
+  const { overallCompletion, streakDays } = useLearningProgress();
   
-  const renderCourseItem = ({ item }) => (
+  const renderCourseItem = ({ item }: { item: CourseItem }) => (
     <Card variant="elevated" style={styles.courseCard}>
       <TouchableOpacity>
         <View style={styles.courseRow}>
@@ -86,7 +105,7 @@ export default function MyLearningScreen() {
     </Card>
   );
   
-  const renderLessonItem = ({ item }) => (
+  const renderLessonItem = ({ item }: { item: UpcomingLessonItem }) => (
     <Card variant="elevated" style={styles.lessonCard}>
       <View style={styles.lessonContent}>
         <View style={styles.lessonInfo}>
@@ -103,7 +122,8 @@ export default function MyLearningScreen() {
           title="Join"
           variant="primary"
           size="small"
-          style={styles.joinButton}
+          style={styles.joinButton as any}
+          onPress={() => {}}
         />
       </View>
     </Card>
@@ -123,12 +143,15 @@ export default function MyLearningScreen() {
           <Card style={styles.goalCard}>
             <View style={styles.goalContent}>
               <View style={styles.goalInfo}>
-                <Text variant="caption" color={colors.neutral.lightGray} style={styles.goalLabel}>DAILY GOAL</Text>
-                <Text variant="h5" color={colors.neutral.white} style={styles.goalText}>25 minutes today</Text>
-                <ProgressBar progress={70} color={colors.neutral.white} />
+                <Text variant="caption" color={colors.neutral.lightGray} style={styles.goalLabel}>OVERALL PROGRESS</Text>
+                <Text variant="h5" color={colors.neutral.white} style={styles.goalText}>{overallCompletion}% Complete</Text>
+                <ProgressBar progress={overallCompletion} color={colors.neutral.white} />
+                <Text variant="caption" color={colors.neutral.white} style={{ marginTop: spacing.xs }}>
+                  Streak: {streakDays} day{streakDays === 1 ? '' : 's'}
+                </Text>
               </View>
               <View style={styles.goalPercentage}>
-                <Text variant="subtitle1" color={colors.primary.main} style={styles.goalPercentageText}>70%</Text>
+                <Text variant="subtitle1" color={colors.primary.main} style={styles.goalPercentageText}>{overallCompletion}%</Text>
               </View>
             </View>
           </Card>
@@ -196,8 +219,8 @@ export default function MyLearningScreen() {
           {activeTab === 'completed' && (
             <View style={styles.emptyState}>
               <Ionicons name="trophy" size={64} color={colors.neutral.lightGray} />
-              <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
-                You haven't completed any courses yet.
+              <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText as any}>
+                You have not completed any courses yet.
               </Text>
               <Button
                 title="Browse Courses"
@@ -213,7 +236,7 @@ export default function MyLearningScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = StyleSheet.create<any>({
   container: {
     flex: 1,
     backgroundColor: colors.neutral.background,
@@ -262,7 +285,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   goalPercentageText: {
-    fontWeight: typography.fontWeights.bold,
+    fontWeight: typography.fontWeights.bold as any,
   },
   progressBarContainer: {
     width: '100%',
@@ -307,7 +330,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   courseTitle: {
-    fontWeight: typography.fontWeights.semibold,
+    fontWeight: typography.fontWeights.semibold as any,
     marginBottom: spacing.xs,
   },
   lessonText: {
@@ -339,7 +362,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   lessonTitle: {
-    fontWeight: typography.fontWeights.semibold,
+    fontWeight: typography.fontWeights.semibold as any,
     marginBottom: spacing.xs,
   },
   lessonTimeContainer: {

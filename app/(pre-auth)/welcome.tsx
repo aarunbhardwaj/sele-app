@@ -1,228 +1,268 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { FlatList, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
+    FadeIn,
+    FadeInDown,
+    FadeInUp,
     useAnimatedStyle,
     useSharedValue,
-    withTiming,
+    withSequence,
+    withTiming
 } from 'react-native-reanimated';
+import PreAuthHeader from '../../components/ui/Header';
 import Text from '../../components/ui/Typography';
-import { Button } from '../../components/ui2/button-native';
-import { Card, CardContent } from '../../components/ui2/card-native';
-import PreAuthHeader, { preAuthColors } from '../../components/ui2/pre-auth-header';
+import { useAuth } from '../../services/AuthContext';
+import { useLearningProgress } from '../../services/LearningProgressContext';
 
-// Current learning modules
-const currentLessons = [
-  {
-    id: '1',
-    title: 'Greetings & Introductions',
-    progress: 75,
-    lastLesson: 'Formal Greetings',
-    timeLeft: '5 min left',
-    image: require('../../assets/images/app-logo.png'),
-  },
-  {
-    id: '2',
-    title: 'Basic Conversations',
-    progress: 40,
-    lastLesson: 'Asking Questions',
-    timeLeft: '10 min left',
-    image: require('../../assets/images/app-logo.png'),
-  },
-  {
-    id: '3',
-    title: 'Numbers & Counting',
-    progress: 20,
-    lastLesson: 'Numbers 1-20',
-    timeLeft: '15 min left',
-    image: require('../../assets/images/app-logo.png'),
-  },
-];
-
-// Featured words/phrases
-const featuredWords = [
-  { id: '1', word: 'Hello', translation: 'Hola', flag: 'es' },
-  { id: '2', word: 'Thank you', translation: 'Gracias', flag: 'es' },
-  { id: '3', word: 'Good morning', translation: 'Buenos días', flag: 'es' },
-  { id: '4', word: 'Please', translation: 'Por favor', flag: 'es' },
-  { id: '5', word: 'Goodbye', translation: 'Adiós', flag: 'es' },
-];
-
-// Learning module card component
-const LearningModuleCard = ({ lesson }) => (
-  <Card style={styles.learningCard}>
-    <TouchableOpacity>
-      <View style={styles.learningCardContent}>
-        <View style={styles.learningCardImageContainer}>
-          <Image
-            source={lesson.image}
-            style={styles.learningCardImage}
-            resizeMode="cover"
-          />
-        </View>
-        <View style={styles.learningCardDetails}>
-          <Text variant="subtitle2" style={styles.lessonTitle}>
-            {lesson.title}
-          </Text>
-          <Text variant="caption" style={styles.lessonSubtitle}>
-            {lesson.lastLesson}
-          </Text>
-          <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, { width: `${lesson.progress}%` }]} />
-          </View>
-          <View style={styles.timeContainer}>
-            <Ionicons name="time-outline" size={14} color={preAuthColors.textLight} />
-            <Text variant="caption" style={styles.timeText}>
-              {lesson.timeLeft}
-            </Text>
-          </View>
-        </View>
-      </View>
-    </TouchableOpacity>
-  </Card>
-);
-
-// Word card component
-const WordCard = ({ word }) => (
-  <Card style={styles.wordCard}>
-    <TouchableOpacity>
-      <View style={styles.wordCardContent}>
-        <View style={styles.flagContainer}>
-          <Ionicons name="flag" size={16} color={preAuthColors.softPurple} />
-        </View>
-        <Text variant="subtitle2" style={styles.wordText}>
-          {word.word}
-        </Text>
-        <Text variant="caption" style={styles.translationText}>
-          {word.translation}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  </Card>
-);
+// Airbnb-inspired color palette
+const airbnbColors = {
+  // Primary Airbnb colors
+  primary: '#FF5A5F',        // Airbnb's signature coral/red
+  primaryDark: '#E8484D',    // Darker variant
+  primaryLight: '#FFE8E9',   // Light coral background
+  
+  // Secondary colors
+  secondary: '#00A699',      // Teal for accents
+  secondaryLight: '#E0F7F5', // Light teal background
+  
+  // Neutral palette (very Airbnb-esque)
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  
+  // Status colors
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+  
+  // Focus and interaction
+  focus: '#FF5A5F',
+  focusLight: 'rgba(255, 90, 95, 0.1)',
+};
 
 export default function WelcomePage() {
   const router = useRouter();
-  const contentOpacity = useSharedValue(0);
-  const userName = "Aarun"; // This would come from your user state/context
-  const streakDays = 7;
-  const dailyGoalProgress = 3;
-  const dailyGoalTotal = 5;
-
+  const { user } = useAuth();
+  const { streakDays, overallCompletion } = useLearningProgress();
+  
+  // Animation values
+  const logoScale = useSharedValue(0.9);
+  const cardScale = useSharedValue(1);
+  
+  const userName = user?.name || "Learner";
+  
   useEffect(() => {
-    // Animate content
-    contentOpacity.value = withTiming(1, {
-      duration: 800,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-    });
+    // Gentle logo entrance animation
+    logoScale.value = withSequence(
+      withTiming(1.05, { duration: 600 }),
+      withTiming(1, { duration: 400 })
+    );
   }, []);
-
-  const contentAnimatedStyle = useAnimatedStyle(() => {
-    return {
-      opacity: contentOpacity.value,
-      transform: [{ translateY: (1 - contentOpacity.value) * 20 }],
-    };
-  });
+  
+  // Animated styles
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
+  }));
+  
+  const cardAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: cardScale.value }],
+  }));
+  
+  const handleCardPress = (action: () => void) => {
+    cardScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 200 })
+    );
+    action();
+  };
 
   return (
     <View style={styles.container}>
-      {/* Use shared header component */}
-      <PreAuthHeader>
-        <View>
-          <Text style={styles.welcomeText}>Welcome back,</Text>
-          <Text style={styles.nameText}>{userName}!</Text>
-        </View>
-      </PreAuthHeader>
-
-      <ScrollView showsVerticalScrollIndicator={false} style={styles.scrollView}>
-        <Animated.View style={[contentAnimatedStyle, styles.contentContainer]}>
-          {/* Streak & Daily Goal Section */}
-          <View style={styles.statsContainer}>
-            {/* Streak Card */}
-            <Card style={[styles.statCard, { backgroundColor: preAuthColors.softPurple }]}>
-              <CardContent style={styles.statCardContent}>
-                <View style={styles.streakIconContainer}>
-                  <Ionicons name="flame" size={28} color={preAuthColors.white} />
-                </View>
-                <Text style={styles.statValue}>{streakDays}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </CardContent>
-            </Card>
-            
-            {/* Daily Goal Card */}
-            <Card style={[styles.statCard, { backgroundColor: preAuthColors.lightBlue }]}>
-              <CardContent style={styles.statCardContent}>
-                <Text style={styles.goalText}>Daily Goal</Text>
-                <View style={styles.goalProgressContainer}>
-                  <Text style={styles.goalProgressText}>
-                    {dailyGoalProgress}/{dailyGoalTotal} lessons
-                  </Text>
-                </View>
-                <View style={styles.goalBarContainer}>
-                  <View 
-                    style={[
-                      styles.goalProgressBar, 
-                      { width: `${(dailyGoalProgress / dailyGoalTotal) * 100}%` }
-                    ]} 
-                  />
-                </View>
-              </CardContent>
-            </Card>
-          </View>
-
-          {/* Continue Learning Section */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Continue Learning</Text>
-              <TouchableOpacity>
-                <Text style={styles.sectionAction}>See All</Text>
-              </TouchableOpacity>
+      {/* Airbnb-styled header */}
+      <PreAuthHeader 
+        title="Welcome Back"
+        subtitle="Ready to continue learning?"
+        showNotifications={true}
+        onNotificationPress={() => console.log('Notifications pressed')}
+      />
+      
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Main content container */}
+        <Animated.View 
+          entering={FadeIn.delay(200).duration(800)}
+          style={styles.contentContainer}
+        >
+          {/* Logo and welcome section */}
+          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+            <View style={styles.logoWrapper}>
+              <Image
+                source={require('../../assets/images/app-logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+                accessible={true}
+                accessibilityLabel="Application logo"
+              />
             </View>
-            <FlatList
-              data={currentLessons}
-              renderItem={({ item }) => <LearningModuleCard lesson={item} />}
-              keyExtractor={(item) => item.id}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingRight: 16 }}
-            />
-          </View>
-
-          {/* Featured Words Section */}
-          <View style={styles.sectionContainer}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Featured Words</Text>
-              <TouchableOpacity>
-                <Text style={styles.sectionAction}>Practice</Text>
-              </TouchableOpacity>
-            </View>
-            <View style={styles.wordsContainer}>
-              {featuredWords.map(word => (
-                <WordCard key={word.id} word={word} />
-              ))}
-            </View>
-          </View>
-
-          {/* Call to Action Card */}
-          <Card style={styles.ctaCard}>
-            <CardContent style={styles.ctaContent}>
-              <Ionicons name="trophy" size={32} color={preAuthColors.pastelYellow} />
-              <Text style={styles.ctaTitle}>Complete Today's Challenge!</Text>
-              <Text style={styles.ctaDescription}>
-                Practice pronunciation for 5 minutes to earn bonus points
-              </Text>
-              <Button style={styles.ctaButton}>
-                <Text style={styles.ctaButtonText}>Start Challenge</Text>
-              </Button>
-            </CardContent>
-          </Card>
+          </Animated.View>
           
-          {/* Footer spacing */}
-          <View style={{ height: 80 }} />
+          {/* Welcome message */}
+          <Animated.View 
+            entering={FadeInDown.delay(300).duration(800)}
+            style={styles.welcomeSection}
+          >
+            <Text style={styles.welcomeTitle}>Welcome back, {userName}!</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Continue your language learning journey
+            </Text>
+          </Animated.View>
+          
+          {/* Stats cards - Airbnb style */}
+          <Animated.View 
+            entering={FadeInDown.delay(400).duration(800)}
+            style={styles.statsContainer}
+          >
+            <Animated.View style={[styles.statCard, cardAnimatedStyle]}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="flame" size={24} color={airbnbColors.warning} />
+              </View>
+              <Text style={styles.statValue}>{streakDays}</Text>
+              <Text style={styles.statLabel}>Day Streak</Text>
+            </Animated.View>
+            
+            <Animated.View style={[styles.statCard, cardAnimatedStyle]}>
+              <View style={styles.statIconContainer}>
+                <Ionicons name="trophy" size={24} color={airbnbColors.secondary} />
+              </View>
+              <Text style={styles.statValue}>{Math.round(overallCompletion)}%</Text>
+              <Text style={styles.statLabel}>Progress</Text>
+            </Animated.View>
+          </Animated.View>
+          
+          {/* Action cards - Clean Airbnb style */}
+          <Animated.View 
+            entering={FadeInUp.delay(500).duration(800)}
+            style={styles.actionsContainer}
+          >
+            {/* Continue Learning Card */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleCardPress(() => router.push('/(tabs)'))}
+              accessible={true}
+              accessibilityLabel="Continue learning, go to main app"
+            >
+              <View style={styles.actionCardContent}>
+                <View style={[styles.actionIcon, { backgroundColor: airbnbColors.primaryLight }]}>
+                  <Ionicons name="play" size={24} color={airbnbColors.primary} />
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={styles.actionTitle}>Continue Learning</Text>
+                  <Text style={styles.actionSubtitle}>Pick up where you left off</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+              </View>
+            </TouchableOpacity>
+            
+            {/* Daily Practice Card */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleCardPress(() => router.push('/(tabs)/quiz'))}
+              accessible={true}
+              accessibilityLabel="Start daily practice quiz"
+            >
+              <View style={styles.actionCardContent}>
+                <View style={[styles.actionIcon, { backgroundColor: airbnbColors.secondaryLight }]}>
+                  <Ionicons name="checkmark-circle" size={24} color={airbnbColors.secondary} />
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={styles.actionTitle}>Daily Practice</Text>
+                  <Text style={styles.actionSubtitle}>5 minutes to stay sharp</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+              </View>
+            </TouchableOpacity>
+            
+            {/* Explore Courses Card */}
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={() => handleCardPress(() => router.push('/(tabs)/courses'))}
+              accessible={true}
+              accessibilityLabel="Explore available courses"
+            >
+              <View style={styles.actionCardContent}>
+                <View style={[styles.actionIcon, { backgroundColor: '#F3E5F5' }]}>
+                  <Ionicons name="library" size={24} color="#9C27B0" />
+                </View>
+                <View style={styles.actionTextContainer}>
+                  <Text style={styles.actionTitle}>Explore Courses</Text>
+                  <Text style={styles.actionSubtitle}>Discover new topics</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Quick stats section */}
+          <Animated.View 
+            entering={FadeInUp.delay(600).duration(800)}
+            style={styles.quickStatsContainer}
+          >
+            <Text style={styles.quickStatsTitle}>This Week</Text>
+            <View style={styles.quickStatsGrid}>
+              <View style={styles.quickStatItem}>
+                <Text style={styles.quickStatValue}>45</Text>
+                <Text style={styles.quickStatLabel}>Minutes</Text>
+              </View>
+              <View style={styles.quickStatItem}>
+                <Text style={styles.quickStatValue}>12</Text>
+                <Text style={styles.quickStatLabel}>Lessons</Text>
+              </View>
+              <View style={styles.quickStatItem}>
+                <Text style={styles.quickStatValue}>87</Text>
+                <Text style={styles.quickStatLabel}>Words</Text>
+              </View>
+            </View>
+          </Animated.View>
+          
+          {/* Achievement badge */}
+          <Animated.View 
+            entering={FadeInUp.delay(700).duration(800)}
+            style={styles.achievementContainer}
+          >
+            <View style={styles.achievementBadge}>
+              <Ionicons name="star" size={20} color={airbnbColors.warning} />
+              <Text style={styles.achievementText}>
+                Great job! You're on a {streakDays}-day streak
+              </Text>
+            </View>
+          </Animated.View>
         </Animated.View>
       </ScrollView>
+      
+      {/* Footer CTA */}
+      <Animated.View 
+        entering={FadeInUp.delay(800).duration(800)}
+        style={styles.footer}
+      >
+        <TouchableOpacity
+          style={styles.primaryButton}
+          onPress={() => router.push('/(tabs)')}
+          accessible={true}
+          accessibilityLabel="Start learning now"
+        >
+          <Text style={styles.primaryButtonText}>Start Learning</Text>
+        </TouchableOpacity>
+      </Animated.View>
     </View>
   );
 }
@@ -230,247 +270,211 @@ export default function WelcomePage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: preAuthColors.white,
-  },
-  welcomeText: {
-    fontSize: 16,
-    color: preAuthColors.textDark,
-    fontWeight: '400',
-  },
-  nameText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: preAuthColors.textDark,
+    backgroundColor: airbnbColors.white,
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
   contentContainer: {
-    padding: 20,
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 20,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 32,
+  },
+  logoWrapper: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: airbnbColors.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  logo: {
+    width: 60,
+    height: 60,
+  },
+  welcomeSection: {
+    marginBottom: 32,
+  },
+  welcomeTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 8,
+    textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    lineHeight: 24,
+    textAlign: 'center',
   },
   statsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    marginBottom: 32,
+    gap: 16,
   },
   statCard: {
-    width: '48%',
+    flex: 1,
+    backgroundColor: airbnbColors.white,
     borderRadius: 16,
-    shadowColor: preAuthColors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  statCardContent: {
-    padding: 16,
+    padding: 20,
     alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: airbnbColors.gray,
   },
-  streakIconContainer: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: airbnbColors.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   statValue: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: preAuthColors.white,
+    fontSize: 24,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 4,
   },
   statLabel: {
     fontSize: 14,
-    color: preAuthColors.white,
-    marginTop: 4,
-  },
-  goalText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: preAuthColors.white,
-    marginBottom: 8,
-  },
-  goalProgressContainer: {
-    marginBottom: 8,
-  },
-  goalProgressText: {
-    fontSize: 14,
-    color: preAuthColors.white,
+    color: airbnbColors.darkGray,
     fontWeight: '500',
   },
-  goalBarContainer: {
-    width: '100%',
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.3)',
-    borderRadius: 4,
-    overflow: 'hidden',
+  actionsContainer: {
+    marginBottom: 32,
   },
-  goalProgressBar: {
-    height: '100%',
-    backgroundColor: preAuthColors.white,
-    borderRadius: 4,
+  actionCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+    borderWidth: 1,
+    borderColor: airbnbColors.gray,
   },
-  sectionContainer: {
+  actionCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  actionTextContainer: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginBottom: 4,
+  },
+  actionSubtitle: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+  },
+  quickStatsContainer: {
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 16,
+    padding: 20,
     marginBottom: 24,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
+  quickStatsTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: preAuthColors.textDark,
-  },
-  sectionAction: {
-    fontSize: 14,
-    color: preAuthColors.softPurple,
     fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginBottom: 16,
+    textAlign: 'center',
   },
-  learningCard: {
-    width: 280,
-    marginLeft: 4,
-    marginRight: 12,
-    borderRadius: 16,
-    overflow: 'hidden',
-    backgroundColor: preAuthColors.white,
-    shadowColor: preAuthColors.shadow,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  learningCardContent: {
+  quickStatsGrid: {
     flexDirection: 'row',
-    padding: 12,
+    justifyContent: 'space-around',
   },
-  learningCardImageContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: preAuthColors.lightGrey,
-    justifyContent: 'center',
+  quickStatItem: {
     alignItems: 'center',
   },
-  learningCardImage: {
-    width: 40,
-    height: 40,
-  },
-  learningCardDetails: {
-    flex: 1,
-    marginLeft: 12,
-    justifyContent: 'center',
-  },
-  lessonTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: preAuthColors.textDark,
+  quickStatValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.primary,
     marginBottom: 4,
   },
-  lessonSubtitle: {
-    fontSize: 14,
-    color: preAuthColors.textLight,
-    marginBottom: 8,
-  },
-  progressBarContainer: {
-    width: '100%',
-    height: 4,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 2,
-    marginBottom: 8,
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: preAuthColors.softPurple,
-    borderRadius: 2,
-  },
-  timeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timeText: {
+  quickStatLabel: {
     fontSize: 12,
-    color: preAuthColors.textLight,
-    marginLeft: 4,
+    color: airbnbColors.darkGray,
+    fontWeight: '500',
   },
-  wordsContainer: {
+  achievementContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  achievementBadge: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.lightGray,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 20,
   },
-  wordCard: {
-    width: '48%',
-    marginBottom: 12,
-    borderRadius: 12,
-    backgroundColor: preAuthColors.white,
-    shadowColor: preAuthColors.shadow,
+  achievementText: {
+    fontSize: 14,
+    color: airbnbColors.charcoal,
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  footer: {
+    paddingHorizontal: 24,
+    paddingBottom: 32,
+    paddingTop: 16,
+    backgroundColor: airbnbColors.white,
+    borderTopWidth: 1,
+    borderTopColor: airbnbColors.gray,
+  },
+  primaryButton: {
+    backgroundColor: airbnbColors.primary,
+    borderRadius: 8,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: airbnbColors.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 2,
   },
-  wordCardContent: {
-    padding: 12,
-    alignItems: 'center',
-  },
-  flagContainer: {
-    marginBottom: 6,
-  },
-  wordText: {
+  primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: preAuthColors.textDark,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  translationText: {
-    fontSize: 14,
-    color: preAuthColors.textLight,
-    textAlign: 'center',
-  },
-  ctaCard: {
-    backgroundColor: preAuthColors.softPurple,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  ctaContent: {
-    padding: 20,
-    alignItems: 'center',
-  },
-  ctaTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: preAuthColors.white,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  ctaDescription: {
-    fontSize: 14,
-    color: preAuthColors.white,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  ctaButton: {
-    backgroundColor: preAuthColors.white,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 24,
-    shadowColor: preAuthColors.shadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  ctaButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: preAuthColors.softPurple,
+    color: airbnbColors.white,
   },
 });

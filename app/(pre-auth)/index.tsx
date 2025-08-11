@@ -1,793 +1,506 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Dimensions, FlatList, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import React, { useEffect } from 'react';
+import { Dimensions, Image, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    Easing,
-    FadeInRight,
+    FadeInDown,
     FadeInUp,
     useAnimatedStyle,
     useSharedValue,
     withDelay,
-    withRepeat,
     withSequence,
     withSpring,
     withTiming,
 } from 'react-native-reanimated';
+import PreAuthHeader from '../../components/ui/Header';
 import Text from '../../components/ui/Typography';
-import { Button } from '../../components/ui2/button-native';
-import { Card, CardContent } from '../../components/ui2/card-native';
-import PreAuthHeader from '../../components/ui2/pre-auth-header';
 
 const { width } = Dimensions.get('window');
 
-// Features data
+// Airbnb-inspired color palette
+const airbnbColors = {
+  // Primary Airbnb colors
+  primary: '#FF5A5F',        // Airbnb's signature coral/red
+  primaryDark: '#E8484D',    // Darker variant
+  primaryLight: '#FFE8E9',   // Light coral background
+  
+  // Secondary colors
+  secondary: '#00A699',      // Teal for accents
+  secondaryLight: '#E0F7F5', // Light teal background
+  
+  // Neutral palette (very Airbnb-esque)
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  
+  // Status colors
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+  
+  // Focus and interaction
+  focus: '#FF5A5F',
+  focusLight: 'rgba(255, 90, 95, 0.1)',
+};
+
+// Features data with Airbnb-style approach
 const features = [
   {
     id: '1',
-    title: 'Learn from Native Speakers',
-    description: 'Learn authentic British English from qualified native speakers',
-    icon: 'people' as const,
-    color: '#a855f7', // Using secondary color
-    unlocked: true,
-    background: 'bg-purple-100',
-    iconBg: 'bg-purple-200',
-    iconColor: '#a855f7',
+    title: 'Learn Anywhere',
+    description: 'Practice English lessons at your own pace, anytime',
+    icon: 'location' as const,
+    gradient: ['#FF5A5F', '#FF8E53'],
   },
   {
     id: '2',
-    title: 'Interactive Lessons',
-    description: 'Engaging lessons with audio, video, and practice exercises',
-    icon: 'play-circle' as const,
-    color: '#f59e0b', // Using accent color
-    unlocked: true,
-    background: 'bg-amber-100',
-    iconBg: 'bg-amber-200',
-    iconColor: '#f59e0b',
+    title: 'Native Speakers',
+    description: 'Learn from qualified British English teachers',
+    icon: 'people' as const,
+    gradient: ['#00A699', '#00D2FF'],
   },
   {
     id: '3',
-    title: 'Track Your Progress',
-    description: 'Personalized learning analytics to monitor your improvement',
-    icon: 'stats-chart' as const,
-    color: '#14b8a6', // Using primary color
-    unlocked: false,
-    background: 'bg-teal-100',
-    iconBg: 'bg-teal-200',
-    iconColor: '#14b8a6',
-  },
-  {
-    id: '4',
-    title: 'Practice Anytime',
-    description: 'Flexible learning schedules that fit your busy life',
-    icon: 'time' as const,
-    color: '#7e22ce', // Using secondary dark
-    unlocked: false,
-    background: 'bg-purple-100',
-    iconBg: 'bg-purple-200',
-    iconColor: '#7e22ce',
+    title: 'Track Progress',
+    description: 'See your improvement with detailed analytics',
+    icon: 'trending-up' as const,
+    gradient: ['#FC642D', '#FFB347'],
   },
 ];
 
-// Testimonials data
+// Simple testimonial data
 const testimonials = [
   {
     id: '1',
     name: 'Sarah J.',
-    country: 'France',
-    text: 'This app transformed my English skills! The British accent lessons are exceptional.',
+    text: 'Improved my English in just weeks!',
     rating: 5,
   },
   {
     id: '2',
     name: 'Miguel R.',
-    country: 'Spain',
-    text: 'I improved my business English in just two months. Highly recommend!',
+    text: 'Best language learning app I\'ve used.',
     rating: 5,
-  },
-  {
-    id: '3',
-    name: 'Yuki T.',
-    country: 'Japan',
-    text: 'The pronunciation exercises helped me sound more natural when speaking.',
-    rating: 4,
-  },
-];
-
-// Learning paths inspired by Duolingo
-const learningPaths = [
-  {
-    id: '1',
-    title: 'Pronunciation Basics',
-    lessons: 5,
-    completed: 0,
-    difficulty: 'Beginner',
-    icon: 'mic' as const,
-    color: '#22c55e',
-    background: 'bg-green-100',
-    progressColor: 'bg-green-500',
-    buttonColor: 'bg-green-500',
-    iconBg: 'bg-green-200',
-    iconColor: '#22c55e',
-  },
-  {
-    id: '2',
-    title: 'Everyday Conversations',
-    lessons: 10,
-    completed: 0,
-    difficulty: 'Intermediate',
-    icon: 'chatbubbles' as const,
-    color: '#3b82f6',
-    background: 'bg-blue-100',
-    progressColor: 'bg-blue-500',
-    buttonColor: 'bg-blue-500',
-    iconBg: 'bg-blue-200',
-    iconColor: '#3b82f6',
-  },
-  {
-    id: '3',
-    title: 'British Idioms',
-    lessons: 8,
-    completed: 0,
-    difficulty: 'Advanced',
-    icon: 'book' as const,
-    color: '#ec4899',
-    background: 'bg-pink-100',
-    progressColor: 'bg-pink-500',
-    buttonColor: 'bg-pink-500',
-    iconBg: 'bg-pink-200',
-    iconColor: '#ec4899',
   },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [streakDays, setStreakDays] = useState(7);
-  const [showConfetti, setShowConfetti] = useState(false);
   
   // Animation values
+  const logoScale = useSharedValue(0.8);
   const heroOpacity = useSharedValue(0);
-  const heroTranslateY = useSharedValue(50);
   const featuresOpacity = useSharedValue(0);
-  const testimonialsOpacity = useSharedValue(0);
-  const ctaOpacity = useSharedValue(0);
   const ctaScale = useSharedValue(0.9);
-  const mascotRotate = useSharedValue(0);
-  const pathsTranslateX = useSharedValue(width);
-  const streakPulse = useSharedValue(1);
-  const confettiOpacity = useSharedValue(0);
-  
-  // Animated confetti positions
-  const confettiPositions = Array.from({ length: 20 }).map(() => ({
-    x: useSharedValue(Math.random() * width),
-    y: useSharedValue(-20),
-    rotate: useSharedValue(Math.random() * 360),
-    size: 5 + Math.random() * 10,
-    color: ['#FFD700', '#FF6347', '#4169E1', '#32CD32', '#FF69B4'][Math.floor(Math.random() * 5)],
-  }));
   
   useEffect(() => {
-    // Animate mascot continuously
-    mascotRotate.value = withRepeat(
-      withSequence(
-        withTiming(-0.05, { duration: 1000 }),
-        withTiming(0.05, { duration: 1000 }),
-      ),
-      -1,
-      true
+    // Logo entrance animation
+    logoScale.value = withSequence(
+      withTiming(1.1, { duration: 600 }),
+      withTiming(1, { duration: 400 })
     );
     
-    // Animate streak counter
-    streakPulse.value = withRepeat(
-      withSequence(
-        withTiming(1.1, { duration: 700 }),
-        withTiming(1, { duration: 700 }),
-      ),
-      2,
-      true
-    );
+    // Hero section animation
+    heroOpacity.value = withTiming(1, { duration: 800 });
     
-    // Hero animations
-    heroOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) });
-    heroTranslateY.value = withTiming(0, { duration: 800, easing: Easing.out(Easing.quad) });
+    // Features animation with delay
+    featuresOpacity.value = withDelay(400, withTiming(1, { duration: 800 }));
     
-    // Animate features section with delay
-    featuresOpacity.value = withDelay(400, 
-      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
-    );
-    
-    // Animate learning paths sliding in from right
-    pathsTranslateX.value = withDelay(600,
-      withSpring(0, { damping: 12, stiffness: 100 })
-    );
-    
-    // Animate testimonials section with more delay
-    testimonialsOpacity.value = withDelay(800, 
-      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
-    );
-    
-    // Animate CTA section with even more delay
-    ctaOpacity.value = withDelay(1200, 
-      withTiming(1, { duration: 800, easing: Easing.out(Easing.quad) })
-    );
-    ctaScale.value = withDelay(1200, 
-      withSequence(
-        withTiming(1.05, { duration: 400, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: 400, easing: Easing.inOut(Easing.quad) })
-      )
-    );
-    
-    // Show confetti after a delay
-    setTimeout(() => {
-      showConfettiAnimation();
-    }, 1500);
+    // CTA animation
+    ctaScale.value = withDelay(800, withSpring(1, { damping: 12 }));
   }, []);
   
-  const showConfettiAnimation = () => {
-    setShowConfetti(true);
-    confettiOpacity.value = 1;
-    
-    // Animate each confetti piece
-    confettiPositions.forEach((confetti, index) => {
-      // Animate Y position
-      confetti.y.value = withDelay(
-        index * 50,
-        withTiming(500 + Math.random() * 200, { duration: 1500 + Math.random() * 1000 })
-      );
-      
-      // Animate rotation
-      const rotationTarget = 360 * 2 + Math.random() * 360;
-      confetti.rotate.value = withDelay(
-        index * 50,
-        withTiming(rotationTarget, { duration: 1500 + Math.random() * 1000 })
-      );
-    });
-    
-    // Hide confetti after animation
-    setTimeout(() => {
-      confettiOpacity.value = withTiming(0, { duration: 500 });
-      setTimeout(() => setShowConfetti(false), 500);
-    }, 3000);
-  };
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: logoScale.value }],
+  }));
   
   const heroAnimatedStyle = useAnimatedStyle(() => ({
     opacity: heroOpacity.value,
-    transform: [{ translateY: heroTranslateY.value }],
   }));
   
   const featuresAnimatedStyle = useAnimatedStyle(() => ({
     opacity: featuresOpacity.value,
   }));
   
-  const pathsAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: pathsTranslateX.value }],
-  }));
-  
-  const testimonialsAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: testimonialsOpacity.value,
-  }));
-  
   const ctaAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: ctaOpacity.value,
     transform: [{ scale: ctaScale.value }],
   }));
-  
-  const mascotAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${mascotRotate.value}rad` }],
-  }));
-  
-  const streakAnimatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: streakPulse.value }],
-  }));
-  
-  const confettiAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: confettiOpacity.value,
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 10,
-    pointerEvents: 'none',
-  }));
-
-  // Create animated styles for each confetti piece
-  const confettiPiecesStyles = confettiPositions.map((confetti) => 
-    useAnimatedStyle(() => ({
-      position: 'absolute',
-      width: confetti.size,
-      height: confetti.size,
-      backgroundColor: confetti.color,
-      borderRadius: confetti.size / 2,
-      top: 0,
-      left: 0,
-      transform: [
-        { translateX: confetti.x.value },
-        { translateY: confetti.y.value },
-        { rotate: `${confetti.rotate.value}deg` },
-      ],
-    }))
-  );
-  
-  const handleGetStarted = () => {
-    router.push('/(pre-auth)/signup');
-  };
-
-  const handlePathSelect = (path) => {
-    // Path selection logic
-    console.log('Selected path:', path.title);
-  };
-  
-  const handleContinueLearning = (path) => {
-    // Continue learning logic
-    console.log('Continue learning:', path.title);
-  };
 
   return (
-    <View className="flex-1 bg-white">
-      {/* Using the shared header component */}
-      <PreAuthHeader>
-        <View>
-          <Text style={styles.welcomeText}>Welcome to</Text>
-          <Text style={styles.nameText}>English Learning</Text>
-        </View>
-      </PreAuthHeader>
-      
-      {/* Confetti animation overlay */}
-      {showConfetti && (
-        <Animated.View style={confettiAnimatedStyle} pointerEvents="none">
-          {confettiPositions.map((confetti, index) => (
-            <Animated.View 
-              key={index}
-              style={confettiPiecesStyles[index]}
-            />
-          ))}
-        </Animated.View>
-      )}
+    <View style={styles.container}>
+      {/* Airbnb-styled header */}
+      <PreAuthHeader 
+        title="Discover English"
+        subtitle="Start your learning journey"
+        showNotifications={true}
+        onNotificationPress={() => console.log('Notifications pressed')}
+        accessible={true}
+        accessibilityLabel="Home Screen Header"
+      />
 
-      <ScrollView className="flex-1">
-        {/* Hero Section */}
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Hero Section - Airbnb style */}
         <Animated.View 
-          style={heroAnimatedStyle}
-          className="px-6 pt-8 pb-8"
+          style={[styles.heroSection, heroAnimatedStyle]}
+          entering={FadeInDown.delay(100).duration(800)}
         >
-          <Card className="overflow-hidden bg-emerald-500 shadow-lg rounded-xl">
-            <CardContent className="p-6">
-              <View className="items-center mb-8">
-                <Animated.View style={[mascotAnimatedStyle]} className="mb-2">
-                  <Image
-                    source={require('../../assets/images/app-logo.png')}
-                    style={{ width: 96, height: 96, borderRadius: 24, marginBottom: 16 }}
-                    resizeMode="contain"
-                  />
-                </Animated.View>
-                <Text 
-                  variant="h2" 
-                  color="white" 
-                  align="center" 
-                  style={styles.heroTitle}
-                >
-                  Speak English like{'\n'}The English
-                </Text>
-                <Text 
-                  variant="body1" 
-                  color="white" 
-                  align="center" 
-                  style={styles.heroSubtitle}
-                >
-                  Master British English pronunciation, idioms, and fluency with our interactive lessons
-                </Text>
-                
-                <Button
-                  variant="outline"
-                  className="mt-8 bg-white border-white px-8 py-4"
-                  textClassName="text-emerald-500 font-bold"
-                  onPress={handleGetStarted}
-                >
-                  <View className="flex-row items-center">
-                    <Text 
-                      variant="button" 
-                      color="#10b981" 
-                      style={styles.buttonText}
-                    >
-                      Start Learning
-                    </Text>
-                    <Ionicons name="arrow-forward" size={20} color="#10b981" />
-                  </View>
-                </Button>
-              </View>
-              
-              <View className="flex-row justify-center mt-6">
-                <View className="flex-row items-center bg-white/20 rounded-md py-1 px-3 mx-1">
-                  <Ionicons name="people" size={14} color="#f8fafc" />
-                  <Text 
-                    variant="caption" 
-                    color="white" 
-                    style={styles.statText}
-                  >
-                    50K+ Students
-                  </Text>
-                </View>
-                <View className="flex-row items-center bg-white/20 rounded-md py-1 px-3 mx-1">
-                  <Ionicons name="star" size={14} color="#f8fafc" />
-                  <Text 
-                    variant="caption" 
-                    color="white" 
-                    style={styles.statText}
-                  >
-                    4.8 Rating
-                  </Text>
-                </View>
-                <View className="flex-row items-center bg-white/20 rounded-md py-1 px-3 mx-1">
-                  <Ionicons name="globe" size={14} color="#f8fafc" />
-                  <Text 
-                    variant="caption" 
-                    color="white" 
-                    style={styles.statText}
-                  >
-                    30+ Countries
-                  </Text>
-                </View>
-              </View>
-            </CardContent>
-          </Card>
+          {/* Logo */}
+          <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+            <View style={styles.logoWrapper}>
+              <Image
+                source={require('../../assets/images/app-logo.png')}
+                style={styles.logo}
+                resizeMode="contain"
+                accessible={true}
+                accessibilityLabel="English Learning App Logo"
+              />
+            </View>
+          </Animated.View>
+          
+          {/* Main heading */}
+          <Text style={styles.heroTitle}>
+            Master English{'\n'}Like a Native
+          </Text>
+          
+          <Text style={styles.heroSubtitle}>
+            Join thousands of learners worldwide improving their English with our interactive lessons and expert guidance.
+          </Text>
+          
+          {/* Stats row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Ionicons name="people" size={16} color={airbnbColors.mediumGray} />
+              <Text style={styles.statText}>50K+ Students</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="star" size={16} color={airbnbColors.warning} />
+              <Text style={styles.statText}>4.8 Rating</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Ionicons name="globe" size={16} color={airbnbColors.mediumGray} />
+              <Text style={styles.statText}>30+ Countries</Text>
+            </View>
+          </View>
         </Animated.View>
         
-        {/* Learning Paths - Duolingo Style */}
-        <Animated.View style={pathsAnimatedStyle} className="px-6 py-4">
-          <View className="flex-row justify-between items-center mb-4">
-            <Text 
-              variant="h3" 
-              style={styles.sectionTitle}
-            >
-              Learning Paths
-            </Text>
-            <TouchableOpacity className="flex-row items-center">
-              <Text 
-                variant="subtitle1" 
-                color="#10b981" 
-                style={styles.viewAllText}
+        {/* Features Section - Clean cards */}
+        <Animated.View 
+          style={[styles.featuresSection, featuresAnimatedStyle]}
+          entering={FadeInUp.delay(300).duration(800)}
+        >
+          <Text style={styles.sectionTitle}>Why Choose Us?</Text>
+          
+          <View style={styles.featuresGrid}>
+            {features.map((feature, index) => (
+              <Animated.View
+                key={feature.id}
+                entering={FadeInUp.delay(400 + index * 100).duration(600)}
+                style={styles.featureCard}
               >
-                View All
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color="#10b981" />
-            </TouchableOpacity>
+                <View style={styles.featureIconContainer}>
+                  <Ionicons 
+                    name={feature.icon} 
+                    size={24} 
+                    color={airbnbColors.primary} 
+                  />
+                </View>
+                <Text style={styles.featureTitle}>{feature.title}</Text>
+                <Text style={styles.featureDescription}>{feature.description}</Text>
+              </Animated.View>
+            ))}
           </View>
+        </Animated.View>
+        
+        {/* Testimonials - Simple */}
+        <Animated.View 
+          style={styles.testimonialsSection}
+          entering={FadeInUp.delay(600).duration(800)}
+        >
+          <Text style={styles.sectionTitle}>Student Success</Text>
           
           <ScrollView 
             horizontal
             showsHorizontalScrollIndicator={false}
-            className="pb-2"
-            contentContainerStyle={{ paddingRight: 20 }}
+            contentContainerStyle={styles.testimonialsScrollContent}
           >
-            {learningPaths.map((path, index) => (
+            {testimonials.map((testimonial, index) => (
               <Animated.View
-                key={path.id}
-                entering={FadeInRight.delay(index * 100).springify()}
-                className="mr-4"
+                key={testimonial.id}
+                entering={FadeInUp.delay(700 + index * 100).duration(600)}
+                style={styles.testimonialCard}
               >
-                <TouchableOpacity 
-                  className={`p-4 rounded-xl w-[220px] ${path.background}`}
-                  style={{ borderWidth: 1, borderColor: 'rgba(0,0,0,0.05)' }}
-                  onPress={() => handlePathSelect(path)}
-                >
-                  <View className="flex-row justify-between items-start mb-2">
-                    <View style={{ width: '70%' }}>
-                      <Text 
-                        variant="h4"
-                        style={styles.pathTitle}
-                      >
-                        {path.title}
-                      </Text>
-                    </View>
-                    <View className="bg-white/30 rounded-md px-2 py-1">
-                      <Text 
-                        variant="caption" 
-                        style={styles.difficultyText}
-                      >
-                        {path.difficulty}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View className="mt-2">
-                    <View className="flex-row items-center mb-1">
-                      <Ionicons name="book-outline" size={14} color="#334155" />
-                      <Text 
-                        variant="body2" 
-                        color="#64748b" 
-                        style={styles.lessonCountText}
-                      >
-                        {path.lessons} lessons
-                      </Text>
-                    </View>
-                    
-                    <View className="flex-row items-center mb-3">
-                      <Ionicons name="checkmark-circle-outline" size={14} color="#334155" />
-                      <Text 
-                        variant="body2" 
-                        color="#64748b" 
-                        style={styles.completionText}
-                      >
-                        {path.completed}/{path.lessons} completed
-                      </Text>
-                    </View>
-                    
-                    <View className="bg-gray-200 h-2 rounded-full overflow-hidden">
-                      <View 
-                        className={`h-full ${path.progressColor}`} 
-                        style={{ width: `${(path.completed / path.lessons) * 100}%` }} 
-                      />
-                    </View>
-                    
-                    <TouchableOpacity 
-                      className={`mt-4 py-2 px-3 rounded-lg flex-row justify-center items-center ${path.buttonColor}`}
-                      onPress={() => handleContinueLearning(path)}
-                    >
-                      <Text 
-                        variant="button" 
-                        color="white" 
-                        style={styles.startButtonText}
-                      >
-                        Start Learning
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </TouchableOpacity>
+                <View style={styles.starsContainer}>
+                  {Array(5).fill(0).map((_, i) => (
+                    <Ionicons 
+                      key={i} 
+                      name="star" 
+                      size={14} 
+                      color={airbnbColors.warning} 
+                      style={styles.starIcon}
+                    />
+                  ))}
+                </View>
+                <Text style={styles.testimonialText}>"{testimonial.text}"</Text>
+                <Text style={styles.testimonialName}>- {testimonial.name}</Text>
               </Animated.View>
             ))}
           </ScrollView>
         </Animated.View>
         
-        {/* Features Section */}
-        <Animated.View style={featuresAnimatedStyle} className="px-6 py-8">
-          <Text 
-            variant="h2" 
-            style={styles.featureHeading}
-          >
-            Why Choose Our App?
-          </Text>
-          
-          {features.map((feature, index) => (
-            <Animated.View 
-              key={feature.id}
-              entering={FadeInUp.delay(index * 100).springify()}
-              className="mb-6 flex-row"
-            >
-              <View className={`p-3 rounded-xl mr-4 ${feature.iconBg}`}>
-                <Ionicons name={feature.icon} size={24} color={feature.iconColor} />
-              </View>
-              <View className="flex-1">
-                <Text 
-                  variant="h4" 
-                  style={styles.featureTitle}
-                >
-                  {feature.title}
-                </Text>
-                <Text 
-                  variant="body1" 
-                  color="#64748b" 
-                  style={styles.featureDescription}
-                >
-                  {feature.description}
-                </Text>
-              </View>
-            </Animated.View>
-          ))}
-        </Animated.View>
-        
-        {/* Testimonials Section */}
-        <Animated.View style={testimonialsAnimatedStyle} className="px-6 py-8">
-          <Text 
-            variant="h2" 
-            style={styles.testimonialsHeading}
-          >
-            What Our Students Say
-          </Text>
-          
-          <FlatList
-            data={testimonials}
-            keyExtractor={(item) => item.id.toString()}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: 24 }}
-            renderItem={({ item: testimonial, index }) => (
-              <Animated.View
-                entering={FadeInRight.delay(index * 100).springify()}
-                className="mr-4"
+        {/* Final CTA Section */}
+        <Animated.View 
+          style={[styles.ctaSection, ctaAnimatedStyle]}
+          entering={FadeInUp.delay(800).duration(800)}
+        >
+          <View style={styles.ctaContainer}>
+            <Text style={styles.ctaTitle}>Ready to Start?</Text>
+            <Text style={styles.ctaSubtitle}>
+              Begin your English learning journey today
+            </Text>
+            
+            <View style={styles.ctaButtons}>
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => router.push('/(pre-auth)/signup')}
+                accessible={true}
+                accessibilityLabel="Sign up for free account"
               >
-                <Card 
-                  className="overflow-hidden rounded-xl border border-border" 
-                  style={styles.testimonialCard}
-                >
-                  <CardContent className="p-4">
-                    <View className="flex-row mb-3">
-                      {Array(5).fill(0).map((_, i) => (
-                        <Ionicons 
-                          key={i} 
-                          name={i < testimonial.rating ? "star" : "star-outline"} 
-                          size={16} 
-                          color="#f59e0b" 
-                          style={{ marginRight: 2 }}
-                        />
-                      ))}
-                    </View>
-                    
-                    <Text 
-                      variant="body1" 
-                      style={styles.testimonialText}
-                    >
-                      "{testimonial.text}"
-                    </Text>
-                    
-                    <View className="flex-row items-center mt-4">
-                      <View className="h-10 w-10 rounded-full bg-gray-200 mr-3 overflow-hidden">
-                        <Image 
-                          source={{ uri: testimonial.avatar }} 
-                          style={{ width: '100%', height: '100%' }} 
-                        />
-                      </View>
-                      <View>
-                        <Text 
-                          variant="subtitle1" 
-                          style={styles.testimonialName}
-                        >
-                          {testimonial.name}
-                        </Text>
-                        <Text 
-                          variant="caption" 
-                          color="#64748b" 
-                          style={styles.testimonialCountry}
-                        >
-                          {testimonial.country}
-                        </Text>
-                      </View>
-                    </View>
-                  </CardContent>
-                </Card>
-              </Animated.View>
-            )}
-          />
-        </Animated.View>
-        
-        {/* CTA Section */}
-        <Animated.View style={ctaAnimatedStyle} className="px-6 py-10 bg-emerald-50 mx-4 my-8 rounded-xl">
-          <Text 
-            variant="h2" 
-            align="center" 
-            style={styles.ctaHeading}
-          >
-            Ready to Improve Your English?
-          </Text>
-          <Text 
-            variant="body1" 
-            align="center" 
-            color="#64748b" 
-            style={styles.ctaSubheading}
-          >
-            Join thousands of students worldwide and start your language journey today.
-          </Text>
-          
-          <View className="mt-6 flex-row justify-center">
-            <Button
-              variant="default"
-              className="bg-emerald-500 px-8 py-3"
-              textClassName="text-white font-bold"
-              onPress={handleGetStarted}
-            >
-              Get Started for Free
-            </Button>
+                <Text style={styles.primaryButtonText}>Get Started Free</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={() => router.push('/(pre-auth)/login')}
+                accessible={true}
+                accessibilityLabel="Log in to existing account"
+              >
+                <Text style={styles.secondaryButtonText}>Already have an account?</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
-        
- 
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  welcomeText: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#64748b',
+  container: {
+    flex: 1,
+    backgroundColor: airbnbColors.white,
   },
-  nameText: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#334155',
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  heroSection: {
+    paddingHorizontal: 24,
+    paddingTop: 40,
+    paddingBottom: 60,
+    alignItems: 'center',
+  },
+  logoContainer: {
+    marginBottom: 32,
+  },
+  logoWrapper: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: airbnbColors.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 8,
+  },
+  logo: {
+    width: 80,
+    height: 80,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    lineHeight: 34,
+    fontSize: 36,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 42,
+    letterSpacing: -0.5,
   },
   heroSubtitle: {
-    fontSize: 16,
-    marginTop: 6,
-    opacity: 0.9,
+    fontSize: 18,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    lineHeight: 26,
+    marginBottom: 32,
+    paddingHorizontal: 16,
   },
-  buttonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginRight: 8,
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 24,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   statText: {
-    fontSize: 12,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
     fontWeight: '500',
-    marginLeft: 4,
+  },
+  featuresSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 60,
   },
   sectionTitle: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '700',
-    color: '#1e293b',
+    color: airbnbColors.charcoal,
+    textAlign: 'center',
+    marginBottom: 40,
+    letterSpacing: -0.5,
   },
-  viewAllText: {
-    fontSize: 14,
-    fontWeight: '600',
+  featuresGrid: {
+    gap: 24,
   },
-  pathTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#1e293b',
+  featureCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: airbnbColors.gray,
   },
-  difficultyText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#334155',
-  },
-  lessonCountText: {
-    fontSize: 12,
-    marginLeft: 6,
-  },
-  completionText: {
-    fontSize: 12,
-    marginLeft: 6,
-  },
-  startButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  featureHeading: {
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 24,
-  },
-  featureTitle: {
-    fontWeight: '600',
-    fontSize: 18,
-    marginBottom: 4,
-  },
-  featureDescription: {
-    lineHeight: 20,
-  },
-  testimonialsHeading: {
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 24,
-  },
-  testimonialCard: {
-    width: width - 80, // Card width
-  },
-  testimonialText: {
-    fontStyle: 'italic',
+  featureIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: airbnbColors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 16,
   },
+  featureTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  featureDescription: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  testimonialsSection: {
+    paddingBottom: 60,
+  },
+  testimonialsScrollContent: {
+    paddingHorizontal: 24,
+    gap: 16,
+  },
+  testimonialCard: {
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 12,
+    padding: 20,
+    width: width - 80,
+    marginRight: 16,
+  },
+  starsContainer: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  starIcon: {
+    marginRight: 2,
+  },
+  testimonialText: {
+    fontSize: 16,
+    color: airbnbColors.charcoal,
+    fontStyle: 'italic',
+    marginBottom: 12,
+    lineHeight: 22,
+  },
   testimonialName: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
     fontWeight: '600',
   },
-  testimonialCountry: {
-    fontSize: 12,
+  ctaSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 40,
   },
-  ctaHeading: {
-    fontWeight: 'bold',
-    fontSize: 24,
-    marginBottom: 8,
+  ctaContainer: {
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
   },
-  ctaSubheading: {
-    marginBottom: 24,
+  ctaTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 12,
+    textAlign: 'center',
   },
-  footerText: {
-    fontSize: 12,
+  ctaSubtitle: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
+  ctaButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  primaryButton: {
+    backgroundColor: airbnbColors.primary,
+    borderRadius: 8,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  primaryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 8,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: airbnbColors.primary,
   },
 });

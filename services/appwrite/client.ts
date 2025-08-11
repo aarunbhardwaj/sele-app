@@ -17,6 +17,7 @@ export const USER_ACTIVITIES_COLLECTION_ID = '6865e6040018e12e103d';
 export const QUIZZES_COLLECTION_ID = '688a4cf6000503487f6f';
 export const QUIZ_QUESTIONS_COLLECTION_ID = '688a4cf7002ab931bd1f';
 export const QUIZ_ATTEMPTS_COLLECTION_ID = '688a4cf8003e6499f5a2';
+export const SCHOOLS_COLLECTION_ID = '68c7c1f5000503487f7a'; // New collection for schools
 
 // Storage bucket ID - using the environment variable with a fallback
 export const STORAGE_BUCKET_ID = process.env.APPWRITE_STORAGE_BUCKET_ID || '6866ba6d0018928bb361';

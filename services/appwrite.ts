@@ -5,6 +5,7 @@ import {
   progressService,
   quizService,
   roleService,
+  schoolService,
   storageService
 } from './appwrite/index';
 
@@ -129,6 +130,15 @@ const appwriteService = {
   uploadMedia: storageService.uploadMedia,
   getFilePreview: storageService.getFilePreview,
   deleteFile: storageService.deleteFile,
+
+  // School Management Methods
+  getAllSchools: schoolService.getAllSchools,
+  getSchoolById: schoolService.getSchoolById,
+  createSchool: schoolService.createSchool,
+  updateSchool: schoolService.updateSchool,
+  deleteSchool: schoolService.deleteSchool,
+  getSchoolsByStatus: schoolService.getSchoolsByStatus,
+  searchSchools: schoolService.searchSchools,
 };
 
 export default appwriteService;

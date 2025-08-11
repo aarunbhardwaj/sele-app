@@ -2,15 +2,42 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { DrawerLayoutAndroid, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, spacing, typography } from '../../components/ui/theme';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
+
+// Airbnb-inspired color palette (matching the main tabs)
+const airbnbColors = {
+  // Primary Airbnb colors
+  primary: '#FF5A5F',        // Airbnb's signature coral/red
+  primaryDark: '#E8484D',    // Darker variant
+  primaryLight: '#FFE8E9',   // Light coral background
+  
+  // Secondary colors
+  secondary: '#00A699',      // Teal for accents
+  secondaryLight: '#E0F7F5', // Light teal background
+  
+  // Neutral palette (very Airbnb-esque)
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  
+  // Status colors
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 // Navigation items for our tabs and drawer
 const navigationItems = [
   { label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/(admin)/(dashboard)/index' },
   { label: 'Courses', icon: 'book-outline', activeIcon: 'book', route: '/(admin)/(courses)/index' },
   { label: 'Users', icon: 'people-outline', activeIcon: 'people', route: '/(admin)/(users)/index' },
+  { label: 'Schools', icon: 'school-outline', activeIcon: 'school', route: '/(admin)/(schools)/index' },
   { label: 'Quizzes', icon: 'help-circle-outline', activeIcon: 'help-circle', route: '/(admin)/(quiz)/quiz-list' },
 ];
 
@@ -95,7 +122,7 @@ export default function AdminLayout() {
           onPress={() => handleNavigation(item.route)}
           disabled={isNavigating}
         >
-          <Ionicons name={item.icon as any} size={22} color={colors.primary.main} style={styles.drawerIcon} />
+          <Ionicons name={item.icon as any} size={22} color={airbnbColors.primary} style={styles.drawerIcon} />
           <Text style={styles.drawerLabel}>{item.label}</Text>
         </TouchableOpacity>
       ))}
@@ -107,7 +134,7 @@ export default function AdminLayout() {
           onPress={() => handleNavigation(item.route)}
           disabled={isNavigating}
         >
-          <Ionicons name={item.icon as any} size={22} color={colors.primary.main} style={styles.drawerIcon} />
+          <Ionicons name={item.icon as any} size={22} color={airbnbColors.primary} style={styles.drawerIcon} />
           <Text style={styles.drawerLabel}>{item.label}</Text>
         </TouchableOpacity>
       ))}
@@ -117,8 +144,8 @@ export default function AdminLayout() {
         onPress={handleLogout}
         disabled={isNavigating}
       >
-        <Ionicons name="log-out-outline" size={22} color={colors.status.error} style={styles.drawerIcon} />
-        <Text style={[styles.drawerLabel, { color: colors.status.error }]}>Logout</Text>
+        <Ionicons name="log-out-outline" size={22} color={airbnbColors.error} style={styles.drawerIcon} />
+        <Text style={[styles.drawerLabel, { color: airbnbColors.error }]}>Logout</Text>
       </TouchableOpacity>
     </SafeAreaView>
   );
@@ -168,12 +195,14 @@ function AdminTabs() {
   
   // Update active tab whenever pathname changes
   useEffect(() => {
-    if (pathname.includes('/(admin)/(dashboard)')) {
+    if (pathname.includes('/(admin)/index') || pathname.includes('/(admin)/(dashboard)')) {
       setActiveTab('index');
     } else if (pathname.includes('/(admin)/(courses)')) {
       setActiveTab('(courses)');
     } else if (pathname.includes('/(admin)/(users)')) {
       setActiveTab('(users)');
+    } else if (pathname.includes('/(admin)/(schools)')) {
+      setActiveTab('(schools)');
     } else if (pathname.includes('/(admin)/(quiz)')) {
       setActiveTab('(quiz)');
     }
@@ -184,109 +213,103 @@ function AdminTabs() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: colors.primary.main,
-        tabBarInactiveTintColor: colors.neutral.darkGray,
+        tabBarActiveTintColor: airbnbColors.primary,
+        tabBarInactiveTintColor: airbnbColors.mediumGray,
         tabBarShowLabel: true,
-        // Hide all screens from tab bar by default
-        tabBarItemStyle: { display: 'none' }
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: styles.tabBarItem,
       }}
     >
+      {/* Main visible tabs - these will show in the bottom tab bar */}
       <Tabs.Screen 
         name="index" 
         options={{
           title: 'Dashboard',
-          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <TabBarIcon 
-              name={activeTab === 'index' ? 'grid' : 'grid-outline'} 
-              color={activeTab === 'index' ? colors.primary.main : colors.neutral.darkGray} 
-              focused={activeTab === 'index'} 
+              name={focused ? 'grid' : 'grid-outline'} 
+              color={focused ? airbnbColors.primary : airbnbColors.mediumGray} 
+              focused={focused} 
             />
           ),
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Reset to dashboard index when tab is pressed
-            e.preventDefault();
-            setActiveTab('index');
-            console.log('Dashboard tab pressed, navigating to dashboard');
-            router.navigate('/(admin)/(dashboard)');
-          }
-        })}
       />
+      
       <Tabs.Screen 
         name="(courses)" 
         options={{
           title: 'Courses',
-          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <TabBarIcon 
-              name={activeTab === '(courses)' ? 'book' : 'book-outline'} 
-              color={activeTab === '(courses)' ? colors.primary.main : colors.neutral.darkGray}
-              focused={activeTab === '(courses)'} 
+              name={focused ? 'book' : 'book-outline'} 
+              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              focused={focused} 
             />
           ),
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Always go to course library when tab is pressed
-            e.preventDefault();
-            setActiveTab('(courses)');
-            console.log('Courses tab pressed, navigating to course library');
-            router.navigate('/(admin)/(courses)/course-library');
-          }
-        })}
       />
+      
       <Tabs.Screen 
         name="(users)" 
         options={{
           title: 'Users',
-          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <TabBarIcon 
-              name={activeTab === '(users)' ? 'people' : 'people-outline'} 
-              color={activeTab === '(users)' ? colors.primary.main : colors.neutral.darkGray}
-              focused={activeTab === '(users)'} 
+              name={focused ? 'people' : 'people-outline'} 
+              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              focused={focused} 
             />
           ),
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Reset to users index when tab is pressed
-            e.preventDefault();
-            setActiveTab('(users)');
-            console.log('Users tab pressed, navigating to users management');
-            router.navigate('/(admin)/(users)');
-          }
-        })}
       />
+      
+      <Tabs.Screen 
+        name="(schools)" 
+        options={{
+          title: 'Schools',
+          tabBarIcon: ({ color, focused }) => (
+            <TabBarIcon 
+              name={focused ? 'school' : 'school-outline'} 
+              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              focused={focused} 
+            />
+          ),
+        }}
+      />
+      
       <Tabs.Screen 
         name="(quiz)" 
         options={{
           title: 'Quizzes',
-          tabBarItemStyle: { display: 'flex' }, // Explicitly show this tab
-          tabBarIcon: ({ color }) => (
+          tabBarIcon: ({ color, focused }) => (
             <TabBarIcon 
-              name={activeTab === '(quiz)' ? 'help-circle' : 'help-circle-outline'} 
-              color={activeTab === '(quiz)' ? colors.primary.main : colors.neutral.darkGray}
-              focused={activeTab === '(quiz)'} 
+              name={focused ? 'help-circle' : 'help-circle-outline'} 
+              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              focused={focused} 
             />
           ),
         }}
-        listeners={({ navigation }) => ({
-          tabPress: (e) => {
-            // Reset to quiz list when tab is pressed
-            e.preventDefault();
-            setActiveTab('(quiz)');
-            console.log('Quizzes tab pressed, navigating to quiz list');
-            router.navigate('/(admin)/(quiz)/quiz-list');
-          }
-        })}
       />
-      {/* These screens will exist for routing but be hidden in the tab bar */}
-      <Tabs.Screen name="(classes)" options={{ href: null }} />
-      <Tabs.Screen name="(dashboard)" options={{ href: null }} />
-      <Tabs.Screen name="(analytics)" options={{ href: null }} />
+      
+      {/* Hidden screens - these won't appear in the tab bar but are still navigable */}
+      <Tabs.Screen 
+        name="(dashboard)" 
+        options={{ 
+          href: null // This completely hides it from the tab bar
+        }} 
+      />
+      <Tabs.Screen 
+        name="(analytics)" 
+        options={{ 
+          href: null // This completely hides it from the tab bar
+        }} 
+      />
+      <Tabs.Screen 
+        name="(classes)" 
+        options={{ 
+          href: null // This completely hides it from the tab bar
+        }} 
+      />
     </Tabs>
   );
 }
@@ -294,9 +317,20 @@ function AdminTabs() {
 // Helper component for tab bar icons
 function TabBarIcon({ name, color, focused }: { name: any; color: string; focused: boolean }) {
   return (
-    <View style={styles.iconContainer}>
-      <Ionicons name={name} size={24} color={color} />
-      {focused && <View style={styles.activeIndicator} />}
+    <View style={[
+      styles.iconContainer,
+      focused && styles.iconContainerActive
+    ]}>
+      <View style={[
+        styles.iconWrapper,
+        focused && styles.iconWrapperActive
+      ]}>
+        <Ionicons 
+          name={name} 
+          size={focused ? 24 : 22} 
+          color={focused ? airbnbColors.white : color} 
+        />
+      </View>
     </View>
   );
 }
@@ -306,54 +340,86 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: 'center', 
     alignItems: 'center',
-    backgroundColor: colors.neutral.background
+    backgroundColor: airbnbColors.offWhite
   },
   loadingText: {
-    fontSize: typography.fontSizes.lg,
-    color: colors.primary.main,
-    fontWeight: typography.fontWeights.medium as any
+    fontSize: 18,
+    color: airbnbColors.primary,
+    fontWeight: '600'
   },
   tabBar: {
-    backgroundColor: colors.primary.veryLightBlue,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    height: 60,
-    paddingHorizontal: spacing.md,
-    shadowColor: colors.neutral.black,
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  tabBarItem: {
-    paddingVertical: spacing.xs,
-    marginHorizontal: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderTopWidth: 0,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: 85, // Increased for better spacing
+    paddingHorizontal: 16, // Increased for better spacing
+    paddingTop: 10,
+    paddingBottom: 22, // Increased bottom padding
+    position: 'absolute',
+    // Enhanced shadow for better separation from background
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 20,
+    // Stronger border for definition
+    borderWidth: 0.5,
+    borderColor: airbnbColors.lightGray,
+    borderBottomWidth: 0,
   },
   tabBarLabel: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
-    marginTop: 2,
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 6, // Increased for better spacing
+    marginBottom: 0,
+    letterSpacing: 0.1,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+  tabBarItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6, // Increased for better touch area
+    paddingHorizontal: 4, // Increased for better spacing
+    minHeight: 60, // Increased minimum height
+    maxWidth: '20%', // Ensure equal distribution across 5 tabs
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',
-    height: 24,
+    position: 'relative',
+    marginBottom: 2, // Small margin for better spacing
   },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -8,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.secondary.main,
+  iconContainerActive: {
+    transform: [{ scale: 1.08 }], // Slightly increased for better visual feedback
+  },
+  iconWrapper: {
+    width: 36, // Increased for better touch area
+    height: 36, // Increased for better touch area
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  iconWrapperActive: {
+    backgroundColor: airbnbColors.primary,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: airbnbColors.primaryLight,
+    transform: [{ scale: 1.0 }],
   },
   drawerContainer: {
     flex: 1,
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.white,
     paddingTop: 40,
     paddingHorizontal: 16,
   },
@@ -361,20 +427,20 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 24,
-    color: colors.primary.main,
+    color: airbnbColors.primary,
   },
   drawerItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+    borderBottomColor: airbnbColors.lightGray,
   },
   drawerIcon: {
     marginRight: 16,
   },
   drawerLabel: {
     fontSize: 16,
-    color: colors.neutral.text,
+    color: airbnbColors.charcoal,
   },
 });

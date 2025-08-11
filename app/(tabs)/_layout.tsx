@@ -2,7 +2,33 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname, useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors, spacing, typography } from '../../components/ui/theme';
+
+// Airbnb-inspired color palette (matching login screen)
+const airbnbColors = {
+  // Primary Airbnb colors
+  primary: '#FF5A5F',        // Airbnb's signature coral/red
+  primaryDark: '#E8484D',    // Darker variant
+  primaryLight: '#FFE8E9',   // Light coral background
+  
+  // Secondary colors
+  secondary: '#00A699',      // Teal for accents
+  secondaryLight: '#E0F7F5', // Light teal background
+  
+  // Neutral palette (very Airbnb-esque)
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  
+  // Status colors
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 export default function TabsLayout() {
   const pathname = usePathname();
@@ -28,33 +54,13 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={({ route }) => ({
-        tabBarStyle: {
-          backgroundColor: colors.primary.veryLightBlue,
-          borderTopWidth: 1,
-          borderTopColor: colors.neutral.lightGray,
-          height: 60,
-          paddingHorizontal: spacing.md,
-          shadowColor: colors.neutral.black,
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 4,
-          elevation: 5,
-        },
-        tabBarActiveTintColor: colors.primary.main,
-        tabBarInactiveTintColor: colors.neutral.darkGray,
+        tabBarStyle: styles.tabBar,
+        tabBarActiveTintColor: airbnbColors.primary,
+        tabBarInactiveTintColor: airbnbColors.mediumGray,
         tabBarShowLabel: true,
         headerShown: false,
-        tabBarLabelStyle: {
-          fontSize: typography.fontSizes.xs,
-          fontWeight: typography.fontWeights.medium as any,
-          marginTop: 2,
-        },
-        tabBarItemStyle: {
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          paddingVertical: 8,
-        },
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: styles.tabBarItem,
         tabBarIcon: ({ color, size, focused }) => {
           let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
           
@@ -69,9 +75,20 @@ export default function TabsLayout() {
           }
           
           return (
-            <View style={styles.iconContainer}>
-              <Ionicons name={iconName} size={size} color={color} />
-              {focused && <View style={styles.activeIndicator} />}
+            <View style={[
+              styles.iconContainer,
+              focused && styles.iconContainerActive
+            ]}>
+              <View style={[
+                styles.iconWrapper,
+                focused && styles.iconWrapperActive
+              ]}>
+                <Ionicons 
+                  name={iconName} 
+                  size={focused ? 24 : 22} 
+                  color={focused ? airbnbColors.white : color} 
+                />
+              </View>
             </View>
           );
         }
@@ -99,19 +116,73 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  tabBar: {
+    backgroundColor: 'rgba(255, 255, 255, 0.98)',
+    borderTopWidth: 0,
+    borderTopLeftRadius: 20, // Reduced from 28
+    borderTopRightRadius: 20,
+    height: 82, // Reduced from 95
+    paddingHorizontal: 8, // Reduced from 20
+    paddingTop: 8, // Reduced from 12
+    paddingBottom: 20, // Reduced from 28
+    position: 'absolute',
+    // Enhanced shadow for better separation from background
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 20,
+    // Stronger border for definition
+    borderWidth: 0.5, // Reduced border
+    borderColor: airbnbColors.lightGray,
+    borderBottomWidth: 0,
+  },
+  tabBarLabel: {
+    fontSize: 10, // Reduced from 11
+    fontWeight: '600', // Reduced from 700
+    marginTop: 4, // Reduced from 6
+    marginBottom: 2, // Reduced from 4
+    letterSpacing: 0.1, // Reduced from 0.2
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+  tabBarItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4, // Reduced from 8
+    paddingHorizontal: 2, // Reduced from 4
+    minHeight: 58, // Reduced from 70
+  },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    minWidth: 24,
-    height: 24,
     position: 'relative',
+    marginBottom: 0, // Removed margin
   },
-  activeIndicator: {
-    position: 'absolute',
-    bottom: -8,
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.secondary.main,
-  }
+  iconContainerActive: {
+    transform: [{ scale: 1.05 }], // Reduced from 1.1
+  },
+  iconWrapper: {
+    width: 32, // Reduced from 38
+    height: 32, // Reduced from 38
+    borderRadius: 16, // Reduced from 19
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  iconWrapperActive: {
+    backgroundColor: airbnbColors.primary,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 2 }, // Reduced from 4
+    shadowOpacity: 0.3, // Reduced from 0.4
+    shadowRadius: 4, // Reduced from 8
+    elevation: 4, // Reduced from 8
+    borderWidth: 1, // Reduced from 2
+    borderColor: airbnbColors.primaryLight,
+    transform: [{ scale: 1.0 }], // Removed extra scaling
+  },
 });

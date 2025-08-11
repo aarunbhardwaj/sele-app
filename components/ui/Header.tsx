@@ -1,166 +1,231 @@
 import { Ionicons } from '@expo/vector-icons';
-import { DrawerActions, useNavigation } from '@react-navigation/native';
-import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { colors, spacing } from './theme';
+import { Image, Platform, SafeAreaView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Text from './Typography';
 
-interface HeaderProps {
-  title?: string;
-  showBack?: boolean;
-  showLogo?: boolean;
-  showDrawerToggle?: boolean; // New prop for drawer toggle
-  rightIcon?: React.ReactNode;
-  onRightIconPress?: () => void;
-  transparent?: boolean;
-  onMenuPress?: () => void; // Optional custom handler for menu button
-}
-
-const Header: React.FC<HeaderProps> = ({
-  title,
-  showBack = false,
-  showLogo = true,
-  showDrawerToggle = false, // Default to false
-  rightIcon,
-  onRightIconPress,
-  transparent = false,
-  onMenuPress,
-}) => {
-  const router = useRouter();
-  const navigation = useNavigation();
-
-  const goBack = () => {
-    router.back();
-  };
-
-  const openDrawer = () => {
-    // Use custom handler if provided, otherwise try to open drawer safely
-    if (onMenuPress) {
-      onMenuPress();
-      return;
-    }
-    
-    try {
-      // Check if drawer navigation is available
-      if (navigation.getState().type === 'drawer') {
-        navigation.dispatch(DrawerActions.openDrawer());
-      } else {
-        console.warn('Drawer navigation not available');
-        // Could navigate to a menu screen as fallback
-        // router.push('/menu');
-      }
-    } catch (error) {
-      console.warn('Error opening drawer:', error);
-    }
-  };
-
-  return (
-    <View style={[
-      styles.container,
-      transparent && styles.transparentContainer
-    ]}>
-      <View style={styles.leftContent}>
-        {showBack && (
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={goBack}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons 
-              name="arrow-back" 
-              size={24} 
-              color={transparent ? colors.neutral.white : colors.neutral.text} 
-            />
-          </TouchableOpacity>
-        )}
-        {showDrawerToggle && (
-          <TouchableOpacity 
-            style={styles.menuButton} 
-            onPress={openDrawer}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons 
-              name="menu" 
-              size={24} 
-              color={transparent ? colors.neutral.white : colors.neutral.text} 
-            />
-          </TouchableOpacity>
-        )}
-        {showLogo && (
-          <Image
-            source={require('../../assets/images/app-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-        )}
-      </View>
-
-      {title && (
-        <Text 
-          variant="h5" 
-          color={transparent ? colors.neutral.white : colors.primary.main}
-          style={styles.title}
-        >
-          {title}
-        </Text>
-      )}
-
-      <View style={styles.rightContent}>
-        {rightIcon && (
-          <TouchableOpacity 
-            onPress={onRightIconPress}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            style={styles.rightIconButton}
-          >
-            {rightIcon}
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
+// Airbnb-inspired color palette (matching the tab bars)
+export const airbnbColors = {
+  // Primary Airbnb colors
+  primary: '#FF5A5F',        // Airbnb's signature coral/red
+  primaryDark: '#E8484D',    // Darker variant
+  primaryLight: '#FFE8E9',   // Light coral background
+  
+  // Secondary colors
+  secondary: '#00A699',      // Teal for accents
+  secondaryLight: '#E0F7F5', // Light teal background
+  
+  // Neutral palette (very Airbnb-esque)
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  
+  // Status colors
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
 };
 
+export interface PreAuthHeaderProps {
+  title?: string;
+  subtitle?: string;
+  showNotifications?: boolean;
+  onNotificationPress?: () => void;
+  rightComponent?: React.ReactNode;
+  children?: React.ReactNode;
+}
+
+/**
+ * Airbnb-inspired header component for pre-auth screens with clean, modern styling
+ */
+export default function PreAuthHeader({
+  title,
+  subtitle,
+  showNotifications = true,
+  onNotificationPress,
+  rightComponent,
+  children,
+}: PreAuthHeaderProps) {
+  
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar 
+        barStyle="dark-content" 
+        backgroundColor={airbnbColors.white} 
+        translucent={false}
+      />
+      <View style={styles.header}>
+        <View style={styles.headerContent}>
+          {/* Left section with logo */}
+          <View style={styles.leftSection}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/images/app-logo.png')}
+                style={styles.logoImage}
+                resizeMode="contain"
+                accessible={true}
+                accessibilityLabel="App logo"
+              />
+            </View>
+          </View>
+          
+          {/* Center section with title */}
+          <View style={styles.centerSection}>
+            {title && (
+              <View style={styles.titleContainer}>
+                <Text style={styles.headerTitle}>{title}</Text>
+                {subtitle && (
+                  <Text style={styles.headerSubtitle}>{subtitle}</Text>
+                )}
+              </View>
+            )}
+            {children}
+          </View>
+          
+          {/* Right section with notifications or custom component */}
+          <View style={styles.rightSection}>
+            {rightComponent ? (
+              rightComponent
+            ) : showNotifications ? (
+              <TouchableOpacity 
+                onPress={onNotificationPress}
+                style={styles.notificationButton}
+                accessible={true}
+                accessibilityLabel="Notifications"
+                accessibilityRole="button"
+              >
+                <View style={styles.notificationContainer}>
+                  <Ionicons name="notifications-outline" size={20} color={airbnbColors.charcoal} />
+                  {/* Optional notification badge */}
+                  <View style={styles.notificationBadge} />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.placeholder} />
+            )}
+          </View>
+        </View>
+      </View>
+    </SafeAreaView>
+  );
+}
+
 const styles = StyleSheet.create({
-  container: {
-    height: 60,
+  safeArea: {
+    backgroundColor: airbnbColors.white,
+  },
+  header: {
+    backgroundColor: airbnbColors.white,
+    paddingTop: Platform.OS === 'ios' ? 8 : 12,
+    paddingBottom: 16,
+    paddingHorizontal: 20,
+    // Airbnb-style subtle shadow
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    // Clean bottom border
+    borderBottomWidth: 0.5,
+    borderBottomColor: airbnbColors.lightGray,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    backgroundColor: colors.neutral.white,
+    minHeight: 44,
   },
-  transparentContainer: {
-    backgroundColor: 'transparent',
+  leftSection: {
+    width: 44,
+    alignItems: 'flex-start',
+    justifyContent: 'center',
   },
-  leftContent: {
-    flexDirection: 'row',
+  centerSection: {
+    flex: 1,
     alignItems: 'center',
-    minWidth: 40,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
   },
-  rightContent: {
-    minWidth: 40,
+  rightSection: {
+    width: 44,
     alignItems: 'flex-end',
+    justifyContent: 'center',
   },
-  logo: {
+  logoContainer: {
     width: 36,
     height: 36,
-    borderRadius: 8,
+    borderRadius: 10,
+    backgroundColor: airbnbColors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Airbnb-style subtle shadow
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  backButton: {
-    marginRight: spacing.sm,
+  logoImage: {
+    width: 24,
+    height: 24,
   },
-  title: {
+  titleContainer: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    flex: 1,
+    color: airbnbColors.charcoal,
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
-  rightIconButton: {
-    padding: spacing.xs,
+  headerSubtitle: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    marginTop: 2,
+    letterSpacing: -0.1,
   },
-  menuButton: {
-    marginRight: spacing.sm,
+  notificationButton: {
+    padding: 2,
+  },
+  notificationContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: airbnbColors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    // Airbnb-style button shadow
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: airbnbColors.primary,
+    // Small shadow for the badge
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  placeholder: {
+    width: 36,
+    height: 36,
   },
 });
-
-export default Header;
