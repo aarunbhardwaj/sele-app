@@ -1,13 +1,31 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
+
+// Airbnb-inspired color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 interface Course {
   $id: string;
@@ -26,8 +44,10 @@ interface Course {
 export default function CourseLibraryScreen() {
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterPublished, setFilterPublished] = useState<boolean | null>(null);
   const [loadError, setLoadError] = useState('');
 
@@ -36,12 +56,10 @@ export default function CourseLibraryScreen() {
       setLoading(true);
       setLoadError('');
       
-      // Add a timeout to prevent infinite loading
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Request timed out after 15 seconds')), 15000)
       );
       
-      // Race between the actual request and the timeout
       const allCourses = await Promise.race([
         appwriteService.getAllCourses(),
         timeoutPromise
@@ -49,10 +67,12 @@ export default function CourseLibraryScreen() {
       
       console.log('Courses fetched successfully:', allCourses?.length || 0);
       setCourses(allCourses || []);
+      setFilteredCourses(allCourses || []);
     } catch (error) {
       console.error('Failed to fetch courses:', error);
       setLoadError(error.message || 'Failed to load courses. Please check your connection.');
       setCourses([]);
+      setFilteredCourses([]);
       Alert.alert('Error', 'Failed to load courses. Please try again.');
     } finally {
       setLoading(false);
@@ -63,6 +83,31 @@ export default function CourseLibraryScreen() {
   useEffect(() => {
     fetchCourses();
   }, []);
+
+  useEffect(() => {
+    filterCourses();
+  }, [courses, searchQuery, filterPublished]);
+
+  const filterCourses = () => {
+    let filtered = [...courses];
+    
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(course => 
+        course.title.toLowerCase().includes(query) || 
+        course.description.toLowerCase().includes(query) ||
+        course.level.toLowerCase().includes(query)
+      );
+    }
+    
+    // Status filter
+    if (filterPublished !== null) {
+      filtered = filtered.filter(course => course.isPublished === filterPublished);
+    }
+    
+    setFilteredCourses(filtered);
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -93,377 +138,562 @@ export default function CourseLibraryScreen() {
     );
   };
 
-  const filteredCourses = filterPublished === null 
-    ? courses 
-    : courses.filter(course => course.isPublished === filterPublished);
+  const getLevelColor = (level: string) => {
+    switch (level.toLowerCase()) {
+      case 'beginner': return airbnbColors.success;
+      case 'intermediate': return airbnbColors.warning;
+      case 'advanced': return airbnbColors.error;
+      default: return airbnbColors.mediumGray;
+    }
+  };
 
-  const renderCourseItem = ({ item }: { item: Course }) => (
-    <Card style={styles.courseCard}>
+  const renderCourseCard = (course: Course, index: number) => (
+    <Animated.View
+      key={course.$id}
+      entering={FadeInUp.delay(index * 100).duration(600)}
+      style={styles.courseCard}
+    >
       <TouchableOpacity
-        style={styles.cardContent}
-        onPress={() => router.push(`/(admin)/(courses)/course-details?id=${item.$id}`)}
+        style={styles.courseContent}
+        onPress={() => router.push(`/(admin)/(courses)/course-details?id=${course.$id}`)}
       >
-        <View style={styles.courseHeader}>
-          <View style={styles.courseDetails}>
-            <View style={styles.titleContainer}>
-              <Text variant="h5" style={styles.courseTitle}>{item.title}</Text>
-              <View style={[
-                styles.statusBadge, 
-                { backgroundColor: item.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
-              ]}>
-                <Text 
-                  variant="caption" 
-                  style={styles.statusText}
-                  color={item.isPublished ? colors.status.success : colors.neutral.darkGray}
-                >
-                  {item.isPublished ? 'Published' : 'Draft'}
-                </Text>
-              </View>
-            </View>
-            <Text variant="subtitle2" color={colors.secondary.main}>{item.level}</Text>
-            <Text variant="body2" style={styles.courseDescription}>
-              {item.description.length > 100 
-                ? `${item.description.substring(0, 100)}...` 
-                : item.description}
-            </Text>
-            <View style={styles.metaContainer}>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={16} color={colors.neutral.gray} />
-                <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                  {item.duration}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar-outline" size={16} color={colors.neutral.gray} />
-                <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-          </View>
-          {item.coverImage ? (
+        {/* Course Image */}
+        <View style={styles.imageContainer}>
+          {course.coverImage ? (
             <Image 
-              source={{ uri: item.coverImage }} 
-              style={styles.courseThumbnail} 
+              source={{ uri: course.coverImage }} 
+              style={styles.courseImage} 
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.courseThumbnailPlaceholder}>
-              <Ionicons name="book-outline" size={32} color={colors.neutral.lightGray} />
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="book" size={32} color={airbnbColors.mediumGray} />
             </View>
           )}
+          <View style={[styles.statusBadge, { 
+            backgroundColor: course.isPublished ? airbnbColors.success : airbnbColors.warning 
+          }]}>
+            <Text style={styles.statusText}>
+              {course.isPublished ? 'Published' : 'Draft'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Course Details */}
+        <View style={styles.courseDetails}>
+          <View style={styles.courseHeader}>
+            <Text style={styles.courseTitle} numberOfLines={2}>{course.title}</Text>
+            <View style={[styles.levelBadge, { backgroundColor: getLevelColor(course.level) + '20' }]}>
+              <Text style={[styles.levelText, { color: getLevelColor(course.level) }]}>
+                {course.level}
+              </Text>
+            </View>
+          </View>
+          
+          <Text style={styles.courseDescription} numberOfLines={3}>
+            {course.description}
+          </Text>
+          
+          <View style={styles.courseMeta}>
+            <View style={styles.metaItem}>
+              <Ionicons name="time" size={14} color={airbnbColors.mediumGray} />
+              <Text style={styles.metaText}>{course.duration}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="calendar" size={14} color={airbnbColors.mediumGray} />
+              <Text style={styles.metaText}>
+                {new Date(course.createdAt).toLocaleDateString()}
+              </Text>
+            </View>
+          </View>
         </View>
       </TouchableOpacity>
-      
-      <View style={styles.actionContainer}>
+
+      {/* Action Buttons */}
+      <View style={styles.actionButtons}>
         <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => router.push(`/(admin)/(courses)/course-details?id=${item.$id}`)}
+          style={[styles.actionButton, { backgroundColor: airbnbColors.secondary + '15' }]}
+          onPress={() => router.push(`/(admin)/(courses)/course-details?id=${course.$id}`)}
         >
-          <Ionicons name="eye-outline" size={20} color={colors.secondary.main} />
-          <Text variant="caption" style={styles.iconButtonText}>View</Text>
+          <Ionicons name="eye" size={16} color={airbnbColors.secondary} />
+          <Text style={[styles.actionText, { color: airbnbColors.secondary }]}>View</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${item.$id}`)}
+          style={[styles.actionButton, { backgroundColor: airbnbColors.primary + '15' }]}
+          onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${course.$id}`)}
         >
-          <Ionicons name="pencil-outline" size={20} color={colors.primary.main} />
-          <Text variant="caption" style={styles.iconButtonText}>Edit</Text>
+          <Ionicons name="pencil" size={16} color={airbnbColors.primary} />
+          <Text style={[styles.actionText, { color: airbnbColors.primary }]}>Edit</Text>
         </TouchableOpacity>
         
         <TouchableOpacity 
-          style={styles.iconButton}
-          onPress={() => handleDeleteCourse(item.$id, item.title)}
+          style={[styles.actionButton, { backgroundColor: airbnbColors.error + '15' }]}
+          onPress={() => handleDeleteCourse(course.$id, course.title)}
         >
-          <Ionicons name="trash-outline" size={20} color={colors.status.error} />
-          <Text variant="caption" style={styles.iconButtonText}>Delete</Text>
+          <Ionicons name="trash" size={16} color={airbnbColors.error} />
+          <Text style={[styles.actionText, { color: airbnbColors.error }]}>Delete</Text>
         </TouchableOpacity>
       </View>
-    </Card>
+    </Animated.View>
   );
 
-  const renderContent = () => {
-    if (loading && !refreshing) {
-      return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
-          <Text style={styles.loadingText}>Loading courses...</Text>
-        </View>
-      );
-    }
-
-    if (loadError) {
-      return (
-        <View style={styles.centerContainer}>
-          <Ionicons name="alert-circle-outline" size={64} color={colors.status.error} />
-          <Text style={styles.errorText}>{loadError}</Text>
-          <Button 
-            title="Retry" 
-            onPress={fetchCourses}
-            style={styles.retryButton}
-          />
-        </View>
-      );
-    }
-
-    if (courses.length === 0) {
-      return (
-        <View style={styles.centerContainer}>
-          <Ionicons name="book-outline" size={64} color={colors.neutral.lightGray} />
-          <Text style={styles.emptyText}>No courses found</Text>
-          <Button 
-            title="Create New Course" 
-            onPress={() => router.push('/(admin)/(courses)/course-creator')}
-            style={styles.createButton}
-          />
-        </View>
-      );
-    }
-
+  // Display loading indicator
+  if (loading && !refreshing) {
     return (
-      <>
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          style={styles.filtersScrollView}
-        >
-          <View style={styles.filterContainer}>
-            <TouchableOpacity 
-              style={[
-                styles.filterButton, 
-                filterPublished === null && styles.activeFilter
-              ]}
-              onPress={() => setFilterPublished(null)}
-            >
-              <Text 
-                variant="button" 
-                color={filterPublished === null ? colors.neutral.white : colors.neutral.text}
-              >
-                All Courses
-              </Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={styles.newCourseButton}
-              onPress={() => router.push('/(admin)/(courses)/course-creator')}
-            >
-              <Ionicons name="add" size={18} color={colors.neutral.white} />
-              <Text variant="button" color={colors.neutral.white}>New Course</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-        
-        <FlatList
-          data={filteredCourses}
-          renderItem={renderCourseItem}
-          keyExtractor={item => item.$id}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.listContainer}
-        />
-      </>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={airbnbColors.primary} />
+        <Text style={styles.loadingText}>Loading courses...</Text>
+      </View>
     );
-  };
+  }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.container}>
       <PreAuthHeader 
         title="Course Library"
         rightComponent={
           <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => {}}
+            style={styles.addButton}
+            onPress={() => router.push('/(admin)/(courses)/course-creator')}
           >
-            <Ionicons name="notifications-outline" size={24} color="#333333" />
+            <Ionicons name="add" size={20} color={airbnbColors.primary} />
           </TouchableOpacity>
         }
       />
-      <View style={styles.container}>
-        <View style={styles.contentContainer}>
-          <View style={styles.headerContainer}>
-            <Text variant="h4" style={styles.pageTitle}>Course Library</Text>
-            <Text variant="body2" style={styles.pageSubtitle}>
-              Manage all available courses. Create, edit or publish courses for students.
-            </Text>
-          </View>
-          {renderContent()}
+      
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.content}>
+          {/* Header Section */}
+          <Animated.View 
+            entering={FadeInDown.delay(100).duration(600)}
+            style={styles.headerSection}
+          >
+            <View style={styles.headerCard}>
+              <View style={styles.headerContent}>
+                <Text style={styles.headerTitle}>Course Library</Text>
+                <Text style={styles.headerSubtitle}>
+                  {courses.length} total courses • {filteredCourses.length} shown
+                </Text>
+              </View>
+              <View style={styles.libraryIconContainer}>
+                <Ionicons name="library" size={24} color={airbnbColors.primary} />
+              </View>
+            </View>
+          </Animated.View>
+
+          {/* Search & Filters Section */}
+          <Animated.View 
+            entering={FadeInUp.delay(200).duration(600)}
+            style={styles.filtersSection}
+          >
+            <Text style={styles.sectionTitle}>Search & Filter</Text>
+            <View style={styles.filtersCard}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color={airbnbColors.mediumGray} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search courses by title, description, or level..."
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filtersScrollContent}
+              >
+                <TouchableOpacity
+                  style={[styles.filterChip, filterPublished === null && styles.activeFilterChip]}
+                  onPress={() => setFilterPublished(null)}
+                >
+                  <Text style={[styles.filterText, filterPublished === null && styles.activeFilterText]}>
+                    All Courses
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.filterChip, filterPublished === true && styles.activeFilterChip]}
+                  onPress={() => setFilterPublished(true)}
+                >
+                  <Text style={[styles.filterText, filterPublished === true && styles.activeFilterText]}>
+                    Published
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.filterChip, filterPublished === false && styles.activeFilterChip]}
+                  onPress={() => setFilterPublished(false)}
+                >
+                  <Text style={[styles.filterText, filterPublished === false && styles.activeFilterText]}>
+                    Drafts
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Animated.View>
+
+          {/* Courses Grid Section */}
+          <Animated.View 
+            entering={FadeInUp.delay(300).duration(600)}
+            style={styles.coursesSection}
+          >
+            <Text style={styles.sectionTitle}>Courses</Text>
+            {loadError ? (
+              <View style={styles.errorCard}>
+                <Ionicons name="alert-circle" size={48} color={airbnbColors.error} />
+                <Text style={styles.errorText}>{loadError}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchCourses}>
+                  <Text style={styles.retryText}>Retry</Text>
+                </TouchableOpacity>
+              </View>
+            ) : filteredCourses.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="book-outline" size={48} color={airbnbColors.mediumGray} />
+                <Text style={styles.emptyText}>
+                  {searchQuery || filterPublished !== null ? 'No courses match your filters' : 'No courses found'}
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  {searchQuery || filterPublished !== null 
+                    ? 'Try adjusting your search or filters' 
+                    : 'Create your first course to get started'
+                  }
+                </Text>
+                {!searchQuery && filterPublished === null && (
+                  <TouchableOpacity 
+                    style={styles.createButton}
+                    onPress={() => router.push('/(admin)/(courses)/course-creator')}
+                  >
+                    <Ionicons name="add" size={20} color={airbnbColors.white} />
+                    <Text style={styles.createButtonText}>Create Course</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            ) : (
+              <View style={styles.coursesGrid}>
+                {filteredCourses.map((course, index) => renderCourseCard(course, index))}
+              </View>
+            )}
+          </Animated.View>
         </View>
-      </View>
-    </SafeAreaView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.neutral.white,
-  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: airbnbColors.offWhite,
   },
-  contentContainer: {
-    padding: spacing.md,
+  scrollView: {
     flex: 1,
   },
-  headerContainer: {
-    marginBottom: spacing.lg,
+  scrollContent: {
+    paddingBottom: 100,
   },
-  pageTitle: {
-    color: colors.primary.main,
-    marginBottom: spacing.xs,
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  pageSubtitle: {
-    color: colors.neutral.darkGray,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.offWhite,
   },
-  filterContainer: {
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    fontWeight: '500',
+  },
+  addButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.lightGray,
+  },
+
+  // Header Section
+  headerSection: {
+    marginBottom: 24,
+  },
+  headerCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 24,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  filterButton: {
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-    marginRight: spacing.xs,
+  headerContent: {
+    flex: 1,
   },
-  activeFilter: {
-    backgroundColor: colors.primary.main,
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 4,
   },
-  listContainer: {
-    paddingBottom: spacing.xxl,
+  headerSubtitle: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+  },
+  libraryIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: airbnbColors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 16,
+  },
+
+  // Filters Section
+  filtersSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  filtersCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 12,
+    fontSize: 16,
+    color: airbnbColors.charcoal,
+  },
+  filtersScrollContent: {
+    paddingVertical: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  activeFilterChip: {
+    backgroundColor: airbnbColors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.darkGray,
+  },
+  activeFilterText: {
+    color: airbnbColors.white,
+  },
+
+  // Courses Section
+  coursesSection: {
+    marginBottom: 24,
+  },
+  coursesGrid: {
+    gap: 16,
   },
   courseCard: {
-    marginBottom: spacing.md,
-    padding: spacing.md,
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  cardContent: {
-    flex: 1,
+  courseContent: {
+    padding: 16,
+  },
+  imageContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
+  courseImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    backgroundColor: airbnbColors.lightGray,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  courseDetails: {
+    gap: 8,
   },
   courseHeader: {
     flexDirection: 'row',
-  },
-  courseDetails: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
   },
   courseTitle: {
     flex: 1,
-    marginRight: spacing.sm,
+    fontSize: 18,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    lineHeight: 24,
+  },
+  levelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
   courseDescription: {
-    marginTop: spacing.xs,
-    marginBottom: spacing.sm,
-    color: colors.neutral.darkGray,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    lineHeight: 20,
   },
-  statusBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  statusText: {
-    fontWeight: typography.fontWeights.medium,
-  },
-  metaContainer: {
+  courseMeta: {
     flexDirection: 'row',
-    marginTop: spacing.xs,
+    gap: 16,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: spacing.md,
+    gap: 4,
   },
   metaText: {
-    marginLeft: spacing.xs,
+    fontSize: 12,
+    color: airbnbColors.mediumGray,
   },
-  courseThumbnail: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.md,
-  },
-  courseThumbnailPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionContainer: {
+  actionButtons: {
     flexDirection: 'row',
-    marginTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    paddingTop: spacing.md,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    gap: 8,
   },
-  iconButton: {
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-    marginRight: spacing.xs,
-    flex: 1,
-    minWidth: 50,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
   },
-  iconButtonText: {
-    marginTop: 4,
-    fontSize: typography.fontSizes.xs,
-    color: colors.neutral.text,
-    textAlign: 'center',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
+
+  // Empty/Error States
+  emptyCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 40,
     alignItems: 'center',
-    paddingVertical: spacing.xxl,
-  },
-  loadingText: {
-    color: colors.neutral.darkGray,
-    marginTop: spacing.md,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   emptyText: {
-    color: colors.neutral.darkGray,
-    marginVertical: spacing.md,
-    fontSize: typography.fontSizes.lg,
+    fontSize: 18,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginTop: 4,
+    textAlign: 'center',
   },
   createButton: {
-    marginTop: spacing.md,
-  },
-  notificationButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
-  },
-  filtersScrollView: {
-    marginBottom: spacing.xs,
-  },
-  newCourseButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.primary.main,
-    marginLeft: spacing.xs,
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 20,
+    gap: 8,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  errorCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   errorText: {
-    color: colors.status.error,
-    marginTop: spacing.md,
+    fontSize: 16,
+    color: airbnbColors.error,
+    marginTop: 16,
     textAlign: 'center',
   },
   retryButton: {
-    marginTop: spacing.md,
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 16,
+  },
+  retryText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.white,
   },
 });

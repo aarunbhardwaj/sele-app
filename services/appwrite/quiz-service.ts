@@ -175,23 +175,20 @@ const quizService = {
       
       console.log('Creating question with data:', JSON.stringify(questionData, null, 2));
       
-      // Create the document payload - use correctOption instead of correctAnswer
+      // Create the document payload - use correctOption field to match the database schema
       const questionPayload = {
         quizId: questionData.quizId,
         text: questionData.text,
         type: questionData.type || 'multiple-choice',
         options: questionData.options || [],
-        // Use correctOption if available, otherwise fall back to correctAnswer
-        correctOption: questionData.correctOption || questionData.correctAnswer,
+        // Use correctOption field to match the actual database schema
+        correctOption: questionData.correctAnswer !== undefined ? questionData.correctAnswer : questionData.correctOption,
         explanation: questionData.explanation || '',
         points: questionData.points || 1,
         order: questionData.order || nextOrder,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      
-      // Remove correctAnswer field if it exists to avoid schema conflicts
-      delete questionPayload.correctAnswer;
       
       console.log('Sending question payload to Appwrite:', JSON.stringify(questionPayload, null, 2));
       

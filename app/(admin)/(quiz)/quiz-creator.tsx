@@ -127,8 +127,30 @@ export default function QuizCreatorScreen() {
     try {
       console.log('Reading CSV file from:', fileUri);
       
-      // Read the file content as a string
-      const fileContent = await FileSystem.readAsStringAsync(fileUri);
+      let fileContent;
+      
+      // Check if we're on web platform
+      if (Platform.OS === 'web') {
+        // For web, the fileUri is actually a data URL or blob URL
+        // We need to fetch it or read it differently
+        if (fileUri.startsWith('data:')) {
+          // It's a data URL, decode the base64 content
+          const base64Data = fileUri.split(',')[1];
+          fileContent = atob(base64Data);
+        } else if (fileUri.startsWith('blob:')) {
+          // It's a blob URL, fetch it
+          const response = await fetch(fileUri);
+          fileContent = await response.text();
+        } else {
+          // Try to read it as a regular file for web
+          const response = await fetch(fileUri);
+          fileContent = await response.text();
+        }
+      } else {
+        // For native platforms, use FileSystem
+        const FileSystem = require('expo-file-system');
+        fileContent = await FileSystem.readAsStringAsync(fileUri);
+      }
       
       if (!fileContent || fileContent.trim() === '') {
         throw new Error('CSV file is empty');
@@ -153,50 +175,76 @@ export default function QuizCreatorScreen() {
             
             try {
               // Map CSV data to question format
-              const questions = results.data.map(row => {
-                // Collect all options from the row (option1, option2, etc.)
-                const options = [];
-                for (let i = 1; i <= 4; i++) {
-                  const optionKey = `option${i}`;
-                  if (row[optionKey] && row[optionKey].trim() !== '') {
-                    options.push(row[optionKey].trim());
+              const questions = results.data.map((row, index) => {
+                console.log(`Processing row ${index + 1}:`, row);
+                
+                // Handle different CSV formats
+                let questionText, options, correctAnswer, explanation;
+                
+                // Check if it's the new format (text, options, correctOption)
+                if (row.text && row.options) {
+                  questionText = row.text;
+                  // Parse semicolon-separated options
+                  options = row.options.split(';').map(opt => opt.trim()).filter(opt => opt !== '');
+                  correctAnswer = row.correctOption;
+                  explanation = row.explanation || '';
+                } 
+                // Check if it's the old format (question, option1, option2, etc.)
+                else if (row.question) {
+                  questionText = row.question;
+                  // Collect all options from the row (option1, option2, etc.)
+                  options = [];
+                  for (let i = 1; i <= 4; i++) {
+                    const optionKey = `option${i}`;
+                    if (row[optionKey] && row[optionKey].trim() !== '') {
+                      options.push(row[optionKey].trim());
+                    }
                   }
+                  correctAnswer = row.correctAnswer;
+                  explanation = row.explanation || '';
+                }
+                // If neither format is detected, throw an error
+                else {
+                  console.error('Unrecognized CSV format for row:', row);
+                  throw new Error(`Row ${index + 1}: Unrecognized CSV format. Expected either 'text' or 'question' column.`);
                 }
                 
                 // Validate the question data
-                if (!row.question || row.question.trim() === '') {
-                  throw new Error('A question is missing question text');
+                if (!questionText || questionText.trim() === '') {
+                  throw new Error(`Row ${index + 1}: Question text is missing or empty`);
                 }
                 
-                if (options.length < 2) {
-                  throw new Error(`Question "${row.question}" needs at least 2 options`);
+                if (!options || options.length < 2) {
+                  throw new Error(`Row ${index + 1}: Question "${questionText}" needs at least 2 options. Found: ${options ? options.length : 0}`);
                 }
                 
-                if (!row.correctAnswer || row.correctAnswer.trim() === '') {
-                  throw new Error(`Question "${row.question}" is missing a correct answer`);
+                if (!correctAnswer || correctAnswer.trim() === '') {
+                  throw new Error(`Row ${index + 1}: Question "${questionText}" is missing a correct answer`);
                 }
                 
-                // If correctAnswer is an index (0, 1, 2, 3), convert it to the actual option
-                let correctAnswer = row.correctAnswer.trim();
-                if (/^[0-3]$/.test(correctAnswer)) {
-                  const index = parseInt(correctAnswer, 10);
+                // Handle correctAnswer that might be an index (0, 1, 2, 3)
+                let correctAnswerText = correctAnswer.trim();
+                if (/^[0-3]$/.test(correctAnswerText)) {
+                  const index = parseInt(correctAnswerText, 10);
                   if (index >= 0 && index < options.length) {
-                    correctAnswer = options[index];
+                    correctAnswerText = options[index];
                   } else {
-                    throw new Error(`Question "${row.question}" has an invalid correct answer index`);
+                    throw new Error(`Row ${index + 1}: Question "${questionText}" has an invalid correct answer index: ${index}`);
                   }
                 }
                 
                 // Check if correctAnswer exists in options
-                if (!options.includes(correctAnswer)) {
-                  throw new Error(`Question "${row.question}" has a correct answer that doesn't match any option`);
+                if (!options.includes(correctAnswerText)) {
+                  console.log(`Options for question "${questionText}":`, options);
+                  console.log(`Looking for correct answer:`, correctAnswerText);
+                  throw new Error(`Row ${index + 1}: Question "${questionText}" has a correct answer "${correctAnswerText}" that doesn't match any option. Available options: ${options.join(', ')}`);
                 }
                 
                 return {
-                  text: row.question.trim(),
+                  text: questionText.trim(),
                   options: options,
-                  correctAnswer: options.indexOf(correctAnswer),
-                  explanation: row.explanation ? row.explanation.trim() : ''
+                  correctAnswer: correctAnswerText,
+                  explanation: explanation ? explanation.trim() : ''
                 };
               });
               
@@ -243,32 +291,51 @@ export default function QuizCreatorScreen() {
         quizData.courseId = courseId;
       }
       
-      // Create quiz using appwrite service
+      console.log('Creating quiz with data:', JSON.stringify(quizData, null, 2));
+      
+      // Create quiz using appwrite service - this must succeed first
       const newQuiz = await appwriteService.createQuiz(quizData);
+      
+      console.log('Quiz created successfully:', newQuiz.$id);
       
       // If we're in CSV import mode, parse the CSV and create questions
       if (csvImportMode && csvFile) {
+        console.log('Starting CSV import for quiz:', newQuiz.$id);
+        
         try {
           const questions = await parseCsv(csvFile.uri);
+          console.log(`Parsed ${questions.length} questions from CSV`);
           
-          // Create questions in the database
+          // Create questions in the database sequentially to avoid race conditions
+          const createdQuestions = [];
           for (let i = 0; i < questions.length; i++) {
             const question = questions[i];
-            await appwriteService.createQuestion({
-              quizId: newQuiz.$id,
-              text: question.text,
-              type: 'multiple-choice',
-              options: question.options,
-              correctAnswer: question.correctAnswer,
-              explanation: question.explanation,
-              points: 1,
-              order: i + 1
-            });
+            console.log(`Creating question ${i + 1}/${questions.length}:`, question.text.substring(0, 50) + '...');
+            
+            try {
+              const createdQuestion = await appwriteService.createQuestion({
+                quizId: newQuiz.$id,
+                text: question.text,
+                type: 'multiple-choice',
+                options: question.options,
+                correctAnswer: question.correctAnswer,
+                explanation: question.explanation,
+                points: 1,
+                order: i + 1
+              });
+              createdQuestions.push(createdQuestion);
+              console.log(`Question ${i + 1} created successfully`);
+            } catch (questionError) {
+              console.error(`Failed to create question ${i + 1}:`, questionError);
+              throw new Error(`Failed to create question ${i + 1}: ${questionError.message}`);
+            }
           }
+          
+          console.log(`Successfully created ${createdQuestions.length} questions`);
           
           Alert.alert(
             'Success', 
-            `Quiz created with ${questions.length} questions from CSV!`,
+            `Quiz created with ${createdQuestions.length} questions from CSV!`,
             [
               {
                 text: 'View Quiz',
@@ -283,18 +350,22 @@ export default function QuizCreatorScreen() {
               }
             ]
           );
-        } catch (error) {
-          console.error('Failed to import CSV:', error);
+        } catch (csvError) {
+          console.error('Failed to import CSV:', csvError);
           Alert.alert(
-            'Warning',
-            'Quiz created but failed to import questions from CSV. You can add questions manually.',
+            'Partial Success',
+            `Quiz "${newQuiz.title}" was created successfully, but there was an error importing questions from CSV: ${csvError.message}\n\nYou can add questions manually using the question editor.`,
             [
               {
-                text: 'Add Questions',
+                text: 'Add Questions Manually',
                 onPress: () => router.push({
                   pathname: '/(admin)/(quiz)/question-editor',
                   params: { quizId: newQuiz.$id }
                 })
+              },
+              {
+                text: 'Back to Quiz List',
+                onPress: () => router.push('/(admin)/(quiz)')
               }
             ]
           );
@@ -390,17 +461,31 @@ export default function QuizCreatorScreen() {
       {csvImportMode && (
         <View style={styles.csvContent}>
           <Text variant="body2" style={styles.csvDescription}>
-            Upload a CSV file with questions in the following format:
+            Upload a CSV file with questions. Supports two formats:
+          </Text>
+          
+          <Text variant="caption" style={styles.csvNote}>
+            <Text style={{ fontWeight: 'bold' }}>Format 1 (Simple):</Text>
           </Text>
           <Text style={styles.csvFormat}>
             question,option1,option2,option3,option4,correctAnswer,explanation
           </Text>
+          
+          <Text variant="caption" style={styles.csvNote}>
+            <Text style={{ fontWeight: 'bold' }}>Format 2 (Advanced):</Text>
+          </Text>
+          <Text style={styles.csvFormat}>
+            text,options,correctOption,explanation
+          </Text>
+          
           <Text variant="caption" style={styles.csvNote}>
             Notes: 
-            - The first row must be the header row exactly as shown above
-            - You need at least 2 options per question
-            - The correctAnswer must exactly match one of the options
-            - Alternatively, correctAnswer can be 0, 1, 2, or 3 to indicate the option index
+            - Format 1: Separate columns for each option (option1, option2, etc.)
+            - Format 2: Semicolon-separated options in one column (e.g., "option1;option2;option3")
+            - The correctAnswer/correctOption must exactly match one of the options
+            - Alternatively, it can be 0, 1, 2, or 3 to indicate the option index
+            - First row must be the header row
+            - At least 2 options required per question
           </Text>
           <View style={styles.csvFileSelection}>
             <Text style={styles.selectedFile}>

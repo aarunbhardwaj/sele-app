@@ -4,18 +4,36 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
+
+// Airbnb-inspired color palette (same as profile page)
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 // Define interfaces
 interface User {
@@ -43,7 +61,7 @@ export default function UsersIndexPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'suspended'
+  const [statusFilter, setStatusFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -115,15 +133,10 @@ export default function UsersIndexPage() {
     setFilteredUsers(paginatedUsers);
   };
 
-  const getUserRoles = (user: User) => {
-    if (!user.roles || user.roles.length === 0) return [];
-    return roles.filter(role => user.roles?.includes(role.$id));
-  };
-
   const getUserRoleName = (user: User): string => {
     if (user.isAdmin) return 'Admin';
     
-    const userRoles = getUserRoles(user);
+    const userRoles = roles.filter(role => user.roles?.includes(role.$id));
     if (userRoles.some(role => role.name.toLowerCase().includes('admin'))) {
       return 'Admin';
     } else if (userRoles.some(role => role.name.toLowerCase().includes('instructor'))) {
@@ -134,13 +147,11 @@ export default function UsersIndexPage() {
   };
 
   const navigateToUserProfile = (user: User) => {
-    // Navigate to user profile details screen with all user data
     console.log('Navigating to user profile with ID:', user.userId || user.$id);
     router.push({
       pathname: '/(admin)/(users)/user-details',
       params: { 
         id: user.userId || user.$id,
-        // Pass more data to avoid unnecessary API calls
         displayName: user.displayName,
         email: user.email,
         status: user.status,
@@ -149,594 +160,503 @@ export default function UsersIndexPage() {
     });
   };
 
-  const renderFilterBar = () => (
-    <View style={styles.filtersContainer}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.neutral.gray} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search users..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-      
-      <ScrollableFilters 
-        statusFilter={statusFilter}
-        roleFilter={roleFilter}
-        setStatusFilter={setStatusFilter}
-        setRoleFilter={setRoleFilter}
-        roles={roles}
-      />
-    </View>
-  );
-
-  const renderUserRow = (user: User) => {
-    const roleName = getUserRoleName(user);
-    
-    return (
-      <TouchableOpacity 
-        style={styles.userRow}
-        onPress={() => navigateToUserProfile(user)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.userInfo}>
-          <View style={styles.userAvatar}>
-            <Text style={styles.avatarText}>
-              {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
-            </Text>
-          </View>
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{user.displayName || 'Unnamed User'}</Text>
-            <Text style={styles.userEmail}>{user.email}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.userStatus}>
-          <View style={[
-            styles.statusBadge,
-            user.status === 'active' && styles.activeBadge,
-            user.status === 'suspended' && styles.suspendedBadge,
-            user.status === 'pending' && styles.pendingBadge,
-          ]}>
-            <Text style={styles.statusText}>
-              {user.status || 'Active'}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.userRole}>
-          <View style={[
-            styles.roleBadge,
-            roleName === 'Admin' && styles.adminRoleBadge,
-            roleName === 'Instructor' && styles.instructorRoleBadge,
-            roleName === 'Student' && styles.studentRoleBadge,
-          ]}>
-            <Text style={[
-              styles.roleText,
-              roleName === 'Admin' && styles.adminRoleText,
-              roleName === 'Instructor' && styles.instructorRoleText,
-              roleName === 'Student' && styles.studentRoleText,
-            ]}>
-              {roleName}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.viewDetailsContainer}>
-          <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-        </View>
-      </TouchableOpacity>
-    );
+  const getStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'active': return airbnbColors.success;
+      case 'suspended': return airbnbColors.error;
+      case 'pending': return airbnbColors.warning;
+      default: return airbnbColors.mediumGray;
+    }
   };
 
-  const renderPagination = () => (
-    <View style={styles.paginationContainer}>
-      <TouchableOpacity
-        style={[styles.paginationButton, page === 1 && styles.disabledButton]}
-        onPress={() => setPage(prev => Math.max(1, prev - 1))}
-        disabled={page === 1}
-      >
-        <Ionicons name="chevron-back" size={18} color={page === 1 ? colors.neutral.gray : colors.primary.main} />
-        <Text style={[styles.paginationText, page === 1 && styles.disabledText]}>Previous</Text>
-      </TouchableOpacity>
-      
-      <Text style={styles.pageInfo}>
-        Page {page} of {totalPages}
-      </Text>
-      
-      <TouchableOpacity
-        style={[styles.paginationButton, page === totalPages && styles.disabledButton]}
-        onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
-        disabled={page === totalPages}
-      >
-        <Text style={[styles.paginationText, page === totalPages && styles.disabledText]}>Next</Text>
-        <Ionicons name="chevron-forward" size={18} color={page === totalPages ? colors.neutral.gray : colors.primary.main} />
-      </TouchableOpacity>
-    </View>
-  );
+  const getRoleColor = (roleName: string) => {
+    switch (roleName) {
+      case 'Admin': return airbnbColors.primary;
+      case 'Instructor': return airbnbColors.secondary;
+      case 'Student': return airbnbColors.warning;
+      default: return airbnbColors.mediumGray;
+    }
+  };
 
+  // Display loading indicator
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <PreAuthHeader title="User Management" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
-          <Text style={styles.loadingText}>Loading users...</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={airbnbColors.primary} />
+        <Text style={styles.loadingText}>Loading users...</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={styles.container}>
       <PreAuthHeader 
-        title="User Management" 
+        title="User Management"
         rightComponent={
           <TouchableOpacity 
             style={styles.refreshButton}
             onPress={loadData}
           >
-            <Ionicons name="refresh-outline" size={24} color="#333333" />
+            <Ionicons name="refresh" size={20} color={airbnbColors.primary} />
           </TouchableOpacity>
         }
       />
       
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>User Directory</Text>
-          <Text style={styles.headerSubtitle}>
-            {users.length} total users • {filteredUsers.length} shown
-          </Text>
-        </View>
-        
-        {renderFilterBar()}
-        
-        {filteredUsers.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="people-outline" size={48} color={colors.neutral.lightGray} />
-            <Text style={styles.emptyText}>No users found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-          </View>
-        ) : (
-          <>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, { flex: 2 }]}>User</Text>
-              <Text style={styles.headerCell}>Status</Text>
-              <Text style={styles.headerCell}>Role</Text>
-              <Text style={[styles.headerCell, { flex: 0.5 }]}></Text>
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.content}>
+          {/* Header Section */}
+          <Animated.View 
+            entering={FadeInDown.delay(100).duration(600)}
+            style={styles.headerSection}
+          >
+            <View style={styles.headerCard}>
+              <View style={styles.headerContent}>
+                <Text style={styles.headerTitle}>User Directory</Text>
+                <Text style={styles.headerSubtitle}>
+                  {users.length} total users • {filteredUsers.length} shown
+                </Text>
+              </View>
+              <View style={styles.statsContainer}>
+                <View style={styles.statBadge}>
+                  <Ionicons name="people" size={20} color={airbnbColors.primary} />
+                  <Text style={styles.statText}>{users.length}</Text>
+                </View>
+              </View>
             </View>
-            
-            <FlatList
-              data={filteredUsers}
-              renderItem={({ item }) => renderUserRow(item)}
-              keyExtractor={item => item.$id}
-              contentContainerStyle={styles.listContainer}
-              showsVerticalScrollIndicator={false}
-            />
-            
-            {renderPagination()}
-          </>
-        )}
-      </View>
-    </SafeAreaView>
+          </Animated.View>
+
+          {/* Search & Filters Section */}
+          <Animated.View 
+            entering={FadeInUp.delay(200).duration(600)}
+            style={styles.filtersSection}
+          >
+            <Text style={styles.sectionTitle}>Search & Filter</Text>
+            <View style={styles.filtersCard}>
+              <View style={styles.searchContainer}>
+                <Ionicons name="search" size={20} color={airbnbColors.mediumGray} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder="Search users by name or email..."
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+              </View>
+              
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filtersScrollContent}
+              >
+                {/* Status filters */}
+                <TouchableOpacity
+                  style={[styles.filterChip, statusFilter === 'all' && styles.activeFilterChip]}
+                  onPress={() => setStatusFilter('all')}
+                >
+                  <Text style={[styles.filterText, statusFilter === 'all' && styles.activeFilterText]}>
+                    All Users
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.filterChip, statusFilter === 'active' && styles.activeFilterChip]}
+                  onPress={() => setStatusFilter('active')}
+                >
+                  <Text style={[styles.filterText, statusFilter === 'active' && styles.activeFilterText]}>
+                    Active
+                  </Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.filterChip, statusFilter === 'suspended' && styles.activeFilterChip]}
+                  onPress={() => setStatusFilter('suspended')}
+                >
+                  <Text style={[styles.filterText, statusFilter === 'suspended' && styles.activeFilterText]}>
+                    Suspended
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </Animated.View>
+
+          {/* Users List Section */}
+          <Animated.View 
+            entering={FadeInUp.delay(300).duration(600)}
+            style={styles.usersSection}
+          >
+            <Text style={styles.sectionTitle}>Users</Text>
+            {filteredUsers.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Ionicons name="people-outline" size={48} color={airbnbColors.mediumGray} />
+                <Text style={styles.emptyText}>No users found</Text>
+                <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+              </View>
+            ) : (
+              <View style={styles.usersCard}>
+                {filteredUsers.map((user, index) => (
+                  <TouchableOpacity 
+                    key={user.$id}
+                    style={[
+                      styles.userRow,
+                      index === filteredUsers.length - 1 && styles.lastUserRow
+                    ]}
+                    onPress={() => navigateToUserProfile(user)}
+                  >
+                    <View style={styles.userInfo}>
+                      <View style={[styles.userAvatar, { backgroundColor: airbnbColors.primary + '20' }]}>
+                        <Text style={styles.avatarText}>
+                          {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
+                        </Text>
+                      </View>
+                      <View style={styles.userDetails}>
+                        <Text style={styles.userName}>{user.displayName || 'Unnamed User'}</Text>
+                        <Text style={styles.userEmail}>{user.email}</Text>
+                        <View style={styles.userBadges}>
+                          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(user.status || 'active') + '20' }]}>
+                            <Text style={[styles.statusText, { color: getStatusColor(user.status || 'active') }]}>
+                              {user.status || 'Active'}
+                            </Text>
+                          </View>
+                          <View style={[styles.roleBadge, { backgroundColor: getRoleColor(getUserRoleName(user)) + '20' }]}>
+                            <Text style={[styles.roleText, { color: getRoleColor(getUserRoleName(user)) }]}>
+                              {getUserRoleName(user)}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </Animated.View>
+
+          {/* Pagination Section */}
+          {totalPages > 1 && (
+            <Animated.View 
+              entering={FadeInUp.delay(400).duration(600)}
+              style={styles.paginationSection}
+            >
+              <View style={styles.paginationCard}>
+                <TouchableOpacity
+                  style={[styles.paginationButton, page === 1 && styles.disabledButton]}
+                  onPress={() => setPage(prev => Math.max(1, prev - 1))}
+                  disabled={page === 1}
+                >
+                  <Ionicons name="chevron-back" size={18} color={page === 1 ? airbnbColors.mediumGray : airbnbColors.primary} />
+                  <Text style={[styles.paginationText, page === 1 && styles.disabledText]}>Previous</Text>
+                </TouchableOpacity>
+                
+                <Text style={styles.pageInfo}>
+                  Page {page} of {totalPages}
+                </Text>
+                
+                <TouchableOpacity
+                  style={[styles.paginationButton, page === totalPages && styles.disabledButton]}
+                  onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                  disabled={page === totalPages}
+                >
+                  <Text style={[styles.paginationText, page === totalPages && styles.disabledText]}>Next</Text>
+                  <Ionicons name="chevron-forward" size={18} color={page === totalPages ? airbnbColors.mediumGray : airbnbColors.primary} />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          )}
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 
-// Helper component for horizontal scrollable filters
-const ScrollableFilters = ({ 
-  statusFilter, 
-  roleFilter, 
-  setStatusFilter, 
-  setRoleFilter,
-  roles
-}: { 
-  statusFilter: string;
-  roleFilter: string;
-  setStatusFilter: (filter: string) => void;
-  setRoleFilter: (filter: string) => void;
-  roles: Role[];
-}) => {
-  return (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filtersScrollContent}
-    >
-      {/* Status filters */}
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'all' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('all')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'all' && styles.activeFilterText]}>
-          All Users
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'active' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('active')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'active' && styles.activeFilterText]}>
-          Active
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'suspended' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('suspended')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'suspended' && styles.activeFilterText]}>
-          Suspended
-        </Text>
-      </TouchableOpacity>
-      
-      <View style={styles.filterDivider} />
-      
-      {/* Role filters */}
-      <TouchableOpacity
-        style={[styles.filterChip, roleFilter === 'all' && styles.activeFilterChip]}
-        onPress={() => setRoleFilter('all')}
-      >
-        <Text style={[styles.filterText, roleFilter === 'all' && styles.activeFilterText]}>
-          All Roles
-        </Text>
-      </TouchableOpacity>
-      
-      {roles.map(role => (
-        <TouchableOpacity
-          key={role.$id}
-          style={[styles.filterChip, roleFilter === role.$id && styles.activeFilterChip]}
-          onPress={() => setRoleFilter(role.$id)}
-        >
-          <Text style={[styles.filterText, roleFilter === role.$id && styles.activeFilterText]}>
-            {role.name}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
-};
-
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.neutral.white,
-  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: airbnbColors.offWhite,
   },
-  headerContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.neutral.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+  scrollView: {
+    flex: 1,
   },
-  headerTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.neutral.text,
+  scrollContent: {
+    paddingBottom: 100,
   },
-  headerSubtitle: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.gray,
-    marginTop: 4,
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: airbnbColors.offWhite,
   },
   loadingText: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.gray,
-    marginTop: spacing.sm,
+    marginTop: 16,
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    fontWeight: '500',
   },
-  filtersContainer: {
-    backgroundColor: colors.neutral.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+  refreshButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.lightGray,
+  },
+
+  // Header Section
+  headerSection: {
+    marginBottom: 24,
+  },
+  headerCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+  },
+  statsContainer: {
+    marginLeft: 16,
+  },
+  statBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.primaryLight,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+  },
+  statText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.primary,
+  },
+
+  // Filters Section
+  filtersSection: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
+  filtersCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral.background,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    marginLeft: spacing.xs,
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.text,
+    marginLeft: 12,
+    fontSize: 16,
+    color: airbnbColors.charcoal,
   },
   filtersScrollContent: {
-    paddingVertical: spacing.xs,
+    paddingVertical: 4,
   },
   filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.neutral.background,
-    borderRadius: borderRadius.full,
-    marginRight: spacing.xs,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: airbnbColors.lightGray,
+    borderRadius: 20,
+    marginRight: 12,
   },
   activeFilterChip: {
-    backgroundColor: colors.primary.light,
+    backgroundColor: airbnbColors.primary,
   },
   filterText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.darkGray,
   },
   activeFilterText: {
-    color: colors.neutral.white,
-    fontWeight: typography.fontWeights.medium as any,
+    color: airbnbColors.white,
   },
-  filterDivider: {
-    width: 1,
-    height: '80%',
-    backgroundColor: colors.neutral.lightGray,
-    marginHorizontal: spacing.sm,
-    alignSelf: 'center',
+
+  // Users Section
+  usersSection: {
+    marginBottom: 24,
   },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: colors.neutral.background,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
-  },
-  headerCell: {
-    flex: 1,
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.neutral.darkGray,
-  },
-  listContainer: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xl,
+  usersCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   userRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    shadowColor: colors.neutral.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.lightGray,
+  },
+  lastUserRow: {
+    borderBottomWidth: 0,
   },
   userInfo: {
-    flex: 2,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    flex: 1,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.primary.main,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    marginRight: 16,
   },
   avatarText: {
-    color: colors.neutral.white,
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.bold as any,
+    color: airbnbColors.primary,
+    fontSize: 18,
+    fontWeight: '700',
   },
   userDetails: {
     flex: 1,
   },
   userName: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.medium as any,
-    color: colors.neutral.text,
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
     marginBottom: 4,
   },
   userEmail: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.gray,
-    marginBottom: 6,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginBottom: 8,
   },
-  userStatus: {
-    flex: 1,
-    alignItems: 'flex-start',
+  userBadges: {
+    flexDirection: 'row',
+    gap: 8,
   },
   statusBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-  },
-  activeBadge: {
-    backgroundColor: colors.status.success + '20',
-  },
-  suspendedBadge: {
-    backgroundColor: colors.status.error + '20',
-  },
-  pendingBadge: {
-    backgroundColor: colors.status.warning + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
-    color: colors.neutral.darkGray,
+    fontSize: 12,
+    fontWeight: '600',
     textTransform: 'capitalize',
   },
-  userRole: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
   roleBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-  },
-  adminRoleBadge: {
-    backgroundColor: colors.primary.main + '20',
-  },
-  instructorRoleBadge: {
-    backgroundColor: colors.secondary.main + '20',
-  },
-  studentRoleBadge: {
-    backgroundColor: colors.status.info + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   roleText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
-    color: colors.neutral.darkGray,
+    fontSize: 12,
+    fontWeight: '600',
   },
-  adminRoleText: {
-    color: colors.primary.main,
-  },
-  instructorRoleText: {
-    color: colors.secondary.main,
-  },
-  studentRoleText: {
-    color: colors.status.info,
-  },
-  viewDetailsContainer: {
-    flex: 0.5,
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+
+  // Empty State
+  emptyCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 40,
     alignItems: 'center',
-    padding: spacing.xl,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   emptyText: {
-    fontSize: typography.fontSizes.lg,
-    color: colors.neutral.darkGray,
-    marginTop: spacing.md,
+    fontSize: 18,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginTop: 16,
   },
   emptySubtext: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.gray,
-    marginTop: spacing.xs,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginTop: 4,
   },
-  paginationContainer: {
+
+  // Pagination Section
+  paginationSection: {
+    marginBottom: 24,
+  },
+  paginationCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.neutral.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   paginationButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.neutral.background,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+    backgroundColor: airbnbColors.lightGray,
+    gap: 8,
   },
   disabledButton: {
     opacity: 0.5,
   },
   paginationText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.primary.main,
-    marginHorizontal: spacing.xs,
+    fontSize: 14,
+    fontWeight: '600',
+    color: airbnbColors.primary,
   },
   disabledText: {
-    color: colors.neutral.gray,
+    color: airbnbColors.mediumGray,
   },
   pageInfo: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
-  },
-  refreshButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  modalTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.neutral.text,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  modalSubtitle: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.medium as any,
-    color: colors.neutral.darkGray,
-    marginBottom: spacing.sm,
-    marginTop: spacing.md,
-  },
-  currentRoles: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: spacing.sm,
-  },
-  modalRoleTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary.main,
-    borderRadius: borderRadius.full,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    margin: 2,
-  },
-  modalRoleText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.white,
-    marginRight: spacing.xs,
-  },
-  roleSelector: {
-    maxHeight: 200,
-  },
-  roleSelectorItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
-  },
-  selectedRoleItem: {
-    backgroundColor: colors.primary.light + '20',
-  },
-  roleSelectorText: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.text,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.lg,
-  },
-  modalButton: {
-    flex: 1,
-    marginHorizontal: spacing.xs,
+    fontSize: 16,
+    fontWeight: '500',
+    color: airbnbColors.charcoal,
   },
 });

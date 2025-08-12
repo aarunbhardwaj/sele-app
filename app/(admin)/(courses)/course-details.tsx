@@ -14,12 +14,30 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
+
+// Airbnb-inspired color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 interface Course {
   $id: string;
@@ -75,12 +93,8 @@ export default function CourseDetailsScreen() {
   
   // Modal state for adding instructors
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [newInstructorEmail, setNewInstructorEmail] = useState('');
-  const [newInstructorName, setNewInstructorName] = useState('');
-  const [newInstructorImage, setNewInstructorImage] = useState('');
-  const [selectedInstructor, setSelectedInstructor] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   useEffect(() => {
     if (id) {
       fetchCourseData(id as string);
@@ -111,7 +125,6 @@ export default function CourseDetailsScreen() {
   
   const fetchLessons = async (courseId: string) => {
     try {
-      // Modified to fetch all lessons, not just published ones
       const response = await appwriteService.getLessonsByCourse(courseId);
       setLessons(response);
     } catch (error) {
@@ -146,7 +159,6 @@ export default function CourseDetailsScreen() {
   const fetchQuizzes = async (courseId) => {
     try {
       setLoadingQuizzes(true);
-      // Get all quizzes and filter for this course
       const response = await appwriteService.getAllQuizzes([
         Query.equal('courseId', courseId)
       ]);
@@ -158,218 +170,183 @@ export default function CourseDetailsScreen() {
       setLoadingQuizzes(false);
     }
   };
-  
-  const handleAddInstructor = async () => {
-    if (!newInstructorEmail || !newInstructorName) {
-      return;
-    }
-    
-    try {
-      const instructorData = {
-        email: newInstructorEmail,
-        displayName: newInstructorName,
-        profileImage: newInstructorImage,
-        isInstructor: true,
-      };
-      
-      await appwriteService.addInstructorToCourse(course.$id, instructorData);
-      setIsModalVisible(false);
-      setNewInstructorEmail('');
-      setNewInstructorName('');
-      setNewInstructorImage('');
-      fetchInstructors(course.$id);
-      Alert.alert('Success', 'Instructor added successfully');
-    } catch (error) {
-      console.error('Failed to add instructor:', error);
-      Alert.alert('Error', 'Failed to add instructor');
+
+  const getLevelColor = (level: string) => {
+    switch (level?.toLowerCase()) {
+      case 'beginner': return airbnbColors.success;
+      case 'intermediate': return airbnbColors.warning;
+      case 'advanced': return airbnbColors.error;
+      default: return airbnbColors.mediumGray;
     }
   };
-  
+
   const renderTabs = () => {
+    const tabs = [
+      { key: 'lessons', label: 'Lessons', icon: 'list' },
+      { key: 'instructors', label: 'Instructors', icon: 'people' },
+      { key: 'quizzes', label: 'Quizzes', icon: 'help-circle' },
+      { key: 'materials', label: 'Materials', icon: 'document' },
+    ];
+
     return (
-      <View style={styles.tabContainer}>
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'lessons' && styles.activeTab]}
-          onPress={() => setActiveTab('lessons')}
+      <Animated.View 
+        entering={FadeInUp.delay(400).duration(600)}
+        style={styles.tabsSection}
+      >
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
         >
-          <Text 
-            variant="subtitle2" 
-            color={activeTab === 'lessons' ? colors.primary.main : colors.neutral.darkGray}
-          >
-            Lessons
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'instructors' && styles.activeTab]}
-          onPress={() => setActiveTab('instructors')}
-        >
-          <Text 
-            variant="subtitle2" 
-            color={activeTab === 'instructors' ? colors.primary.main : colors.neutral.darkGray}
-          >
-            Instructors
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'quizzes' && styles.activeTab]}
-          onPress={() => setActiveTab('quizzes')}
-        >
-          <Text 
-            variant="subtitle2" 
-            color={activeTab === 'quizzes' ? colors.primary.main : colors.neutral.darkGray}
-          >
-            Quizzes
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.tab, activeTab === 'materials' && styles.activeTab]}
-          onPress={() => setActiveTab('materials')}
-        >
-          <Text 
-            variant="subtitle2" 
-            color={activeTab === 'materials' ? colors.primary.main : colors.neutral.darkGray}
-          >
-            Materials
-          </Text>
-        </TouchableOpacity>
-      </View>
+          {tabs.map((tab) => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTab === tab.key && styles.activeTab]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Ionicons 
+                name={tab.icon} 
+                size={16} 
+                color={activeTab === tab.key ? airbnbColors.white : airbnbColors.mediumGray} 
+              />
+              <Text style={[
+                styles.tabText, 
+                activeTab === tab.key && styles.activeTabText
+              ]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </Animated.View>
     );
   };
-  
+
   const renderLessons = () => {
     if (lessons.length === 0) {
       return (
-        <View style={styles.emptyState}>
-          <Ionicons name="document-text-outline" size={64} color={colors.neutral.lightGray} />
+        <View style={styles.emptyCard}>
+          <Ionicons name="document-text-outline" size={48} color={airbnbColors.mediumGray} />
           <Text style={styles.emptyText}>No lessons found</Text>
-          <Button 
-            title="Add First Lesson" 
+          <Text style={styles.emptySubtext}>Create your first lesson to get started</Text>
+          <TouchableOpacity 
+            style={styles.createButton}
             onPress={() => router.push(`/(admin)/(courses)/create-lesson?courseId=${id}`)}
-            style={styles.emptyButton}
-          />
+          >
+            <Ionicons name="add" size={20} color={airbnbColors.white} />
+            <Text style={styles.createButtonText}>Add First Lesson</Text>
+          </TouchableOpacity>
         </View>
       );
     }
     
     return (
-      <View>
-        <View style={styles.sectionHeader}>
-          <Text variant="h6">Lessons ({lessons.length})</Text>
-          <Button 
-            title="+ Add Lesson" 
-            variant="outline"
-            size="small"
+      <View style={styles.contentCard}>
+        <View style={styles.contentHeader}>
+          <Text style={styles.contentTitle}>Lessons ({lessons.length})</Text>
+          <TouchableOpacity 
+            style={styles.addButton}
             onPress={() => router.push(`/(admin)/(courses)/create-lesson?courseId=${id}`)}
-          />
+          >
+            <Ionicons name="add" size={16} color={airbnbColors.primary} />
+            <Text style={styles.addButtonText}>Add Lesson</Text>
+          </TouchableOpacity>
         </View>
         
-        {lessons.map((lesson, index) => (
-          <Card key={lesson.$id} style={styles.lessonCard}>
-            <View style={styles.lessonHeader}>
-              <View style={styles.lessonOrder}>
-                <Text style={styles.orderNumber}>{lesson.order || index + 1}</Text>
-              </View>
-              <View style={styles.lessonDetails}>
-                <View style={styles.lessonTitleContainer}>
-                  <Text variant="subtitle1" style={styles.lessonTitle}>
-                    {lesson.title}
-                  </Text>
-                  <View style={styles.badgeContainer}>
-                    {/* Video indicator icon */}
-                    {(lesson.videoId || lesson.mediaUrl || lesson.mediaUrls) && (
-                      <View style={styles.videoBadge}>
-                        <Ionicons name="videocam" size={14} color={colors.secondary.main} />
+        <View style={styles.itemsList}>
+          {lessons.map((lesson, index) => (
+            <View key={lesson.$id} style={[styles.itemCard, index === lessons.length - 1 && styles.lastItem]}>
+              <View style={styles.itemHeader}>
+                <View style={styles.itemOrder}>
+                  <Text style={styles.orderText}>{lesson.order || index + 1}</Text>
+                </View>
+                <View style={styles.itemContent}>
+                  <View style={styles.itemTitleRow}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>{lesson.title}</Text>
+                    <View style={styles.itemBadges}>
+                      {(lesson.videoId || lesson.mediaUrl || lesson.mediaUrls) && (
+                        <View style={styles.videoBadge}>
+                          <Ionicons name="videocam" size={12} color={airbnbColors.secondary} />
+                        </View>
+                      )}
+                      <View style={[styles.statusBadge, { 
+                        backgroundColor: lesson.isPublished ? airbnbColors.success + '20' : airbnbColors.warning + '20'
+                      }]}>
+                        <Text style={[styles.statusText, { 
+                          color: lesson.isPublished ? airbnbColors.success : airbnbColors.warning
+                        }]}>
+                          {lesson.isPublished ? 'Published' : 'Draft'}
+                        </Text>
                       </View>
-                    )}
-                    <View style={[
-                      styles.statusBadge, 
-                      { backgroundColor: lesson.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
-                    ]}>
-                      <Text 
-                        variant="caption" 
-                        style={styles.statusText}
-                        color={lesson.isPublished ? colors.status.success : colors.neutral.darkGray}
-                      >
-                        {lesson.isPublished ? 'Published' : 'Draft'}
+                    </View>
+                  </View>
+                  
+                  <Text style={styles.itemDescription} numberOfLines={2}>
+                    {lesson.description || 'No description available'}
+                  </Text>
+                  
+                  <View style={styles.itemMeta}>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="time" size={12} color={airbnbColors.mediumGray} />
+                      <Text style={styles.metaText}>{lesson.duration} min</Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="calendar" size={12} color={airbnbColors.mediumGray} />
+                      <Text style={styles.metaText}>
+                        {new Date(lesson.createdAt).toLocaleDateString()}
                       </Text>
                     </View>
                   </View>
                 </View>
-                
-                <Text variant="body2" style={styles.lessonDescription} numberOfLines={2}>
-                  {lesson.description || 'No description available'}
-                </Text>
-                
-                <View style={styles.lessonMeta}>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="time-outline" size={14} color={colors.neutral.gray} />
-                    <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                      {lesson.duration} min
-                    </Text>
-                  </View>
-                  <View style={styles.metaItem}>
-                    <Ionicons name="calendar-outline" size={14} color={colors.neutral.gray} />
-                    <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                      {new Date(lesson.createdAt).toLocaleDateString()}
-                    </Text>
-                  </View>
-                </View>
               </View>
-            </View>
-            
-            <View style={styles.lessonActions}>
-              <TouchableOpacity 
-                style={styles.lessonIconButton}
-                onPress={() => router.push(`/(admin)/(courses)/edit-lesson?id=${lesson.$id}`)}
-              >
-                <Ionicons name="pencil-outline" size={18} color={colors.primary.main} />
-                <Text variant="caption" style={styles.lessonIconButtonText}>Edit</Text>
-              </TouchableOpacity>
               
-              <TouchableOpacity 
-                style={styles.lessonIconButton}
-                onPress={() => router.push(`/(admin)/(courses)/lesson-view?id=${lesson.$id}`)}
-              >
-                <Ionicons name="eye-outline" size={18} color={colors.secondary.main} />
-                <Text variant="caption" style={styles.lessonIconButtonText}>View</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.lessonIconButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Delete Lesson',
-                    'Are you sure you want to delete this lesson?',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Delete', 
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            await appwriteService.deleteLesson(lesson.$id);
-                            // Refresh the lessons list
-                            fetchLessons(id as string);
-                            Alert.alert('Success', 'Lesson deleted successfully');
-                          } catch (error) {
-                            console.error('Failed to delete lesson:', error);
-                            Alert.alert('Error', 'Failed to delete lesson');
+              <View style={styles.itemActions}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.secondary + '15' }]}
+                  onPress={() => router.push(`/(admin)/(courses)/lesson-view?id=${lesson.$id}`)}
+                >
+                  <Ionicons name="eye" size={14} color={airbnbColors.secondary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.primary + '15' }]}
+                  onPress={() => router.push(`/(admin)/(courses)/edit-lesson?id=${lesson.$id}`)}
+                >
+                  <Ionicons name="pencil" size={14} color={airbnbColors.primary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.error + '15' }]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Lesson',
+                      'Are you sure you want to delete this lesson?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Delete', 
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await appwriteService.deleteLesson(lesson.$id);
+                              fetchLessons(id as string);
+                              Alert.alert('Success', 'Lesson deleted successfully');
+                            } catch (error) {
+                              console.error('Failed to delete lesson:', error);
+                              Alert.alert('Error', 'Failed to delete lesson');
+                            }
                           }
                         }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.status.error} />
-                <Text variant="caption" style={styles.lessonIconButtonText}>Delete</Text>
-              </TouchableOpacity>
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="trash" size={14} color={airbnbColors.error} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </Card>
-        ))}
+          ))}
+        </View>
       </View>
     );
   };
@@ -387,43 +364,62 @@ export default function CourseDetailsScreen() {
       }
     };
 
-    // Show instructors if any are already assigned
-    if (instructors.length > 0) {
+    if (instructors.length === 0) {
       return (
-        <View>
-          <View style={styles.sectionHeader}>
-            <Text variant="h6">Course Instructors</Text>
-            <Button
-              title="+ Add Instructor"
-              variant="outline"
-              size="small"
-              onPress={() => setIsModalVisible(true)}
-            />
-          </View>
+        <View style={styles.emptyCard}>
+          <Ionicons name="person-outline" size={48} color={airbnbColors.mediumGray} />
+          <Text style={styles.emptyText}>No instructors assigned yet</Text>
+          <Text style={styles.emptySubtext}>Assign an instructor to help manage this course</Text>
+          <TouchableOpacity 
+            style={styles.createButton}
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Ionicons name="person-add" size={20} color={airbnbColors.white} />
+            <Text style={styles.createButtonText}>Assign Instructor</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
 
-          {instructors.map((instructor) => (
-            <Card key={instructor.$id} style={styles.instructorCard}>
-              <View style={styles.instructorHeader}>
-                <View style={styles.instructorImageContainer}>
+    return (
+      <View style={styles.contentCard}>
+        <View style={styles.contentHeader}>
+          <Text style={styles.contentTitle}>Course Instructors</Text>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Ionicons name="add" size={16} color={airbnbColors.primary} />
+            <Text style={styles.addButtonText}>Add Instructor</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.itemsList}>
+          {instructors.map((instructor, index) => (
+            <View key={instructor.$id} style={[styles.instructorCard, index === instructors.length - 1 && styles.lastItem]}>
+              <View style={styles.instructorInfo}>
+                <View style={styles.instructorAvatar}>
                   {instructor.profileImage ? (
                     <Image
                       source={{ uri: instructor.profileImage }}
-                      style={styles.instructorImage}
+                      style={styles.avatarImage}
                     />
                   ) : (
-                    <View style={styles.instructorImagePlaceholder}>
-                      <Ionicons name="person" size={30} color={colors.neutral.lightGray} />
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {instructor.displayName?.[0]?.toUpperCase() || 'I'}
+                      </Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.instructorDetails}>
-                  <Text variant="subtitle1">{instructor.displayName}</Text>
-                  <Text variant="body2" style={styles.instructorEmail}>{instructor.email}</Text>
+                  <Text style={styles.instructorName}>{instructor.displayName}</Text>
+                  <Text style={styles.instructorEmail}>{instructor.email}</Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                style={styles.removeButton}
+                style={[styles.actionButton, { backgroundColor: airbnbColors.error + '15' }]}
                 onPress={() => {
                   Alert.alert(
                     'Remove Instructor',
@@ -448,325 +444,174 @@ export default function CourseDetailsScreen() {
                   );
                 }}
               >
-                <Ionicons name="trash-outline" size={18} color={colors.status.error} />
-                <Text style={styles.removeButtonText}>Remove</Text>
+                <Ionicons name="trash" size={14} color={airbnbColors.error} />
               </TouchableOpacity>
-            </Card>
+            </View>
           ))}
-
-          {/* Modal for adding new instructors */}
-          <Modal
-            visible={isModalVisible}
-            animationType="slide"
-            transparent={true}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <Text variant="h6" style={styles.modalTitle}>Select Instructor</Text>
-                
-                {isLoading ? (
-                  <ActivityIndicator size="large" color={colors.primary.main} />
-                ) : (
-                  eligibleInstructors.length === 0 ? (
-                    <Text style={styles.noInstructorsText}>No eligible instructors found</Text>
-                  ) : (
-                    <FlatList
-                      data={eligibleInstructors}
-                      keyExtractor={(item) => item.$id}
-                      style={styles.instructorList}
-                      renderItem={({ item }) => (
-                        <TouchableOpacity
-                          style={styles.instructorListItem}
-                          onPress={() => assignInstructor(item.userId)}
-                        >
-                          <View style={styles.instructorListItemInner}>
-                            <View style={styles.instructorAvatar}>
-                              {item.profileImage ? (
-                                <Image
-                                  source={{ uri: item.profileImage }}
-                                  style={styles.avatarImage}
-                                />
-                              ) : (
-                                <Ionicons name="person" size={20} color={colors.neutral.white} />
-                              )}
-                            </View>
-                            <View style={styles.instructorListItemContent}>
-                              <Text variant="subtitle2">{item.displayName}</Text>
-                              <Text variant="caption" style={styles.instructorRole}>
-                                {item.isAdmin ? 'Admin' : 'Instructor'}
-                              </Text>
-                            </View>
-                          </View>
-                        </TouchableOpacity>
-                      )}
-                    />
-                  )
-                )}
-                
-                <Button 
-                  title="Cancel"
-                  variant="outline"
-                  onPress={() => setIsModalVisible(false)}
-                  style={styles.cancelButton}
-                />
-              </View>
-            </View>
-          </Modal>
         </View>
-      );
-    }
-
-    // Empty state when no instructors are assigned
-    return (
-      <View style={styles.emptyState}>
-        <Ionicons name="person-outline" size={64} color={colors.neutral.lightGray} />
-        <Text style={styles.emptyText}>No instructors assigned yet</Text>
-        <Text style={styles.emptySubtext}>
-          Assign an instructor to help manage this course
-        </Text>
-        <Button 
-          title="Assign Instructor" 
-          onPress={() => setIsModalVisible(true)}
-          style={styles.emptyButton}
-        />
-        
-        {/* Modal for selecting instructors */}
-        <Modal
-          visible={isModalVisible}
-          animationType="slide"
-          transparent={true}
-        >
-          <View style={styles.modalContainer}>
-            <View style={styles.modalContent}>
-              <Text variant="h6" style={styles.modalTitle}>Select Instructor</Text>
-              
-              {isLoading ? (
-                <ActivityIndicator size="large" color={colors.primary.main} />
-              ) : (
-                eligibleInstructors.length === 0 ? (
-                  <Text style={styles.noInstructorsText}>No eligible instructors found</Text>
-                ) : (
-                  <FlatList
-                    data={eligibleInstructors}
-                    keyExtractor={(item) => item.$id}
-                    style={styles.instructorList}
-                    renderItem={({ item }) => (
-                      <TouchableOpacity
-                        style={styles.instructorListItem}
-                        onPress={() => assignInstructor(item.userId)}
-                      >
-                        <View style={styles.instructorListItemInner}>
-                          <View style={styles.instructorAvatar}>
-                            {item.profileImage ? (
-                              <Image
-                                source={{ uri: item.profileImage }}
-                                style={styles.avatarImage}
-                              />
-                            ) : (
-                              <Ionicons name="person" size={20} color={colors.neutral.white} />
-                            )}
-                          </View>
-                          <View style={styles.instructorListItemContent}>
-                            <Text variant="subtitle2">{item.displayName}</Text>
-                            <Text variant="caption" style={styles.instructorRole}>
-                              {item.isAdmin ? 'Admin' : 'Instructor'}
-                            </Text>
-                          </View>
-                        </View>
-                      </TouchableOpacity>
-                    )}
-                  />
-                )
-              )}
-              
-              <Button 
-                title="Cancel"
-                variant="outline"
-                onPress={() => setIsModalVisible(false)}
-                style={styles.cancelButton}
-              />
-            </View>
-          </View>
-        </Modal>
       </View>
     );
   };
-  
+
   const renderQuizzes = () => {
     if (loadingQuizzes) {
       return (
-        <View style={styles.emptyState}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <Text style={styles.loadingText}>Loading quizzes...</Text>
         </View>
       );
     }
     
     if (quizzes.length === 0) {
       return (
-        <View style={styles.emptyState}>
-          <Ionicons name="help-circle-outline" size={64} color={colors.neutral.lightGray} />
+        <View style={styles.emptyCard}>
+          <Ionicons name="help-circle-outline" size={48} color={airbnbColors.mediumGray} />
           <Text style={styles.emptyText}>No quizzes available yet</Text>
-          <Text style={styles.emptySubtext}>
-            Create quizzes to test student knowledge and track progress
-          </Text>
-          <Button 
-            title="Create Quiz" 
+          <Text style={styles.emptySubtext}>Create quizzes to test student knowledge and track progress</Text>
+          <TouchableOpacity 
+            style={styles.createButton}
             onPress={() => router.push(`/(admin)/(quiz)/quiz-creator?courseId=${course.$id}`)}
-            style={styles.emptyButton}
-          />
-          <Button
-            title="View All Quizzes"
-            variant="outline"
-            onPress={() => router.push('/(admin)/(quiz)/quiz-list')}
-            style={[styles.emptyButton, { marginTop: spacing.sm }]}
-          />
+          >
+            <Ionicons name="add" size={20} color={airbnbColors.white} />
+            <Text style={styles.createButtonText}>Create Quiz</Text>
+          </TouchableOpacity>
         </View>
       );
     }
     
     return (
-      <View>
-        <View style={styles.sectionHeader}>
-          <Text variant="h6">Quizzes ({quizzes.length})</Text>
-          <Button 
-            title="+ Add Quiz" 
-            variant="outline"
-            size="small"
+      <View style={styles.contentCard}>
+        <View style={styles.contentHeader}>
+          <Text style={styles.contentTitle}>Quizzes ({quizzes.length})</Text>
+          <TouchableOpacity 
+            style={styles.addButton}
             onPress={() => router.push(`/(admin)/(quiz)/quiz-creator?courseId=${course.$id}`)}
-          />
+          >
+            <Ionicons name="add" size={16} color={airbnbColors.primary} />
+            <Text style={styles.addButtonText}>Add Quiz</Text>
+          </TouchableOpacity>
         </View>
         
-        {quizzes.map((quiz) => (
-          <Card key={quiz.$id} style={styles.quizCard}>
-            <View style={styles.quizHeader}>
-              <Text variant="subtitle1" style={styles.quizTitle}>
-                {quiz.title}
-              </Text>
-              <View style={[
-                styles.statusBadge, 
-                { backgroundColor: quiz.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
-              ]}>
-                <Text 
-                  variant="caption" 
-                  style={styles.statusText}
-                  color={quiz.isPublished ? colors.status.success : colors.neutral.darkGray}
+        <View style={styles.itemsList}>
+          {quizzes.map((quiz, index) => (
+            <View key={quiz.$id} style={[styles.itemCard, index === quizzes.length - 1 && styles.lastItem]}>
+              <View style={styles.quizHeader}>
+                <View style={styles.quizIcon}>
+                  <Ionicons name="help-circle" size={20} color={airbnbColors.primary} />
+                </View>
+                <View style={styles.itemContent}>
+                  <View style={styles.itemTitleRow}>
+                    <Text style={styles.itemTitle} numberOfLines={1}>{quiz.title}</Text>
+                    <View style={[styles.statusBadge, { 
+                      backgroundColor: quiz.isPublished ? airbnbColors.success + '20' : airbnbColors.warning + '20'
+                    }]}>
+                      <Text style={[styles.statusText, { 
+                        color: quiz.isPublished ? airbnbColors.success : airbnbColors.warning
+                      }]}>
+                        {quiz.isPublished ? 'Published' : 'Draft'}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <Text style={styles.itemDescription} numberOfLines={2}>
+                    {quiz.description || 'No description available'}
+                  </Text>
+                  
+                  <View style={styles.itemMeta}>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="time" size={12} color={airbnbColors.mediumGray} />
+                      <Text style={styles.metaText}>
+                        {quiz.timeLimit > 0 ? `${quiz.timeLimit} sec` : 'No time limit'}
+                      </Text>
+                    </View>
+                    <View style={styles.metaItem}>
+                      <Ionicons name="calendar" size={12} color={airbnbColors.mediumGray} />
+                      <Text style={styles.metaText}>
+                        {new Date(quiz.createdAt).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+              
+              <View style={styles.itemActions}>
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.secondary + '15' }]}
+                  onPress={() => router.push(`/quiz-interface?quizId=${quiz.$id}`)}
                 >
-                  {quiz.isPublished ? 'Published' : 'Draft'}
-                </Text>
-              </View>
-            </View>
-            
-            <Text variant="body2" style={styles.quizDescription} numberOfLines={2}>
-              {quiz.description || 'No description available'}
-            </Text>
-            
-            <View style={styles.quizMeta}>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={14} color={colors.neutral.gray} />
-                <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                  {quiz.timeLimit > 0 ? `${quiz.timeLimit} sec` : 'No time limit'}
-                </Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="calendar-outline" size={14} color={colors.neutral.gray} />
-                <Text variant="caption" color={colors.neutral.gray} style={styles.metaText}>
-                  {new Date(quiz.createdAt).toLocaleDateString()}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.quizActions}>
-              <TouchableOpacity 
-                style={styles.quizIconButton}
-                onPress={() => router.push(`/(admin)/(quiz)/question-editor?quizId=${quiz.$id}`)}
-              >
-                <Ionicons name="pencil-outline" size={18} color={colors.primary.main} />
-                <Text variant="caption" style={styles.quizIconButtonText}>Edit</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quizIconButton}
-                onPress={() => {
-                  // Handle viewing the quiz
-                  router.push(`/quiz-interface?quizId=${quiz.$id}`);
-                }}
-              >
-                <Ionicons name="eye-outline" size={18} color={colors.secondary.main} />
-                <Text variant="caption" style={styles.quizIconButtonText}>Preview</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.quizIconButton}
-                onPress={() => {
-                  Alert.alert(
-                    'Delete Quiz',
-                    'Are you sure you want to delete this quiz?',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Delete', 
-                        style: 'destructive',
-                        onPress: async () => {
-                          try {
-                            await appwriteService.deleteQuiz(quiz.$id);
-                            // Refresh the quizzes list
-                            fetchQuizzes(id as string);
-                            Alert.alert('Success', 'Quiz deleted successfully');
-                          } catch (error) {
-                            console.error('Failed to delete quiz:', error);
-                            Alert.alert('Error', 'Failed to delete quiz');
+                  <Ionicons name="eye" size={14} color={airbnbColors.secondary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.primary + '15' }]}
+                  onPress={() => router.push(`/(admin)/(quiz)/question-editor?quizId=${quiz.$id}`)}
+                >
+                  <Ionicons name="pencil" size={14} color={airbnbColors.primary} />
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionButton, { backgroundColor: airbnbColors.error + '15' }]}
+                  onPress={() => {
+                    Alert.alert(
+                      'Delete Quiz',
+                      'Are you sure you want to delete this quiz?',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        { 
+                          text: 'Delete', 
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await appwriteService.deleteQuiz(quiz.$id);
+                              fetchQuizzes(id as string);
+                              Alert.alert('Success', 'Quiz deleted successfully');
+                            } catch (error) {
+                              console.error('Failed to delete quiz:', error);
+                              Alert.alert('Error', 'Failed to delete quiz');
+                            }
                           }
                         }
-                      }
-                    ]
-                  );
-                }}
-              >
-                <Ionicons name="trash-outline" size={18} color={colors.status.error} />
-                <Text variant="caption" style={styles.quizIconButtonText}>Delete</Text>
-              </TouchableOpacity>
+                      ]
+                    );
+                  }}
+                >
+                  <Ionicons name="trash" size={14} color={airbnbColors.error} />
+                </TouchableOpacity>
+              </View>
             </View>
-          </Card>
-        ))}
+          ))}
+        </View>
       </View>
     );
   };
   
   const renderMaterials = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="document-outline" size={64} color={colors.neutral.lightGray} />
+    <View style={styles.emptyCard}>
+      <Ionicons name="document-outline" size={48} color={airbnbColors.mediumGray} />
       <Text style={styles.emptyText}>No additional materials yet</Text>
-      <Text style={styles.emptySubtext}>
-        Upload PDFs, worksheets, and other course materials
-      </Text>
-      <Button 
-        title="Upload Material" 
+      <Text style={styles.emptySubtext}>Upload PDFs, worksheets, and other course materials</Text>
+      <TouchableOpacity 
+        style={styles.createButton}
         onPress={() => Alert.alert('Coming Soon', 'Material uploads will be available in a future update')}
-        style={styles.emptyButton}
-      />
+      >
+        <Ionicons name="cloud-upload" size={20} color={airbnbColors.white} />
+        <Text style={styles.createButtonText}>Upload Material</Text>
+      </TouchableOpacity>
     </View>
   );
-  
-  const renderAnalytics = () => (
-    <View style={styles.emptyState}>
-      <Ionicons name="bar-chart-outline" size={64} color={colors.neutral.lightGray} />
-      <Text style={styles.emptyText}>Analytics Coming Soon</Text>
-      <Text style={styles.emptySubtext}>
-        Student progress and engagement metrics will be available here
-      </Text>
-    </View>
-  );
-  
+
+  // Display loading indicator
   if (loading) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.container}>
         <PreAuthHeader 
           title="Course Details"
           leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
           onLeftIconPress={() => router.back()}
         />
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
           <Text style={styles.loadingText}>Loading course details...</Text>
         </View>
       </SafeAreaView>
@@ -775,516 +620,619 @@ export default function CourseDetailsScreen() {
   
   if (!course) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.container}>
         <PreAuthHeader 
           title="Course Details"
           leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
           onLeftIconPress={() => router.back()}
         />
         <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle" size={48} color={airbnbColors.error} />
           <Text style={styles.errorText}>Course not found</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backButtonText}>Go Back</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
   
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       <PreAuthHeader 
         title="Course Details"
         leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
         onLeftIconPress={() => router.back()}
+        rightComponent={
+          <TouchableOpacity 
+            style={styles.editButton}
+            onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${course.$id}`)}
+          >
+            <Ionicons name="pencil" size={20} color={airbnbColors.primary} />
+          </TouchableOpacity>
+        }
       />
-      <ScrollView style={styles.container}>
-        <View style={styles.contentContainer}>
-          <Card style={styles.courseCard}>
-            <View style={styles.courseHeader}>
-              <View style={styles.courseImageContainer}>
-                {course.imageUrl ? (
-                  <Image 
-                    source={{ uri: course.imageUrl }} 
-                    style={styles.courseImage} 
-                    resizeMode="cover"
-                  />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="book-outline" size={40} color={colors.neutral.lightGray} />
-                  </View>
-                )}
-              </View>
-              
-              <View style={styles.courseInfo}>
-                <Text variant="h4" style={styles.courseTitle}>{course.title}</Text>
-                <View style={styles.courseMetaRow}>
-                  <View style={styles.metaBadge}>
-                    <Text variant="caption" style={styles.metaBadgeText}>
-                      {course.level.charAt(0).toUpperCase() + course.level.slice(1)}
-                    </Text>
-                  </View>
-                  <View style={styles.metaBadge}>
-                    <Text variant="caption" style={styles.metaBadgeText}>
-                      {course.category.charAt(0).toUpperCase() + course.category.slice(1)}
-                    </Text>
-                  </View>
-                  <View style={[
-                    styles.statusBadge, 
-                    { backgroundColor: course.isPublished ? colors.status.success + '20' : colors.neutral.lightGray }
-                  ]}>
-                    <Text 
-                      variant="caption" 
-                      style={styles.statusText}
-                      color={course.isPublished ? colors.status.success : colors.neutral.darkGray}
-                    >
+      
+      <ScrollView 
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.content}>
+          {/* Course Header Section */}
+          <Animated.View 
+            entering={FadeInDown.delay(100).duration(600)}
+            style={styles.courseSection}
+          >
+            <View style={styles.courseCard}>
+              {/* Course Image and Basic Info */}
+              <View style={styles.courseHeader}>
+                <View style={styles.imageContainer}>
+                  {course.imageUrl ? (
+                    <Image 
+                      source={{ uri: course.imageUrl }} 
+                      style={styles.courseImage} 
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.imagePlaceholder}>
+                      <Ionicons name="book" size={32} color={airbnbColors.mediumGray} />
+                    </View>
+                  )}
+                  <View style={[styles.statusBadge, { 
+                    backgroundColor: course.isPublished ? airbnbColors.success : airbnbColors.warning
+                  }]}>
+                    <Text style={styles.statusText}>
                       {course.isPublished ? 'Published' : 'Draft'}
                     </Text>
                   </View>
                 </View>
+                
+                <View style={styles.courseInfo}>
+                  <Text style={styles.courseTitle}>{course.title}</Text>
+                  <View style={styles.courseBadges}>
+                    <View style={[styles.levelBadge, { backgroundColor: getLevelColor(course.level) + '20' }]}>
+                      <Text style={[styles.levelText, { color: getLevelColor(course.level) }]}>
+                        {course.level?.charAt(0).toUpperCase() + course.level?.slice(1)}
+                      </Text>
+                    </View>
+                    <View style={styles.categoryBadge}>
+                      <Text style={styles.categoryText}>
+                        {course.category?.charAt(0).toUpperCase() + course.category?.slice(1)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+
+              {/* Course Description */}
+              <View style={styles.descriptionSection}>
+                <Text style={styles.descriptionTitle}>Description</Text>
+                <Text style={styles.descriptionText}>{course.description}</Text>
+              </View>
+
+              {/* Course Stats */}
+              <View style={styles.statsSection}>
+                <View style={styles.statItem}>
+                  <Ionicons name="list" size={20} color={airbnbColors.primary} />
+                  <Text style={styles.statNumber}>{course.totalLessons || lessons.length}</Text>
+                  <Text style={styles.statLabel}>Lessons</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="time" size={20} color={airbnbColors.secondary} />
+                  <Text style={styles.statNumber}>{course.estimatedDuration || 'N/A'}</Text>
+                  <Text style={styles.statLabel}>Duration</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Ionicons name="people" size={20} color={airbnbColors.warning} />
+                  <Text style={styles.statNumber}>0</Text>
+                  <Text style={styles.statLabel}>Students</Text>
+                </View>
+              </View>
+
+              {/* Quick Actions */}
+              <View style={styles.actionsSection}>
+                <TouchableOpacity 
+                  style={[styles.actionCard, { backgroundColor: airbnbColors.primary + '15' }]}
+                  onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${course.$id}`)}
+                >
+                  <Ionicons name="pencil" size={20} color={airbnbColors.primary} />
+                  <Text style={[styles.actionText, { color: airbnbColors.primary }]}>Edit Course</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={[styles.actionCard, { backgroundColor: airbnbColors.secondary + '15' }]}
+                  onPress={async () => {
+                    try {
+                      await appwriteService.updateCourse(course.$id, {
+                        isPublished: !course.isPublished
+                      });
+                      setCourse({
+                        ...course,
+                        isPublished: !course.isPublished
+                      });
+                      Alert.alert(
+                        'Success', 
+                        `Course ${course.isPublished ? 'unpublished' : 'published'} successfully`
+                      );
+                    } catch (error) {
+                      console.error('Failed to update course:', error);
+                      Alert.alert('Error', 'Failed to update course status');
+                    }
+                  }}
+                >
+                  <Ionicons 
+                    name={course.isPublished ? "eye-off" : "eye"} 
+                    size={20} 
+                    color={airbnbColors.secondary} 
+                  />
+                  <Text style={[styles.actionText, { color: airbnbColors.secondary }]}>
+                    {course.isPublished ? "Unpublish" : "Publish"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
-            
-            <View style={styles.courseActions}>
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={() => router.push(`/(admin)/(courses)/edit-course?id=${course.$id}`)}
-              >
-                <Ionicons name="pencil-outline" size={20} color={colors.primary.main} />
-                <Text variant="caption" style={styles.iconButtonText}>Edit</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={async () => {
-                  try {
-                    const updatedCourse = await appwriteService.updateCourse(course.$id, {
-                      isPublished: !course.isPublished
-                    });
-                    setCourse({
-                      ...course,
-                      isPublished: !course.isPublished
-                    });
-                    Alert.alert(
-                      'Success', 
-                      `Course ${course.isPublished ? 'unpublished' : 'published'} successfully`
-                    );
-                  } catch (error) {
-                    console.error('Failed to update course:', error);
-                    Alert.alert('Error', 'Failed to update course status');
-                  }
-                }}
-              >
-                <Ionicons 
-                  name={course.isPublished ? "eye-off-outline" : "eye-outline"} 
-                  size={20} 
-                  color={course.isPublished ? colors.secondary.main : colors.secondary.main} 
-                />
-                <Text variant="caption" style={styles.iconButtonText}>
-                  {course.isPublished ? "Unpublish" : "Publish"}
-                </Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.iconButton}
-                onPress={() => router.push(`/(admin)/(courses)/lessons?courseId=${course.$id}`)}
-              >
-                <Ionicons name="list-outline" size={20} color={colors.primary.dark} />
-                <Text variant="caption" style={styles.iconButtonText}>Lessons</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <View style={styles.courseDescription}>
-              <Text variant="subtitle1">Description</Text>
-              <Text variant="body2" style={styles.descriptionText}>
-                {course.description}
-              </Text>
-            </View>
-            
-            <View style={styles.courseStats}>
-              <View style={styles.statItem}>
-                <Text variant="h6">{course.totalLessons}</Text>
-                <Text variant="caption" color={colors.neutral.darkGray}>Lessons</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text variant="h6">{course.estimatedDuration || 'N/A'}</Text>
-                <Text variant="caption" color={colors.neutral.darkGray}>Duration</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text variant="h6">0</Text>
-                <Text variant="caption" color={colors.neutral.darkGray}>Students</Text>
-              </View>
-            </View>
-          </Card>
-          
+          </Animated.View>
+
           {renderTabs()}
-          
-          <View style={styles.tabContent}>
+
+          {/* Tab Content */}
+          <Animated.View 
+            entering={FadeInUp.delay(500).duration(600)}
+            style={styles.tabContentSection}
+          >
             {activeTab === 'lessons' && renderLessons()}
             {activeTab === 'instructors' && renderInstructors()}
             {activeTab === 'quizzes' && renderQuizzes()}
             {activeTab === 'materials' && renderMaterials()}
-            {activeTab === 'analytics' && renderAnalytics()}
-          </View>
+          </Animated.View>
         </View>
       </ScrollView>
+
+      {/* Modal for adding instructors */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Select Instructor</Text>
+            
+            {isLoading ? (
+              <ActivityIndicator size="large" color={airbnbColors.primary} />
+            ) : (
+              eligibleInstructors.length === 0 ? (
+                <Text style={styles.noInstructorsText}>No eligible instructors found</Text>
+              ) : (
+                <FlatList
+                  data={eligibleInstructors}
+                  keyExtractor={(item) => item.$id}
+                  style={styles.instructorList}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.instructorListItem}
+                      onPress={() => assignInstructor(item.userId)}
+                    >
+                      <View style={styles.instructorListContent}>
+                        <View style={styles.instructorListAvatar}>
+                          {item.profileImage ? (
+                            <Image
+                              source={{ uri: item.profileImage }}
+                              style={styles.listAvatarImage}
+                            />
+                          ) : (
+                            <Text style={styles.listAvatarText}>
+                              {item.displayName?.[0]?.toUpperCase() || 'I'}
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.instructorListDetails}>
+                          <Text style={styles.instructorListName}>{item.displayName}</Text>
+                          <Text style={styles.instructorListRole}>
+                            {item.isAdmin ? 'Admin' : 'Instructor'}
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+              )
+            )}
+            
+            <TouchableOpacity 
+              style={styles.cancelButton}
+              onPress={() => setIsModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: colors.neutral.white,
-  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: airbnbColors.offWhite,
   },
-  contentContainer: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: airbnbColors.offWhite,
+    paddingHorizontal: 20,
   },
   loadingText: {
-    marginTop: spacing.md,
-    color: colors.neutral.darkGray,
+    marginTop: 16,
+    fontSize: 16,
+    color: airbnbColors.darkGray,
+    fontWeight: '500',
   },
   errorText: {
-    color: colors.status.error,
+    fontSize: 18,
+    color: airbnbColors.error,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  backButton: {
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 20,
+  },
+  backButtonText: {
+    color: airbnbColors.white,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  editButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.lightGray,
+  },
+
+  // Course Section
+  courseSection: {
+    marginBottom: 24,
   },
   courseCard: {
-    padding: spacing.md,
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   courseHeader: {
     flexDirection: 'row',
-    marginBottom: spacing.md,
+    marginBottom: 20,
   },
-  courseImageContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    marginRight: spacing.md,
+  imageContainer: {
+    position: 'relative',
+    marginRight: 16,
   },
   courseImage: {
-    width: '100%',
-    height: '100%',
+    width: 100,
+    height: 100,
+    borderRadius: 12,
   },
   imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.neutral.background,
+    width: 100,
+    height: 100,
+    borderRadius: 12,
+    backgroundColor: airbnbColors.lightGray,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: airbnbColors.white,
   },
   courseInfo: {
     flex: 1,
   },
   courseTitle: {
-    marginBottom: spacing.xs,
-    color: colors.primary.main,
+    fontSize: 22,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 8,
+    lineHeight: 28,
   },
-  courseMetaRow: {
+  courseBadges: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    gap: 8,
   },
-  metaBadge: {
-    backgroundColor: colors.primary.light + '30',
-    paddingVertical: 2,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginRight: spacing.sm,
-    marginBottom: spacing.xs,
+  levelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  metaBadgeText: {
-    color: colors.primary.main,
+  levelText: {
+    fontSize: 12,
+    fontWeight: '600',
+    textTransform: 'capitalize',
   },
-  statusBadge: {
-    paddingVertical: 2,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.sm,
-    marginRight: spacing.sm,
-    marginBottom: spacing.xs,
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: airbnbColors.primaryLight,
   },
-  statusText: {
-    fontWeight: typography.fontWeights.medium as any,
+  categoryText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: airbnbColors.primary,
+    textTransform: 'capitalize',
   },
-  courseActions: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    paddingTop: spacing.md,
-    marginBottom: spacing.md,
-    justifyContent: 'space-between',
+  descriptionSection: {
+    marginBottom: 20,
   },
-  iconButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.xs,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-    marginRight: spacing.xs,
-    flex: 1,
-    minWidth: 70,
-  },
-  iconButtonText: {
-    marginTop: 4,
-    fontSize: typography.fontSizes.xs,
-    color: colors.neutral.text,
-    textAlign: 'center',
-  },
-  courseDescription: {
-    marginBottom: spacing.md,
+  descriptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginBottom: 8,
   },
   descriptionText: {
-    marginTop: spacing.xs,
-    color: colors.neutral.darkGray,
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    lineHeight: 20,
   },
-  courseStats: {
+  statsSection: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+    paddingTop: 20,
     borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    paddingTop: spacing.md,
+    borderTopColor: airbnbColors.lightGray,
   },
   statItem: {
-    flex: 1,
     alignItems: 'center',
+    flex: 1,
   },
-  tabContainer: {
+  statNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginTop: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: airbnbColors.darkGray,
+    marginTop: 2,
+  },
+  actionsSection: {
     flexDirection: 'row',
-    backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.md,
-    marginVertical: spacing.md,
-    padding: spacing.xs,
+    gap: 12,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: airbnbColors.lightGray,
+  },
+  actionCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  actionText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
+  // Tabs Section
+  tabsSection: {
+    marginBottom: 24,
+  },
+  tabsContainer: {
+    paddingVertical: 4,
   },
   tab: {
-    flex: 1,
-    paddingVertical: spacing.sm,
+    flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: borderRadius.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.lightGray,
+    marginRight: 12,
+    gap: 6,
   },
   activeTab: {
-    backgroundColor: colors.primary.light + '20',
+    backgroundColor: airbnbColors.primary,
   },
-  tabContent: {
-    marginBottom: spacing.xl,
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.mediumGray,
   },
-  sectionHeader: {
+  activeTabText: {
+    color: airbnbColors.white,
+  },
+
+  // Tab Content Section
+  tabContentSection: {
+    marginBottom: 24,
+  },
+  contentCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  contentHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 16,
   },
-  lessonCard: {
-    marginBottom: spacing.sm,
-    padding: spacing.md,
+  contentTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
   },
-  lessonHeader: {
+  addButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.primaryLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 4,
   },
-  lessonOrder: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.primary.light + '30',
+  addButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: airbnbColors.primary,
+  },
+
+  // Items List
+  itemsList: {
+    gap: 12,
+  },
+  itemCard: {
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.lightGray,
+  },
+  lastItem: {
+    borderBottomWidth: 0,
+    paddingBottom: 0,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    marginBottom: 12,
+  },
+  itemOrder: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: airbnbColors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.sm,
+    marginRight: 12,
   },
-  orderNumber: {
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.primary.main,
+  orderText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: airbnbColors.primary,
   },
-  lessonDetails: {
+  itemContent: {
     flex: 1,
   },
-  lessonTitleContainer: {
+  itemTitleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
   },
-  lessonTitle: {
+  itemTitle: {
     flex: 1,
-    marginRight: spacing.sm,
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginRight: 8,
   },
-  badgeContainer: {
+  itemBadges: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   videoBadge: {
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.secondary.light + '20',
+    backgroundColor: airbnbColors.secondaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.xs,
   },
-  lessonDescription: {
-    color: colors.neutral.darkGray,
-    marginBottom: spacing.xs,
+  itemDescription: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginBottom: 8,
+    lineHeight: 18,
   },
-  lessonMeta: {
+  itemMeta: {
     flexDirection: 'row',
-    alignItems: 'center',
+    gap: 16,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: spacing.md,
+    gap: 4,
   },
   metaText: {
-    marginLeft: 2,
+    fontSize: 12,
+    color: airbnbColors.mediumGray,
   },
-  lessonActions: {
+  itemActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    marginTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    paddingTop: spacing.sm,
+    gap: 8,
   },
-  lessonIconButton: {
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Quiz-specific styles
+  quizHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginLeft: spacing.sm,
-    backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
+    marginBottom: 12,
   },
-  lessonIconButtonText: {
-    marginLeft: spacing.xs,
-    color: colors.primary.main,
-    ...typography.caption,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.xl,
-  },
-  emptyText: {
-    fontSize: typography.fontSizes.lg,
-    color: colors.neutral.darkGray,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  emptySubtext: {
-    textAlign: 'center',
-    color: colors.neutral.gray,
-    marginBottom: spacing.md,
-  },
-  emptyButton: {
-    marginTop: spacing.sm,
-  },
-  modalContainer: {
-    flex: 1,
+  quizIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: airbnbColors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral.black + '80',
+    marginRight: 12,
   },
-  modalContent: {
-    width: '80%',
-    backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    elevation: 5,
-  },
-  modalTitle: {
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-    borderRadius: borderRadius.sm,
-    padding: spacing.sm,
-    marginBottom: spacing.md,
-    backgroundColor: colors.neutral.white,
-  },
-  addButton: {
-    marginTop: spacing.sm,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: spacing.sm,
-    right: spacing.sm,
-  },
+
+  // Instructor-specific styles
   instructorCard: {
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
-  instructorHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  instructorImageContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    overflow: 'hidden',
-    marginRight: spacing.sm,
-  },
-  instructorImage: {
-    width: '100%',
-    height: '100%',
-  },
-  instructorImagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: colors.neutral.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  instructorDetails: {
-    flex: 1,
-  },
-  instructorEmail: {
-    marginTop: 2,
-    color: colors.neutral.gray,
-  },
-  removeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-  },
-  removeButtonText: {
-    marginLeft: spacing.xs,
-    color: colors.status.error,
-    ...typography.caption,
-  },
-  noInstructorsText: {
-    textAlign: 'center',
-    color: colors.neutral.darkGray,
-    marginTop: spacing.md,
-  },
-  instructorList: {
-    maxHeight: 300,
-  },
-  instructorListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+    borderBottomColor: airbnbColors.lightGray,
   },
-  instructorListItemInner: {
+  instructorInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
@@ -1293,70 +1241,172 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    marginRight: 12,
     overflow: 'hidden',
-    marginRight: spacing.sm,
-    backgroundColor: colors.primary.light + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
-  instructorListItemContent: {
+  avatarPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: airbnbColors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.primary,
+  },
+  instructorDetails: {
     flex: 1,
   },
-  instructorRole: {
+  instructorName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+  },
+  instructorEmail: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
     marginTop: 2,
-    color: colors.neutral.gray,
+  },
+
+  // Empty/Loading States
+  emptyCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginTop: 4,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  loadingCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 40,
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxHeight: '80%',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  noInstructorsText: {
+    textAlign: 'center',
+    color: airbnbColors.darkGray,
+    marginVertical: 20,
+  },
+  instructorList: {
+    maxHeight: 300,
+    marginBottom: 20,
+  },
+  instructorListItem: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.lightGray,
+  },
+  instructorListContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  instructorListAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    overflow: 'hidden',
+  },
+  listAvatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  listAvatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.primary,
+  },
+  instructorListDetails: {
+    flex: 1,
+  },
+  instructorListName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
+  },
+  instructorListRole: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    marginTop: 2,
   },
   cancelButton: {
-    marginTop: spacing.md,
-  },
-  quizCard: {
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-  },
-  quizHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  quizTitle: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  quizDescription: {
-    color: colors.neutral.darkGray,
-    marginBottom: spacing.xs,
-  },
-  quizMeta: {
-    flexDirection: 'row',
+    backgroundColor: airbnbColors.lightGray,
+    paddingVertical: 12,
+    borderRadius: 12,
     alignItems: 'center',
   },
-  quizActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
-    paddingTop: spacing.sm,
-  },
-  quizIconButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginLeft: spacing.sm,
-    backgroundColor: colors.neutral.white,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-  },
-  quizIconButtonText: {
-    marginLeft: spacing.xs,
-    color: colors.primary.main,
-    ...typography.caption,
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: airbnbColors.charcoal,
   },
 });
