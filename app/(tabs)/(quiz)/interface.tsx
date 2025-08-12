@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, SafeAreaView, StyleSheet, TouchableOpacity, View } from 'react-native';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Text } from '../components/ui/Typography';
-import appwriteService from '../services/appwrite';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Text } from '../../../components/ui/Typography';
+import appwriteService from '../../../services/appwrite';
 
 // Types
 interface Question {
@@ -411,7 +411,7 @@ export default function QuizInterfaceScreen() {
 
   const handleFinishQuiz = () => {
     router.replace({
-      pathname: '/quiz-results',
+      pathname: '/(tabs)/(quiz)/results',
       params: {
         score: results.score,
         totalQuestions: results.totalQuestions,
@@ -496,7 +496,7 @@ export default function QuizInterfaceScreen() {
               <View style={styles.secondaryActions}>
                 <TouchableOpacity 
                   style={styles.secondaryAction}
-                  onPress={() => router.replace('/quiz-interface?mode=' + mode)}
+                  onPress={() => router.replace('/(tabs)/(quiz)/interface?mode=' + mode)}
                 >
                   <Ionicons name="refresh" size={20} color={airbnbColors.primary} />
                   <Text style={styles.secondaryActionText}>Try Again</Text>

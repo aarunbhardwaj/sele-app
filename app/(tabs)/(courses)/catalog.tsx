@@ -1,221 +1,325 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { FlatList, Image, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import Header from '../../../components/ui/Header';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
-import Text from '../../../components/ui/Typography';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Image, RefreshControl, SafeAreaView, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Text } from '../../../components/ui/Typography';
+import { useAuth } from '../../../services/AuthContext';
+import appwriteService from '../../../services/appwrite';
 
-// Mock data for course categories
+// Airbnb-inspired color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
+
+const spacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+const typography = {
+  fontSizes: {
+    xs: 12,
+    sm: 14,
+    md: 16,
+    lg: 18,
+    xl: 20,
+    xxl: 24,
+  },
+  fontWeights: {
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+  },
+};
+
+// Course categories for filtering
 const categories = [
-  { id: '1', name: 'All Courses', icon: 'book' },
-  { id: '2', name: 'Pronunciation', icon: 'mic' },
-  { id: '3', name: 'Grammar', icon: 'school' },
-  { id: '4', name: 'Vocabulary', icon: 'text' },
-  { id: '5', name: 'Conversation', icon: 'chatbubbles' },
-  { id: '6', name: 'Business', icon: 'briefcase' },
+  { id: 'all', name: 'All Courses', icon: 'book' as const },
+  { id: 'pronunciation', name: 'Pronunciation', icon: 'mic' as const },
+  { id: 'grammar', name: 'Grammar', icon: 'school' as const },
+  { id: 'vocabulary', name: 'Vocabulary', icon: 'text' as const },
+  { id: 'conversation', name: 'Conversation', icon: 'chatbubbles' as const },
+  { id: 'business', name: 'Business', icon: 'briefcase' as const },
 ];
 
-// Mock data for featured courses
-const featuredCourses = [
-  {
-    id: '1',
-    title: 'Complete British English Masterclass',
-    level: 'All Levels',
-    rating: 4.9,
-    reviews: 1243,
-    students: 15420,
-    price: 89.99,
-    discountPrice: 49.99,
-    instructor: 'Emma Thompson',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: true,
-  },
-  {
-    id: '2',
-    title: 'British Accent: Pronunciation Secrets',
-    level: 'Beginner',
-    rating: 4.7,
-    reviews: 853,
-    students: 9240,
-    price: 69.99,
-    discountPrice: 34.99,
-    instructor: 'James Wilson',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: false,
-  },
-];
+// Level colors for difficulty badges
+const levelColors = {
+  beginner: airbnbColors.success,
+  intermediate: airbnbColors.warning,
+  advanced: airbnbColors.error,
+} as const;
 
-// Mock data for all courses
-const allCourses = [
-  {
-    id: '3',
-    title: 'Advanced Business English & Presentations',
-    level: 'Advanced',
-    rating: 4.8,
-    reviews: 654,
-    students: 7320,
-    price: 79.99,
-    discountPrice: 39.99,
-    instructor: 'Robert Clark',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: true,
-    category: 'Business'
-  },
-  {
-    id: '4',
-    title: 'British Idioms and Expressions',
-    level: 'Intermediate',
-    rating: 4.6,
-    reviews: 421,
-    students: 5180,
-    price: 59.99,
-    discountPrice: 29.99,
-    instructor: 'Sarah Johnson',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: false,
-    category: 'Vocabulary'
-  },
-  {
-    id: '5',
-    title: 'Perfect Your Grammar: British English Rules',
-    level: 'All Levels',
-    rating: 4.5,
-    reviews: 376,
-    students: 4230,
-    price: 64.99,
-    discountPrice: 32.99,
-    instructor: 'Michael Brown',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: false,
-    category: 'Grammar'
-  },
-  {
-    id: '6',
-    title: 'Conversational Fluency in British English',
-    level: 'Intermediate',
-    rating: 4.7,
-    reviews: 583,
-    students: 6750,
-    price: 74.99,
-    discountPrice: 37.99,
-    instructor: 'Emily White',
-    image: require('../../../assets/images/app-logo.png'),
-    isBestseller: true,
-    category: 'Conversation'
-  },
-  // More courses...
-];
+// Define Course interface based on Appwrite document structure
+interface Course {
+  $id: string;
+  title: string;
+  description?: string;
+  level?: string;
+  category?: string;
+  totalLessons?: number;
+  estimatedDuration?: string;
+  isPublished?: boolean;
+  imageUrl?: string;
+  createdAt?: string;
+  $createdAt?: string;
+}
 
 export default function CoursesCatalogScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('1'); // Default to 'All Courses'
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [featuredCourses, setFeaturedCourses] = useState<Course[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   
-  // Filter courses based on search query and selected category
-  const filteredCourses = allCourses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    if (selectedCategory === '1') return matchesSearch; // All Courses
-    
-    const categoryName = categories.find(cat => cat.id === selectedCategory)?.name;
-    return matchesSearch && course.category === categoryName;
-  });
+  // Memoize filtered courses to prevent unnecessary re-renders
+  const filteredCourses = useMemo(() => {
+    return courses.filter(course => {
+      const matchesSearch = course.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           course.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (selectedCategory === 'all') return matchesSearch;
+      
+      // Match category with course category or level
+      const categoryName = categories.find(cat => cat.id === selectedCategory)?.name.toLowerCase();
+      return matchesSearch && (
+        course.category?.toLowerCase().includes(categoryName || '') ||
+        course.level?.toLowerCase().includes(categoryName || '')
+      );
+    });
+  }, [courses, searchQuery, selectedCategory]);
 
-  const renderCourseCard = ({ item }) => (
-    <Card
-      variant="elevated"
-      style={styles.courseCard}
-    >
+  // Fetch courses from Appwrite
+  const fetchCourses = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+      setError(null);
+      
+      // Fetch all published courses
+      const allCourses = await appwriteService.getAllCourses([
+        // Add query filters for published courses if needed
+      ]);
+      
+      // Filter only published courses and safely cast to Course interface
+      const publishedCourses = allCourses.filter(course => course.isPublished).map(course => ({
+        $id: course.$id,
+        title: course.title || 'Untitled Course',
+        description: course.description,
+        level: course.level,
+        category: course.category,
+        totalLessons: course.totalLessons,
+        estimatedDuration: course.estimatedDuration,
+        isPublished: course.isPublished,
+        imageUrl: course.imageUrl,
+        createdAt: course.createdAt,
+        $createdAt: course.$createdAt,
+      })) as Course[];
+      
+      // Sort courses by creation date (newest first)
+      const sortedCourses = publishedCourses.sort((a, b) => 
+        new Date(b.createdAt || b.$createdAt || '').getTime() - new Date(a.createdAt || a.$createdAt || '').getTime()
+      );
+      
+      setCourses(sortedCourses);
+      
+      // Set featured courses (first 3 courses or courses with special criteria)
+      setFeaturedCourses(sortedCourses.slice(0, 3));
+      
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+      setError('Failed to load courses. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchCourses(false);
+  }, [fetchCourses]);
+
+  const getDifficultyColor = useCallback((level: string | undefined): string => {
+    const normalizedLevel = level?.toLowerCase() as keyof typeof levelColors;
+    return levelColors[normalizedLevel] || levelColors.beginner;
+  }, []);
+
+  const formatDuration = useCallback((duration: string | undefined): string => {
+    if (!duration) return '4 weeks';
+    return duration;
+  }, []);
+
+  // Simplified course card without complex animations
+  const renderCourseCard = useCallback(({ item, index }: { item: Course; index: number }) => (
+    <View style={styles.courseCard} key={item.$id}>
       <TouchableOpacity 
-        onPress={() => router.push(`/(tabs)/(courses)/details?id=${item.id}`)}
+        onPress={() => router.push(`/(tabs)/(courses)/details?id=${item.$id}`)}
+        activeOpacity={0.8}
       >
-        <View style={styles.imageContainer}>
-          <Image 
-            source={item.image} 
-            style={styles.courseImage} 
-            resizeMode="cover" 
-          />
-          {item.isBestseller && (
-            <View style={styles.bestsellerBadge}>
-              <Text variant="caption" color={colors.neutral.black} style={styles.bestsellerText}>Bestseller</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.courseContent}>
-          <View style={styles.courseHeader}>
-            <Text variant="subtitle2" color={colors.secondary.main}>{item.level}</Text>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={14} color={colors.accent.main} />
-              <Text variant="caption" color={colors.neutral.darkGray} style={styles.ratingText}>{item.rating} ({item.reviews} reviews)</Text>
+        <Card style={styles.courseCardContent}>
+          <View style={styles.imageContainer}>
+            <Image 
+              source={item.imageUrl ? { uri: item.imageUrl } : require('../../../assets/images/app-logo.png')} 
+              style={styles.courseImage} 
+              resizeMode="cover" 
+            />
+            <View style={[styles.levelBadge, { backgroundColor: getDifficultyColor(item.level) + '20' }]}>
+              <Text style={[styles.levelText, { color: getDifficultyColor(item.level) }] as any}>
+                {item.level ? (item.level.charAt(0).toUpperCase() + item.level.slice(1)) : 'Beginner'}
+              </Text>
             </View>
           </View>
           
-          <Text variant="h5" style={styles.courseTitle}>{item.title}</Text>
-          
-          <Text variant="caption" color={colors.neutral.darkGray} style={styles.instructorText}>By {item.instructor} • {item.students} students</Text>
-          
-          <View style={styles.priceContainer}>
-            <Text variant="subtitle1" color={colors.neutral.text} style={styles.discountPrice}>£{item.discountPrice}</Text>
-            <Text variant="body2" color={colors.neutral.gray} style={styles.originalPrice}>£{item.price}</Text>
+          <View style={styles.courseContent}>
+            <View style={styles.courseHeader}>
+              <Text variant="caption" style={styles.categoryText}>{item.category || 'General'}</Text>
+              <View style={styles.durationContainer}>
+                <Ionicons name="time-outline" size={12} color={airbnbColors.mediumGray} />
+                <Text variant="caption" style={styles.durationText}>{formatDuration(item.estimatedDuration)}</Text>
+              </View>
+            </View>
+            
+            <Text variant="subtitle1" style={styles.courseTitle} numberOfLines={2}>
+              {item.title}
+            </Text>
+            
+            <Text variant="body2" style={styles.courseDescription} numberOfLines={3}>
+              {item.description || 'Enhance your English skills with this comprehensive course.'}
+            </Text>
+            
+            <View style={styles.courseFooter}>
+              <View style={styles.lessonsInfo}>
+                <Ionicons name="play-circle-outline" size={16} color={airbnbColors.primary} />
+                <Text variant="caption" style={styles.lessonsText}>
+                  {item.totalLessons || 0} lessons
+                </Text>
+              </View>
+              
+              <TouchableOpacity style={styles.enrollButton}>
+                <Text variant="button" style={styles.enrollButtonText}>Start Learning</Text>
+                <Ionicons name="arrow-forward" size={16} color={airbnbColors.primary} />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        </Card>
       </TouchableOpacity>
-    </Card>
-  );
+    </View>
+  ), [router, getDifficultyColor, formatDuration]);
 
-  const renderCategoryButton = ({ item }) => (
+  // Simplified category button without complex animations
+  const renderCategoryButton = useCallback(({ item }: { item: typeof categories[0] }) => (
     <TouchableOpacity 
+      key={item.id}
       style={[
         styles.categoryButton,
         selectedCategory === item.id ? styles.categoryButtonActive : styles.categoryButtonInactive
       ]}
       onPress={() => setSelectedCategory(item.id)}
+      activeOpacity={0.7}
     >
       <Ionicons 
         name={item.icon} 
         size={16} 
-        color={selectedCategory === item.id ? colors.neutral.white : colors.neutral.darkGray} 
+        color={selectedCategory === item.id ? airbnbColors.white : airbnbColors.darkGray} 
       />
       <Text 
         variant="body2" 
-        color={selectedCategory === item.id ? colors.neutral.white : colors.neutral.text}
-        style={styles.categoryButtonText}
+        style={[
+          styles.categoryButtonText,
+          { color: selectedCategory === item.id ? airbnbColors.white : airbnbColors.darkGray }
+        ] as any}
       >
         {item.name}
       </Text>
     </TouchableOpacity>
-  );
+  ), [selectedCategory]);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <Text variant="body1" style={styles.loadingText}>Loading courses...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Header 
-          title="Courses" 
-          showLogo={true}
-          rightIcon={<Ionicons name="search" size={22} color={colors.neutral.darkGray} />}
-          onRightIconPress={() => {
-            // Focus the search input
-            // In a real app, you might want to show/hide a separate search screen
-          }}
-        />
-        <ScrollView style={styles.scrollView}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            <View>
+              <Text variant="h3" style={styles.headerTitle}>Explore Courses</Text>
+              <Text variant="body2" style={styles.headerSubtitle}>
+                Discover your perfect learning path
+              </Text>
+            </View>
+            <TouchableOpacity style={styles.profileButton}>
+              <View style={styles.profileImageContainer}>
+                <Text style={styles.profileInitial}>{user?.email?.charAt(0).toUpperCase() || 'U'}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <ScrollView 
+          style={styles.scrollView}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[airbnbColors.primary]}
+              tintColor={airbnbColors.primary}
+            />
+          }
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.content}>
             {/* Search Bar */}
             <View style={styles.searchBar}>
-              <Ionicons name="search" size={20} color={colors.neutral.gray} />
+              <Ionicons name="search" size={20} color={airbnbColors.mediumGray} />
               <TextInput
                 style={styles.searchInput}
-                placeholder="Search courses, instructors, etc."
-                placeholderTextColor={colors.neutral.gray}
+                placeholder="Search courses, topics..."
+                placeholderTextColor={airbnbColors.mediumGray}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={() => setSearchQuery('')}>
-                  <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
+                  <Ionicons name="close-circle" size={20} color={airbnbColors.mediumGray} />
                 </TouchableOpacity>
               )}
             </View>
@@ -227,72 +331,73 @@ export default function CoursesCatalogScreen() {
                 horizontal 
                 showsHorizontalScrollIndicator={false}
                 style={styles.categoriesScrollView}
+                contentContainerStyle={styles.categoriesContent}
               >
-                {categories.map(item => (
-                  <React.Fragment key={item.id}>
-                    {renderCategoryButton({ item })}
-                  </React.Fragment>
-                ))}
+                {categories.map((item) => renderCategoryButton({ item }))}
               </ScrollView>
             </View>
 
-            {/* Featured Courses */}
-            {selectedCategory === '1' && searchQuery === '' && (
-              <View style={styles.featuredSection}>
-                <View style={styles.sectionHeader}>
-                  <Text variant="h5" style={styles.sectionTitle}>Featured Courses</Text>
-                  <TouchableOpacity>
-                    <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
-                  </TouchableOpacity>
-                </View>
-                
-                <FlatList
-                  data={featuredCourses}
-                  renderItem={renderCourseCard}
-                  keyExtractor={item => item.id}
-                  scrollEnabled={false}
+            {/* Error State */}
+            {error && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={24} color={airbnbColors.error} />
+                <Text variant="body1" style={styles.errorText}>{error}</Text>
+                <Button
+                  title="Try Again"
+                  onPress={() => fetchCourses()}
+                  style={styles.retryButton}
                 />
               </View>
             )}
 
-            {/* All Courses or Filtered Courses */}
-            <View style={styles.coursesSection}>
-              <View style={styles.sectionHeader}>
-                <Text variant="h5" style={styles.sectionTitle}>
-                  {selectedCategory === '1' && searchQuery === '' ? 'Popular Courses' : 'Courses'}
-                </Text>
-                {selectedCategory === '1' && searchQuery === '' && (
-                  <TouchableOpacity>
-                    <Text variant="body2" color={colors.secondary.main} style={styles.seeAllText}>See All</Text>
+            {/* Featured Courses */}
+            {!error && selectedCategory === 'all' && searchQuery === '' && featuredCourses.length > 0 && (
+              <View style={styles.featuredSection}>
+                <View style={styles.sectionHeader}>
+                  <Text variant="h5" style={styles.sectionTitle}>Featured Courses</Text>
+                  <TouchableOpacity onPress={() => setSelectedCategory('all')}>
+                    <Text variant="body2" style={styles.seeAllText}>See all</Text>
                   </TouchableOpacity>
+                </View>
+                
+                {featuredCourses.map((item, index) => renderCourseCard({ item, index }))}
+              </View>
+            )}
+
+            {/* All Courses or Filtered Courses */}
+            {!error && (
+              <View style={styles.coursesSection}>
+                <View style={styles.sectionHeader}>
+                  <Text variant="h5" style={styles.sectionTitle}>
+                    {selectedCategory === 'all' && searchQuery === '' ? 'All Courses' : 'Courses'}
+                    {filteredCourses.length > 0 && (
+                      <Text variant="body2" style={styles.courseCount}> ({filteredCourses.length})</Text>
+                    )}
+                  </Text>
+                </View>
+                
+                {filteredCourses.length > 0 ? (
+                  filteredCourses.map((item, index) => renderCourseCard({ item, index }))
+                ) : !loading && (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="book-outline" size={64} color={airbnbColors.mediumGray} />
+                    <Text variant="h6" style={styles.emptyStateTitle}>No courses found</Text>
+                    <Text variant="body2" style={styles.emptyStateText}>
+                      {searchQuery ? "Try adjusting your search terms" : "No courses available in this category"}
+                    </Text>
+                    <Button
+                      title="View All Courses"
+                      variant="outline"
+                      onPress={() => {
+                        setSearchQuery('');
+                        setSelectedCategory('all');
+                      }}
+                      style={styles.emptyStateButton}
+                    />
+                  </View>
                 )}
               </View>
-              
-              {filteredCourses.length > 0 ? (
-                <FlatList
-                  data={filteredCourses}
-                  renderItem={renderCourseCard}
-                  keyExtractor={item => item.id}
-                  scrollEnabled={false}
-                />
-              ) : (
-                <View style={styles.emptyState}>
-                  <Ionicons name="search" size={64} color={colors.neutral.lightGray} />
-                  <Text variant="body1" color={colors.neutral.gray} style={styles.emptyStateText}>
-                    No courses found matching your criteria.
-                  </Text>
-                  <Button
-                    title="View All Courses"
-                    variant="primary"
-                    onPress={() => {
-                      setSearchQuery('');
-                      setSelectedCategory('1');
-                    }}
-                    style={styles.emptyStateButton}
-                  />
-                </View>
-              )}
-            </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -303,69 +408,129 @@ export default function CoursesCatalogScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: airbnbColors.offWhite,
   },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: airbnbColors.offWhite,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.offWhite,
+  },
+  loadingText: {
+    marginTop: spacing.md,
+    color: airbnbColors.darkGray,
+  },
+  header: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.lg,
+    backgroundColor: airbnbColors.offWhite,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.lightGray,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    color: airbnbColors.charcoal,
+    fontWeight: typography.fontWeights.bold,
+    fontSize: typography.fontSizes.xxl,
+  },
+  headerSubtitle: {
+    color: airbnbColors.darkGray,
+    marginTop: spacing.xs,
+  },
+  profileButton: {
+    padding: spacing.xs,
+  },
+  profileImageContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileInitial: {
+    color: airbnbColors.white,
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.semibold,
   },
   scrollView: {
     flex: 1,
   },
   content: {
     paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-    paddingTop: spacing.md,
-  },
-  header: {
-    marginBottom: spacing.xl,
-  },
-  subtitle: {
-    marginTop: spacing.xs,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.md,
+    backgroundColor: airbnbColors.white,
+    borderRadius: 12,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
     marginLeft: spacing.sm,
-    color: colors.neutral.text,
+    color: airbnbColors.charcoal,
     fontSize: typography.fontSizes.md,
   },
   categoriesSection: {
     marginBottom: spacing.xl,
   },
   categoriesScrollView: {
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
+  },
+  categoriesContent: {
+    paddingRight: spacing.lg,
   },
   sectionTitle: {
+    color: airbnbColors.charcoal,
     fontWeight: typography.fontWeights.semibold,
-    marginBottom: spacing.sm,
+    fontSize: typography.fontSizes.lg,
+  },
+  courseCount: {
+    color: airbnbColors.mediumGray,
+    fontWeight: typography.fontWeights.regular,
   },
   categoryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    marginRight: spacing.md,
+    borderRadius: 20,
+    marginRight: spacing.sm,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   categoryButtonActive: {
-    backgroundColor: colors.primary.main,
+    backgroundColor: airbnbColors.primary,
   },
   categoryButtonInactive: {
-    backgroundColor: colors.neutral.lightGray,
+    backgroundColor: airbnbColors.white,
   },
   categoryButtonText: {
     marginLeft: spacing.xs,
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.medium,
   },
   featuredSection: {
     marginBottom: spacing.xl,
@@ -374,33 +539,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   seeAllText: {
+    color: airbnbColors.primary,
     fontWeight: typography.fontWeights.medium,
   },
   courseCard: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  courseCardContent: {
     overflow: 'hidden',
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
   },
   imageContainer: {
     position: 'relative',
+    height: 180,
   },
   courseImage: {
     width: '100%',
-    height: 144, // Fixed height for course images
+    height: '100%',
   },
-  bestsellerBadge: {
+  featuredBadge: {
     position: 'absolute',
     top: spacing.sm,
     left: spacing.sm,
-    backgroundColor: colors.accent.light,
+    backgroundColor: airbnbColors.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 4,
     paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.sm,
+    borderRadius: 12,
   },
-  bestsellerText: {
-    fontWeight: typography.fontWeights.bold,
+  featuredText: {
+    color: airbnbColors.white,
+    marginLeft: 4,
+    fontSize: 10,
+    fontWeight: typography.fontWeights.semibold,
+  },
+  levelBadge: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    paddingVertical: 4,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+  },
+  levelText: {
+    fontSize: 10,
+    fontWeight: typography.fontWeights.semibold,
   },
   courseContent: {
     padding: spacing.md,
@@ -409,32 +602,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  ratingContainer: {
+  categoryText: {
+    color: airbnbColors.primary,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.semibold,
+    textTransform: 'uppercase',
+  },
+  durationContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  ratingText: {
+  durationText: {
+    color: airbnbColors.mediumGray,
     marginLeft: 4,
+    fontSize: typography.fontSizes.xs,
   },
   courseTitle: {
+    color: airbnbColors.charcoal,
     fontWeight: typography.fontWeights.semibold,
     marginBottom: spacing.sm,
+    lineHeight: 22,
   },
-  instructorText: {
-    marginBottom: spacing.sm,
+  courseDescription: {
+    color: airbnbColors.darkGray,
+    marginBottom: spacing.md,
+    lineHeight: 20,
   },
-  priceContainer: {
+  courseFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  lessonsInfo: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  discountPrice: {
-    fontWeight: typography.fontWeights.bold,
+  lessonsText: {
+    color: airbnbColors.darkGray,
+    marginLeft: spacing.xs,
+    fontSize: typography.fontSizes.xs,
   },
-  originalPrice: {
-    marginLeft: spacing.sm,
-    textDecorationLine: 'line-through',
+  enrollButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.primaryLight,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderRadius: 8,
+  },
+  enrollButtonText: {
+    color: airbnbColors.primary,
+    marginRight: spacing.xs,
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.semibold,
   },
   coursesSection: {
     marginBottom: spacing.lg,
@@ -443,13 +665,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyStateTitle: {
+    color: airbnbColors.charcoal,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+    fontWeight: typography.fontWeights.semibold,
   },
   emptyStateText: {
+    color: airbnbColors.mediumGray,
     textAlign: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
+    lineHeight: 20,
   },
   emptyStateButton: {
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
+  },
+  errorContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: airbnbColors.white,
+    borderRadius: 12,
+    marginBottom: spacing.lg,
+  },
+  errorText: {
+    color: airbnbColors.error,
+    textAlign: 'center',
+    marginVertical: spacing.md,
+  },
+  retryButton: {
+    marginTop: spacing.sm,
   },
 });

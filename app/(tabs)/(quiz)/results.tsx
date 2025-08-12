@@ -10,9 +10,9 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Text } from '../components/ui/Typography';
+import { Button } from '../../../components/ui/Button';
+import { Card } from '../../../components/ui/Card';
+import { Text } from '../../../components/ui/Typography';
 
 // Airbnb-inspired color palette
 const airbnbColors = {
@@ -386,7 +386,7 @@ export default function QuizResultsScreen() {
             <Button
               title="Practice Again"
               variant="primary"
-              onPress={() => router.replace('/quiz-interface?mode=practice')}
+              onPress={() => router.replace('/(tabs)/(quiz)/interface?mode=practice')}
               style={styles.primaryButton}
               leftIcon={<Ionicons name="refresh" size={18} color={airbnbColors.white} />}
             />
@@ -394,7 +394,7 @@ export default function QuizResultsScreen() {
             <View style={styles.secondaryButtons}>
               <TouchableOpacity 
                 style={styles.secondaryButton}
-                onPress={() => router.replace('/quiz-interface?mode=timed')}
+                onPress={() => router.replace('/(tabs)/(quiz)/interface?mode=timed')}
               >
                 <Ionicons name="timer" size={20} color={airbnbColors.primary} />
                 <Text style={styles.secondaryButtonText}>Timed Challenge</Text>

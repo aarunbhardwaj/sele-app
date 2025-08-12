@@ -4,13 +4,31 @@ import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Switch, TextInput, TouchableOpacity, View } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 import { useAuth } from '../../../services/AuthContext';
+
+// Airbnb-inspired color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
+  secondary: '#00A699',
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
+};
 
 const Profile = () => {
     const router = useRouter();
@@ -246,8 +264,8 @@ const Profile = () => {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.primary.main} />
-                <Text variant="body1" color={colors.neutral.darkGray} style={styles.loadingText}>Loading profile...</Text>
+                <ActivityIndicator size="large" color={airbnbColors.primary} />
+                <Text style={styles.loadingText}>Loading your profile...</Text>
             </View>
         );
     }
@@ -257,358 +275,357 @@ const Profile = () => {
             <PreAuthHeader 
                 title="Profile" 
                 rightComponent={
-                    <TouchableOpacity onPress={() => setEditing(!editing)}>
+                    <TouchableOpacity 
+                        onPress={() => setEditing(!editing)}
+                        style={styles.editButton}
+                    >
                         {!editing ? (
-                            <Ionicons name="pencil" size={22} color={colors.primary.main} />
+                            <Ionicons name="pencil" size={22} color={airbnbColors.primary} />
                         ) : (
-                            <Ionicons name="close" size={22} color={colors.neutral.darkGray} />
+                            <Ionicons name="close" size={22} color={airbnbColors.darkGray} />
                         )}
                     </TouchableOpacity>
                 }
             />
-            <ScrollView style={styles.scrollView}>
+            
+            <ScrollView 
+                style={styles.scrollView}
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
+            >
                 <View style={styles.content}>
-                    {/* Profile Card */}
-                    <Card style={styles.profileCard}>
-                        {!editing ? (
-                            <>
-                                <View style={styles.profileHeader}>
-                                    <Image 
-                                        source={
-                                            userProfile?.profileImage 
-                                                ? { uri: userProfile.profileImage } 
-                                                : require('../../../assets/images/app-logo.png')
-                                        }
-                                        style={styles.profileImage}
-                                        resizeMode="cover"
-                                    />
+                    {/* Hero Profile Section */}
+                    <Animated.View 
+                        entering={FadeInDown.delay(100).duration(600)}
+                        style={styles.heroSection}
+                    >
+                        <View style={styles.profileContainer}>
+                            {!editing ? (
+                                <>
+                                    <View style={styles.profileImageContainer}>
+                                        <Image 
+                                            source={
+                                                userProfile?.profileImage 
+                                                    ? { uri: userProfile.profileImage } 
+                                                    : require('../../../assets/images/app-logo.png')
+                                            }
+                                            style={styles.profileImage}
+                                            resizeMode="cover"
+                                        />
+                                        <View style={styles.statusIndicator} />
+                                    </View>
+                                    
                                     <View style={styles.profileInfo}>
-                                        <Text variant="h5" style={styles.profileName}>{userProfile?.displayName || user?.name || 'User'}</Text>
-                                        <Text variant="body2" color={colors.neutral.darkGray}>{user?.email || 'No email provided'}</Text>
-                                        <View style={styles.profileBadges}>
-                                            <View style={styles.levelBadge}>
-                                                <Text variant="caption" color={colors.secondary.dark} style={styles.badgeText}>{userProfile?.englishLevel || 'Beginner'}</Text>
+                                        <Text style={styles.profileName}>
+                                            {userProfile?.displayName || user?.name || 'User'}
+                                        </Text>
+                                        <Text style={styles.profileEmail}>
+                                            {user?.email || 'No email provided'}
+                                        </Text>
+                                        
+                                        <View style={styles.badgeContainer}>
+                                            <View style={[styles.badge, styles.levelBadge]}>
+                                                <Ionicons name="school" size={14} color={airbnbColors.secondary} />
+                                                <Text style={styles.badgeText}>
+                                                    {userProfile?.englishLevel || 'Beginner'}
+                                                </Text>
                                             </View>
-                                            <View style={styles.languageBadge}>
-                                                <Ionicons name="globe-outline" size={14} color={colors.neutral.darkGray} />
-                                                <Text variant="caption" color={colors.neutral.darkGray} style={styles.languageText}>{userProfile?.nativeLanguage || 'Not specified'}</Text>
+                                            
+                                            <View style={[styles.badge, styles.languageBadge]}>
+                                                <Ionicons name="globe" size={14} color={airbnbColors.darkGray} />
+                                                <Text style={[styles.badgeText, styles.languageBadgeText]}>
+                                                    {userProfile?.nativeLanguage || 'Not specified'}
+                                                </Text>
                                             </View>
                                         </View>
                                     </View>
-                                </View>
+                                </>
+                            ) : (
+                                // Editing Mode
+                                <View style={styles.editingContainer}>
+                                    <TouchableOpacity 
+                                        style={styles.editImageContainer}
+                                        onPress={handleSelectImage}
+                                    >
+                                        <Image 
+                                            source={
+                                                formData.profileImage 
+                                                    ? { uri: formData.profileImage } 
+                                                    : require('../../../assets/images/app-logo.png')
+                                            }
+                                            style={styles.editProfileImage}
+                                            resizeMode="cover"
+                                        />
+                                        <View style={styles.cameraOverlay}>
+                                            <Ionicons name="camera" size={20} color={airbnbColors.white} />
+                                        </View>
+                                    </TouchableOpacity>
 
-                                <View style={styles.sectionDivider}>
-                                    <Text variant="subtitle2" color={colors.neutral.text}>Learning Goal</Text>
-                                    <Text variant="body2" color={colors.neutral.darkGray} style={styles.goalText}>{userProfile?.learningGoal || 'No learning goal set'}</Text>
-                                </View>
+                                    <View style={styles.editForm}>
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>Display Name</Text>
+                                            <TextInput
+                                                style={styles.textInput}
+                                                value={formData.displayName}
+                                                onChangeText={(text) => setFormData({...formData, displayName: text})}
+                                                placeholder="Enter your name"
+                                                placeholderTextColor={airbnbColors.mediumGray}
+                                            />
+                                        </View>
 
-                                <View style={styles.statsContainer}>
-                                    <View style={styles.statItem}>
-                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>{userProfile?.dailyGoalMinutes || 15}</Text>
-                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Minutes/Day</Text>
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>Native Language</Text>
+                                            <TextInput
+                                                style={styles.textInput}
+                                                value={formData.nativeLanguage}
+                                                onChangeText={(text) => setFormData({...formData, nativeLanguage: text})}
+                                                placeholder="Your native language"
+                                                placeholderTextColor={airbnbColors.mediumGray}
+                                            />
+                                        </View>
+
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>English Level</Text>
+                                            <View style={styles.levelSelector}>
+                                                {englishLevelOptions.map((level) => (
+                                                    <TouchableOpacity
+                                                        key={level}
+                                                        style={[
+                                                            styles.levelOption,
+                                                            formData.englishLevel === level && styles.selectedLevel
+                                                        ]}
+                                                        onPress={() => setFormData({...formData, englishLevel: level})}
+                                                    >
+                                                        <Text style={[
+                                                            styles.levelText,
+                                                            formData.englishLevel === level && styles.selectedLevelText
+                                                        ]}>
+                                                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        </View>
+
+                                        <View style={styles.inputGroup}>
+                                            <Text style={styles.inputLabel}>Learning Goal</Text>
+                                            <TextInput
+                                                style={[styles.textInput, styles.textArea]}
+                                                value={formData.learningGoal}
+                                                onChangeText={(text) => setFormData({...formData, learningGoal: text})}
+                                                placeholder="What do you want to achieve?"
+                                                placeholderTextColor={airbnbColors.mediumGray}
+                                                multiline={true}
+                                                numberOfLines={3}
+                                                textAlignVertical="top"
+                                            />
+                                        </View>
+
+                                        <TouchableOpacity
+                                            style={styles.saveButton}
+                                            onPress={handleSaveProfile}
+                                            disabled={saving}
+                                        >
+                                            {saving ? (
+                                                <ActivityIndicator size="small" color={airbnbColors.white} />
+                                            ) : (
+                                                <>
+                                                    <Ionicons name="checkmark" size={20} color={airbnbColors.white} />
+                                                    <Text style={styles.saveButtonText}>Save Changes</Text>
+                                                </>
+                                            )}
+                                        </TouchableOpacity>
                                     </View>
-                                    <View style={styles.statItem}>
-                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>0</Text>
-                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Day Streak</Text>
-                                    </View>
-                                    <View style={styles.statItem}>
-                                        <Text variant="h4" color={colors.primary.main} style={styles.statValue}>{formatDate(userProfile?.joinedDate)}</Text>
-                                        <Text variant="caption" color={colors.neutral.darkGray} style={styles.statLabel}>Joined</Text>
-                                    </View>
                                 </View>
-                            </>
-                        ) : (
-                            // Editing mode
-                            <View>
-                                <TouchableOpacity 
-                                    style={styles.imageSelector}
-                                    onPress={handleSelectImage}
-                                >
-                                    <Image 
-                                        source={
-                                            formData.profileImage 
-                                                ? { uri: formData.profileImage } 
-                                                : require('../../../assets/images/app-logo.png')
-                                        }
-                                        style={styles.editProfileImage}
-                                        resizeMode="cover"
-                                    />
-                                    <Text variant="body2" color={colors.secondary.main} style={styles.changePhotoText}>Change Photo</Text>
-                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </Animated.View>
 
-                                <View style={styles.formField}>
-                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Display Name</Text>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={formData.displayName}
-                                        onChangeText={(text) => setFormData({...formData, displayName: text})}
-                                        placeholder="Enter your name"
-                                        placeholderTextColor={colors.neutral.gray}
-                                    />
+                    {/* Stats Section */}
+                    {!editing && (
+                        <Animated.View 
+                            entering={FadeInUp.delay(200).duration(600)}
+                            style={styles.statsSection}
+                        >
+                            <View style={styles.statsGrid}>
+                                <View style={styles.statCard}>
+                                    <Text style={styles.statNumber}>{userProfile?.dailyGoalMinutes || 15}</Text>
+                                    <Text style={styles.statLabel}>min/day</Text>
                                 </View>
-
-                                <View style={styles.formField}>
-                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Native Language</Text>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={formData.nativeLanguage}
-                                        onChangeText={(text) => setFormData({...formData, nativeLanguage: text})}
-                                        placeholder="Your native language"
-                                        placeholderTextColor={colors.neutral.gray}
-                                    />
+                                <View style={styles.statCard}>
+                                    <Text style={styles.statNumber}>0</Text>
+                                    <Text style={styles.statLabel}>Day streak</Text>
                                 </View>
-
-                                <View style={styles.formField}>
-                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>English Level</Text>
-                                    <View style={styles.levelOptions}>
-                                        {englishLevelOptions.map((level) => (
-                                            <TouchableOpacity
-                                                key={level}
-                                                style={[
-                                                    styles.levelOption,
-                                                    formData.englishLevel === level && styles.selectedLevelOption
-                                                ]}
-                                                onPress={() => setFormData({...formData, englishLevel: level})}
-                                            >
-                                                <Text
-                                                    variant="body2"
-                                                    color={formData.englishLevel === level ? colors.neutral.white : colors.neutral.darkGray}
-                                                >
-                                                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                                                </Text>
-                                            </TouchableOpacity>
-                                        ))}
-                                    </View>
+                                <View style={styles.statCard}>
+                                    <Text style={styles.statNumber}>3</Text>
+                                    <Text style={styles.statLabel}>Courses</Text>
                                 </View>
-
-                                <View style={styles.formField}>
-                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Learning Goal</Text>
-                                    <TextInput
-                                        style={[styles.textInput, styles.textAreaInput]}
-                                        value={formData.learningGoal}
-                                        onChangeText={(text) => setFormData({...formData, learningGoal: text})}
-                                        placeholder="What do you want to achieve?"
-                                        placeholderTextColor={colors.neutral.gray}
-                                        multiline={true}
-                                        numberOfLines={3}
-                                        textAlignVertical="top"
-                                    />
-                                </View>
-
-                                <View style={styles.formField}>
-                                    <Text variant="subtitle2" color={colors.neutral.darkGray} style={styles.formLabel}>Daily Goal (minutes)</Text>
-                                    <TextInput
-                                        style={styles.textInput}
-                                        value={String(formData.dailyGoalMinutes)}
-                                        onChangeText={(text) => {
-                                            const value = parseInt(text) || 0;
-                                            setFormData({...formData, dailyGoalMinutes: value})
-                                        }}
-                                        placeholder="15"
-                                        placeholderTextColor={colors.neutral.gray}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-
-                                <Button
-                                    title={saving ? 'Saving...' : 'Save Changes'}
-                                    variant="primary"
-                                    onPress={handleSaveProfile}
-                                    loading={saving}
-                                    disabled={saving}
-                                    fullWidth
-                                    style={styles.saveButton}
-                                    leftIcon={saving ? null : <Ionicons name="save-outline" size={20} color="white" />}
-                                />
                             </View>
-                        )}
-                    </Card>
+                        </Animated.View>
+                    )}
 
                     {/* Admin Access - Only shown for admin users */}
-                    {isAdmin && (
-                        <View style={styles.sectionContainer}>
-                            <Text variant="h5" style={styles.sectionTitle}>Admin Access</Text>
-                            <Card style={styles.sectionCard}>
+                    {isAdmin && !editing && (
+                        <Animated.View 
+                            entering={FadeInUp.delay(300).duration(600)}
+                            style={styles.sectionContainer}
+                        >
+                            <Text style={styles.sectionTitle}>Admin Access</Text>
+                            <View style={styles.menuCard}>
                                 <TouchableOpacity 
-                                    style={styles.menuItem}
+                                    style={styles.adminMenuItem}
                                     onPress={handleAdminAccess}
                                 >
                                     <View style={styles.menuItemLeft}>
-                                        <Ionicons name="shield-outline" size={22} color={colors.neutral.darkGray} />
-                                        <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Admin Dashboard</Text>
+                                        <View style={styles.adminIconContainer}>
+                                            <Ionicons name="shield" size={20} color={airbnbColors.primary} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Admin Dashboard</Text>
+                                            <Text style={styles.menuItemSubtitle}>Manage system settings</Text>
+                                        </View>
                                         <View style={styles.adminBadge}>
-                                            <Text variant="caption" color={colors.status.error} style={styles.adminBadgeText}>Admin</Text>
+                                            <Text style={styles.adminBadgeText}>Admin</Text>
                                         </View>
                                     </View>
-                                    <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
                                 </TouchableOpacity>
-                            </Card>
-                        </View>
+                            </View>
+                        </Animated.View>
                     )}
 
-                    {/* Learning & Courses */}
-                    <View style={styles.sectionContainer}>
-                        <Text variant="h5" style={styles.sectionTitle}>Learning</Text>
-                        <Card style={styles.sectionCard}>
-                            <TouchableOpacity 
-                                style={[styles.menuItem, styles.menuItemBordered]}
-                                onPress={() => router.push('/(tabs)/(courses)/catalog')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="book-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Course Catalog</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={[styles.menuItem, styles.menuItemBordered]}
-                                onPress={() => router.push('/(tabs)/(courses)/enrolled')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="library-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>My Courses</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={[styles.menuItem, styles.menuItemBordered]}
-                                onPress={() => router.push('/(tabs)/(learning)/dashboard')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="analytics-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Learning Progress</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={styles.menuItem}
-                                onPress={() => router.push('/(tabs)/(learning)/preferences')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="options-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Learning Preferences</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                        </Card>
-                    </View>
-                    
-                    {/* Practice & Assessment */}
-                    <View style={styles.sectionContainer}>
-                        <Text variant="h5" style={styles.sectionTitle}>Practice & Assessment</Text>
-                        <Card style={styles.sectionCard}>
-                            <TouchableOpacity 
-                                style={[styles.menuItem, styles.menuItemBordered]}
-                                onPress={() => router.push('/(tabs)/(classes)/schedule')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="calendar-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Class Schedule</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            
-                            <TouchableOpacity 
-                                style={styles.menuItem}
-                                onPress={() => router.push('/(tabs)/(quiz)/categories')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="help-circle-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Take a Quiz</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                        </Card>
-                    </View>
-                    
-                    {/* Settings */}
-                    <View style={styles.sectionContainer}>
-                        <Text variant="h5" style={styles.sectionTitle}>Settings</Text>
-                        <Card style={styles.sectionCard}>
-                            <View style={[styles.menuItem, styles.menuItemBordered]}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="notifications-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Push Notifications</Text>
-                                </View>
-                                <Switch
-                                    value={notifications}
-                                    onValueChange={setNotifications}
-                                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-                                    thumbColor={notifications ? colors.primary.main : colors.neutral.white}
-                                />
+                    {/* Learning Section */}
+                    {!editing && (
+                        <Animated.View 
+                            entering={FadeInUp.delay(400).duration(600)}
+                            style={styles.sectionContainer}
+                        >
+                            <Text style={styles.sectionTitle}>Learning</Text>
+                            <View style={styles.menuCard}>
+                                <TouchableOpacity 
+                                    style={[styles.menuItem, styles.menuItemBordered]}
+                                    onPress={() => router.push('/(tabs)/(courses)/catalog')}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.secondary + '20' }]}>
+                                            <Ionicons name="book" size={20} color={airbnbColors.secondary} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Course Catalog</Text>
+                                            <Text style={styles.menuItemSubtitle}>Browse available courses</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={[styles.menuItem, styles.menuItemBordered]}
+                                    onPress={() => router.push('/(tabs)/(courses)/enrolled')}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.warning + '20' }]}>
+                                            <Ionicons name="library" size={20} color={airbnbColors.warning} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>My Courses</Text>
+                                            <Text style={styles.menuItemSubtitle}>Continue learning</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity 
+                                    style={styles.menuItem}
+                                    onPress={() => router.push('/(tabs)/(learning)/dashboard')}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.primary + '20' }]}>
+                                            <Ionicons name="analytics" size={20} color={airbnbColors.primary} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Progress Dashboard</Text>
+                                            <Text style={styles.menuItemSubtitle}>Track your learning</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                                </TouchableOpacity>
                             </View>
-                            <View style={[styles.menuItem, styles.menuItemBordered]}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="moon-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Dark Mode</Text>
-                                </View>
-                                <Switch
-                                    value={darkMode}
-                                    onValueChange={setDarkMode}
-                                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-                                    thumbColor={darkMode ? colors.primary.main : colors.neutral.white}
-                                />
-                            </View>
-                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="lock-closed-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Change Password</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItem}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="language-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Language Preferences</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                        </Card>
-                    </View>
+                        </Animated.View>
+                    )}
 
-                    {/* Support */}
-                    <View style={styles.sectionContainer}>
-                        <Text variant="h5" style={styles.sectionTitle}>Support</Text>
-                        <Card style={styles.sectionCard}>
-                            <TouchableOpacity style={[styles.menuItem, styles.menuItemBordered]}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="help-circle-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Help Center</Text>
+                    {/* Settings Section */}
+                    {!editing && (
+                        <Animated.View 
+                            entering={FadeInUp.delay(500).duration(600)}
+                            style={styles.sectionContainer}
+                        >
+                            <Text style={styles.sectionTitle}>Settings</Text>
+                            <View style={styles.menuCard}>
+                                <View style={[styles.menuItem, styles.menuItemBordered]}>
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.success + '20' }]}>
+                                            <Ionicons name="notifications" size={20} color={airbnbColors.success} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Push Notifications</Text>
+                                            <Text style={styles.menuItemSubtitle}>Get learning reminders</Text>
+                                        </View>
+                                    </View>
+                                    <Switch
+                                        value={notifications}
+                                        onValueChange={setNotifications}
+                                        trackColor={{ false: airbnbColors.lightGray, true: airbnbColors.primary + '40' }}
+                                        thumbColor={notifications ? airbnbColors.primary : airbnbColors.white}
+                                        ios_backgroundColor={airbnbColors.lightGray}
+                                    />
                                 </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.menuItem, styles.menuItemBordered]}
-                                onPress={() => router.push('/(tabs)/(support)/index')}
-                            >
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="chatbox-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Contact Support</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.menuItem}>
-                                <View style={styles.menuItemLeft}>
-                                    <Ionicons name="document-text-outline" size={22} color={colors.neutral.darkGray} />
-                                    <Text variant="body1" color={colors.neutral.text} style={styles.menuItemText}>Terms and Privacy</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.neutral.gray} />
-                            </TouchableOpacity>
-                        </Card>
-                    </View>
+                                
+                                <TouchableOpacity 
+                                    style={[styles.menuItem, styles.menuItemBordered]}
+                                >
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.darkGray + '20' }]}>
+                                            <Ionicons name="lock-closed" size={20} color={airbnbColors.darkGray} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Privacy & Security</Text>
+                                            <Text style={styles.menuItemSubtitle}>Manage your privacy</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                                </TouchableOpacity>
+                                
+                                <TouchableOpacity style={styles.menuItem}>
+                                    <View style={styles.menuItemLeft}>
+                                        <View style={[styles.iconContainer, { backgroundColor: airbnbColors.mediumGray + '20' }]}>
+                                            <Ionicons name="help-circle" size={20} color={airbnbColors.mediumGray} />
+                                        </View>
+                                        <View style={styles.menuItemContent}>
+                                            <Text style={styles.menuItemTitle}>Help & Support</Text>
+                                            <Text style={styles.menuItemSubtitle}>Get help when you need it</Text>
+                                        </View>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={20} color={airbnbColors.mediumGray} />
+                                </TouchableOpacity>
+                            </View>
+                        </Animated.View>
+                    )}
 
                     {/* Logout Button */}
-                    <Button
-                        title="Log Out"
-                        variant="outline"
-                        style={styles.logoutButton}
-                        textStyle={{ color: colors.status.error }}
-                        leftIcon={<Ionicons name="log-out-outline" size={22} color={colors.status.error} />}
-                        onPress={handleLogout}
-                    />
+                    {!editing && (
+                        <Animated.View 
+                            entering={FadeInUp.delay(600).duration(600)}
+                            style={styles.logoutContainer}
+                        >
+                            <TouchableOpacity
+                                style={styles.logoutButton}
+                                onPress={handleLogout}
+                            >
+                                <Ionicons name="log-out" size={20} color={airbnbColors.error} />
+                                <Text style={styles.logoutText}>Sign Out</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    )}
                 </View>
             </ScrollView>
         </View>
@@ -618,185 +635,358 @@ const Profile = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.neutral.background,
+        backgroundColor: airbnbColors.offWhite,
     },
     scrollView: {
         flex: 1,
     },
+    scrollContent: {
+        paddingBottom: 100,
+    },
     content: {
-        paddingHorizontal: spacing.lg,
-        paddingBottom: spacing.xl,
-        paddingTop: spacing.md,
+        paddingHorizontal: 20,
+        paddingTop: 8,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: colors.neutral.background,
+        backgroundColor: airbnbColors.offWhite,
     },
     loadingText: {
-        marginTop: spacing.md,
+        marginTop: 16,
+        fontSize: 16,
+        color: airbnbColors.darkGray,
+        fontWeight: '500',
     },
-    profileCard: {
-        marginBottom: spacing.xl,
-        padding: spacing.md,
+    editButton: {
+        padding: 8,
+        borderRadius: 20,
+        backgroundColor: airbnbColors.lightGray,
     },
-    profileHeader: {
-        flexDirection: 'row',
+    
+    // Hero Section
+    heroSection: {
+        marginBottom: 24,
+    },
+    profileContainer: {
+        backgroundColor: airbnbColors.white,
+        borderRadius: 16,
+        padding: 24,
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    profileImageContainer: {
         alignItems: 'center',
+        marginBottom: 16,
+        position: 'relative',
     },
     profileImage: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-    },
-    profileInfo: {
-        marginLeft: spacing.md,
-        flex: 1,
-    },
-    profileName: {
-        fontWeight: typography.fontWeights.bold,
-    },
-    profileBadges: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: spacing.xs,
-    },
-    levelBadge: {
-        backgroundColor: colors.secondary.light + '30', // With opacity
-        borderRadius: borderRadius.full,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-    },
-    badgeText: {
-        fontWeight: typography.fontWeights.medium,
-    },
-    languageBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginLeft: spacing.sm,
-    },
-    languageText: {
-        marginLeft: 4,
-    },
-    sectionDivider: {
-        marginTop: spacing.md,
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: colors.neutral.lightGray,
-    },
-    goalText: {
-        marginTop: spacing.xs,
-    },
-    statsContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: spacing.md,
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: colors.neutral.lightGray,
-    },
-    statItem: {
-        alignItems: 'center',
-    },
-    statValue: {
-        fontWeight: typography.fontWeights.bold,
-    },
-    statLabel: {
-        textAlign: 'center',
-    },
-    imageSelector: {
-        alignItems: 'center',
-        marginBottom: spacing.md,
-    },
-    editProfileImage: {
         width: 96,
         height: 96,
         borderRadius: 48,
-        marginBottom: spacing.sm,
+        borderWidth: 3,
+        borderColor: airbnbColors.lightGray,
     },
-    changePhotoText: {
-        fontWeight: typography.fontWeights.medium,
+    statusIndicator: {
+        position: 'absolute',
+        bottom: 4,
+        right: 8,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: airbnbColors.success,
+        borderWidth: 3,
+        borderColor: airbnbColors.white,
     },
-    formField: {
-        marginBottom: spacing.md,
+    profileInfo: {
+        alignItems: 'center',
     },
-    formLabel: {
-        marginBottom: spacing.xs,
+    profileName: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: airbnbColors.charcoal,
+        marginBottom: 4,
+        textAlign: 'center',
+    },
+    profileEmail: {
+        fontSize: 16,
+        color: airbnbColors.darkGray,
+        marginBottom: 16,
+        textAlign: 'center',
+    },
+    badgeContainer: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    badge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        gap: 6,
+    },
+    levelBadge: {
+        backgroundColor: airbnbColors.secondaryLight,
+    },
+    languageBadge: {
+        backgroundColor: airbnbColors.lightGray,
+    },
+    badgeText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: airbnbColors.secondary,
+    },
+    languageBadgeText: {
+        color: airbnbColors.darkGray,
+    },
+    
+    // Editing Mode
+    editingContainer: {
+        alignItems: 'center',
+    },
+    editImageContainer: {
+        position: 'relative',
+        marginBottom: 24,
+    },
+    editProfileImage: {
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        borderWidth: 3,
+        borderColor: airbnbColors.lightGray,
+    },
+    cameraOverlay: {
+        position: 'absolute',
+        bottom: 8,
+        right: 8,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: airbnbColors.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 3,
+        borderColor: airbnbColors.white,
+    },
+    editForm: {
+        width: '100%',
+    },
+    inputGroup: {
+        marginBottom: 20,
+    },
+    inputLabel: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: airbnbColors.charcoal,
+        marginBottom: 8,
     },
     textInput: {
         borderWidth: 1,
-        borderColor: colors.neutral.lightGray,
-        borderRadius: borderRadius.md,
-        padding: spacing.sm,
-        backgroundColor: colors.neutral.background,
-        color: colors.neutral.text,
-        fontSize: typography.fontSizes.sm,
+        borderColor: airbnbColors.gray,
+        borderRadius: 12,
+        padding: 16,
+        fontSize: 16,
+        color: airbnbColors.charcoal,
+        backgroundColor: airbnbColors.white,
     },
-    textAreaInput: {
-        height: 100,
+    textArea: {
+        height: 80,
         textAlignVertical: 'top',
     },
-    levelOptions: {
+    levelSelector: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
+        gap: 8,
     },
     levelOption: {
-        marginRight: spacing.sm,
-        marginBottom: spacing.sm,
-        borderRadius: borderRadius.full,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        backgroundColor: colors.neutral.lightGray,
+        flex: 1,
+        paddingVertical: 12,
+        paddingHorizontal: 16,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: airbnbColors.gray,
+        backgroundColor: airbnbColors.white,
+        alignItems: 'center',
     },
-    selectedLevelOption: {
-        backgroundColor: colors.primary.main,
+    selectedLevel: {
+        borderColor: airbnbColors.primary,
+        backgroundColor: airbnbColors.primaryLight,
+    },
+    levelText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: airbnbColors.darkGray,
+    },
+    selectedLevelText: {
+        color: airbnbColors.primary,
     },
     saveButton: {
-        marginTop: spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: airbnbColors.primary,
+        borderRadius: 12,
+        paddingVertical: 16,
+        gap: 8,
+        marginTop: 8,
     },
+    saveButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: airbnbColors.white,
+    },
+    
+    // Stats Section
+    statsSection: {
+        marginBottom: 24,
+    },
+    statsGrid: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: airbnbColors.white,
+        borderRadius: 12,
+        padding: 16,
+        alignItems: 'center',
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    statNumber: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: airbnbColors.primary,
+        marginBottom: 4,
+    },
+    statLabel: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: airbnbColors.darkGray,
+        textAlign: 'center',
+    },
+    
+    // Menu Sections
     sectionContainer: {
-        marginBottom: spacing.xl,
+        marginBottom: 24,
     },
     sectionTitle: {
-        fontWeight: typography.fontWeights.semibold,
-        marginBottom: spacing.sm,
+        fontSize: 20,
+        fontWeight: '700',
+        color: airbnbColors.charcoal,
+        marginBottom: 12,
+        paddingHorizontal: 4,
     },
-    sectionCard: {
+    menuCard: {
+        backgroundColor: airbnbColors.white,
+        borderRadius: 16,
         overflow: 'hidden',
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 2,
     },
     menuItem: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        padding: spacing.md,
+        justifyContent: 'space-between',
+        paddingVertical: 16,
+        paddingHorizontal: 20,
+        minHeight: 72,
     },
     menuItemBordered: {
         borderBottomWidth: 1,
-        borderBottomColor: colors.neutral.lightGray,
+        borderBottomColor: airbnbColors.lightGray,
     },
     menuItemLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         flex: 1,
     },
-    menuItemText: {
-        marginLeft: spacing.sm,
+    iconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    menuItemContent: {
+        flex: 1,
+    },
+    menuItemTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: airbnbColors.charcoal,
+        marginBottom: 2,
+    },
+    menuItemSubtitle: {
+        fontSize: 14,
+        color: airbnbColors.darkGray,
+    },
+    
+    // Admin specific styles
+    adminMenuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 20,
+        paddingHorizontal: 20,
+    },
+    adminIconContainer: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: airbnbColors.primaryLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
     },
     adminBadge: {
-        backgroundColor: colors.status.error + '20', // With opacity
-        borderRadius: borderRadius.full,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-        marginLeft: spacing.sm,
+        backgroundColor: airbnbColors.error,
+        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        marginLeft: 12,
     },
     adminBadgeText: {
-        fontWeight: typography.fontWeights.medium,
+        fontSize: 12,
+        fontWeight: '700',
+        color: airbnbColors.white,
+    },
+    
+    // Logout Section
+    logoutContainer: {
+        marginBottom: 24,
     },
     logoutButton: {
-        backgroundColor: colors.status.error + '10', // Very light red
-        borderColor: colors.status.error + '30', // Light red border
-        marginTop: spacing.md,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: airbnbColors.white,
+        borderRadius: 12,
+        paddingVertical: 16,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: airbnbColors.error + '30',
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    logoutText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: airbnbColors.error,
     },
 });
  
