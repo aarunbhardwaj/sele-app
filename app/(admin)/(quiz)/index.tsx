@@ -1,9 +1,38 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { colors, spacing, typography } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
+
+const { width } = Dimensions.get('window');
+
+// Airbnb color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#FF3347',
+  primaryLight: '#FF8589',
+  secondary: '#00A699',
+  secondaryDark: '#008F85',
+  secondaryLight: '#57C1BA',
+  neutral: colors.neutral,
+  accent: colors.accent,
+  status: colors.status
+};
+
+// Update all the colors in the app to use Airbnb colors
+const appColors = {
+  ...colors,
+  primary: {
+    light: airbnbColors.primaryLight,
+    main: airbnbColors.primary,
+    dark: airbnbColors.primaryDark,
+  },
+  secondary: {
+    ...colors.secondary,
+  }
+};
 
 interface FeatureCardProps {
   title: string;
@@ -11,30 +40,93 @@ interface FeatureCardProps {
   icon: any;
   route: string;
   color?: string;
+  gradient?: string[];
+  featured?: boolean;
 }
 
-const QuizFeatureCard = ({ title, description, icon, route, color = colors.primary.main }: FeatureCardProps) => {
+const QuizFeatureCard = ({ title, description, icon, route, color = colors.primary.main, gradient, featured = false }: FeatureCardProps) => {
   const router = useRouter();
   
-  return (
-    <TouchableOpacity 
-      style={styles.featureCard} 
-      onPress={() => router.push(route as any)}
-    >
-      <View style={[styles.iconContainer, { backgroundColor: color + '20' }]}>
-        <Ionicons name={icon} size={24} color={color} />
+  const cardContent = (
+    <View style={[styles.featureCard, featured && styles.featuredCard]}>
+      <View style={styles.cardHeader}>
+        <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+          <Ionicons name={icon} size={28} color={color} />
+        </View>
+        {featured && (
+          <View style={styles.featuredBadge}>
+            <Text style={styles.featuredText}>Popular</Text>
+          </View>
+        )}
       </View>
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{title}</Text>
         <Text style={styles.cardDescription}>{description}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={20} color={colors.neutral.gray} />
+      <View style={styles.cardFooter}>
+        <Text style={[styles.actionText, { color }]}>Get started</Text>
+        <Ionicons name="arrow-forward" size={16} color={color} />
+      </View>
+    </View>
+  );
+
+  if (gradient && featured) {
+    return (
+      <TouchableOpacity 
+        style={[styles.cardWrapper, featured && styles.featuredWrapper]}
+        onPress={() => router.push(route as any)}
+        activeOpacity={0.95}
+      >
+        <LinearGradient colors={gradient} style={styles.gradientCard}>
+          {cardContent}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+  
+  return (
+    <TouchableOpacity 
+      style={styles.cardWrapper} 
+      onPress={() => router.push(route as any)}
+      activeOpacity={0.95}
+    >
+      {cardContent}
     </TouchableOpacity>
   );
 };
 
 export default function QuizIndexPage() {
   const router = useRouter();
+  
+  const primaryFeatures = [
+    {
+      title: "Quiz Creator",
+      description: "Create new language assessment quizzes with advanced customization",
+      icon: "create-outline",
+      route: "/(admin)/(quiz)/quiz-creator",
+      color: airbnbColors.primary,
+      gradient: [airbnbColors.primary, airbnbColors.primaryDark],
+      featured: true
+    },
+    {
+      title: "Quiz Library",
+      description: "View, edit, and organize your quiz collection",
+      icon: "library-outline",
+      route: "/(admin)/(quiz)/quiz-list",
+      color: airbnbColors.secondary,
+      gradient: [airbnbColors.secondary, airbnbColors.secondaryDark],
+      featured: true
+    },
+    {
+      title: "Quiz Attempts",
+      description: "Review and analyze student quiz submission attempts",
+      icon: "timer-outline",
+      route: "/(admin)/(quiz)/quiz-attempts",
+      color: airbnbColors.primaryLight,
+      gradient: [airbnbColors.primaryLight, airbnbColors.primary],
+      featured: true
+    }
+  ];
   
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -45,95 +137,54 @@ export default function QuizIndexPage() {
             style={styles.notificationButton}
             onPress={() => {}}
           >
-            <Ionicons name="notifications-outline" size={24} color="#333333" />
+            <Ionicons name="notifications-outline" size={24} color={airbnbColors.primary} />
           </TouchableOpacity>
         }
       />
-      <ScrollView style={styles.container}>
-        <View style={styles.welcome}>
-          <Text style={styles.welcomeSubtitle}>Create, edit, and analyze language assessment quizzes</Text>
-        </View>
+      
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        {/* Hero Section */}
+        <LinearGradient 
+          colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
+          style={styles.heroSection}
+        >
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Quiz Management Hub</Text>
+            <Text style={styles.heroSubtitle}>
+              Create, manage and review language assessment quizzes
+            </Text>
+            <TouchableOpacity 
+              style={styles.heroButton}
+              onPress={() => router.push('/(admin)/(quiz)/quiz-creator')}
+            >
+              <Text style={[styles.heroButtonText, {color: airbnbColors.primary}]}>Create New Quiz</Text>
+              <Ionicons name="add-circle" size={20} color={airbnbColors.primary} />
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
         
         <View style={styles.contentContainer}>
-          <Text style={styles.sectionTitle}>Quiz Features</Text>
-          
-          <QuizFeatureCard
-            title="Quiz Creator"
-            description="Create new language assessment quizzes"
-            icon="create-outline"
-            route="/(admin)/(quiz)/quiz-creator"
-          />
-          
-          <QuizFeatureCard
-            title="Manage Quizzes"
-            description="View, edit, and organize your quizzes"
-            icon="list-outline"
-            route="/(admin)/(quiz)/quiz-list"
-          />
-          
-          <QuizFeatureCard
-            title="Question Bank"
-            description="Manage your library of quiz questions"
-            icon="help-circle-outline"
-            route="/(admin)/(quiz)/question-bank"
-          />
-          
-          <QuizFeatureCard
-            title="Quiz Categories"
-            description="Organize quizzes by language levels and topics"
-            icon="folder-outline"
-            route="/(admin)/(quiz)/categories"
-          />
-          
-          <QuizFeatureCard
-            title="Difficulty Settings"
-            description="Configure quiz difficulty levels"
-            icon="options-outline"
-            route="/(admin)/(quiz)/difficulty"
-          />
-          
-          <QuizFeatureCard
-            title="Auto-grading"
-            description="Configure automated grading settings"
-            icon="checkmark-done-outline"
-            route="/(admin)/(quiz)/grading"
-          />
-          
-          <QuizFeatureCard
-            title="Quiz Analytics"
-            description="View quiz completion and success rates"
-            icon="pie-chart-outline"
-            route="/(admin)/(quiz)/analytics"
-          />
-          
-          <QuizFeatureCard
-            title="Performance Reports"
-            description="Generate reports on student performance"
-            icon="document-text-outline"
-            route="/(admin)/(quiz)/reports"
-          />
-          
-          <QuizFeatureCard
-            title="Quiz Templates"
-            description="Create and manage reusable quiz templates"
-            icon="copy-outline"
-            route="/(admin)/(quiz)/templates"
-          />
-          
-          <QuizFeatureCard
-            title="Language Exercises"
-            description="Create interactive language exercises"
-            icon="chatbubble-outline"
-            route="/(admin)/(quiz)/exercises"
-          />
-          
-          <QuizFeatureCard
-            title="Speaking Assessments"
-            description="Configure pronunciation and speaking tests"
-            icon="mic-outline"
-            route="/(admin)/(quiz)/speaking"
-            color={colors.secondary.main}
-          />
+          {/* Primary Features */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Quiz Management</Text>
+            <Text style={styles.sectionSubtitle}>
+              All the tools you need to create and manage quizzes
+            </Text>
+            <View style={styles.primaryGrid}>
+              {primaryFeatures.map((feature, index) => (
+                <QuizFeatureCard
+                  key={index}
+                  title={feature.title}
+                  description={feature.description}
+                  icon={feature.icon}
+                  route={feature.route}
+                  color={feature.color}
+                  gradient={feature.gradient}
+                  featured={feature.featured}
+                />
+              ))}
+            </View>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -149,63 +200,169 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral.background,
   },
-  welcome: {
+  
+  // Hero Section
+  heroSection: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.xxl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  welcomeSubtitle: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
-    marginTop: spacing.xs,
+  heroContent: {
+    alignItems: 'center',
   },
-  contentContainer: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
+  heroTitle: {
+    fontSize: typography.fontSizes.heading,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.neutral.white,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
   },
-  sectionTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.semibold as any,
-    marginBottom: spacing.md,
-    marginTop: spacing.md,
-    color: colors.neutral.darkGray,
+  heroSubtitle: {
+    fontSize: typography.fontSizes.md,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    lineHeight: 24,
+    paddingHorizontal: spacing.md,
   },
-  featureCard: {
+  heroButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.neutral.white,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.xl,
+    borderRadius: 25,
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  heroButtonText: {
+    fontSize: typography.fontSizes.md,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.primary.main,
+    marginRight: spacing.sm,
+  },
+
+  // Content Container
+  contentContainer: {
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
+  },
+
+  // Sections
+  section: {
+    marginBottom: spacing.xxl,
+  },
+  sectionTitle: {
+    fontSize: typography.fontSizes.xxl,
+    fontWeight: typography.fontWeights.bold,
+    color: colors.neutral.text,
+    marginBottom: spacing.xs,
+  },
+  sectionSubtitle: {
+    fontSize: typography.fontSizes.md,
+    color: colors.neutral.darkGray,
+    marginBottom: spacing.lg,
+    lineHeight: 22,
+  },
+
+  // Grid Layouts
+  primaryGrid: {
+    gap: spacing.lg,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+    justifyContent: 'space-between',
+  },
+
+  // Card Styles
+  cardWrapper: {
+    width: (width - spacing.lg * 2 - spacing.md) / 2,
     marginBottom: spacing.md,
-    padding: spacing.md,
+  },
+  featuredWrapper: {
+    width: '100%',
+  },
+  featureCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 16,
+    padding: spacing.lg,
     shadowColor: colors.neutral.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
     elevation: 3,
+    minHeight: 140,
+    justifyContent: 'space-between',
+  },
+  featuredCard: {
+    minHeight: 160,
+    borderWidth: 2,
+    borderColor: colors.primary.light + '40',
+  },
+  gradientCard: {
+    borderRadius: 16,
+    padding: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
   },
   iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: spacing.md,
+  },
+  featuredBadge: {
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  featuredText: {
+    fontSize: typography.fontSizes.xs,
+    fontWeight: typography.fontWeights.semibold,
+    color: colors.neutral.white,
   },
   cardContent: {
     flex: 1,
+    marginBottom: spacing.md,
   },
   cardTitle: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold as any,
+    fontSize: typography.fontSizes.lg,
+    fontWeight: typography.fontWeights.semibold,
     color: colors.neutral.text,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
+    lineHeight: 24,
   },
   cardDescription: {
     fontSize: typography.fontSizes.sm,
-    color: colors.neutral.gray,
+    color: colors.neutral.darkGray,
+    lineHeight: 20,
   },
+  cardFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  actionText: {
+    fontSize: typography.fontSizes.sm,
+    fontWeight: typography.fontWeights.semibold,
+  },
+  
+  // Header Elements
   notificationButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
+    padding: spacing.sm,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 90, 95, 0.1)', // Light red background for Airbnb style
   },
 });

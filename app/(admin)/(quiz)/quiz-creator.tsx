@@ -1,12 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import Papa from 'papaparse';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   KeyboardAvoidingView,
   Platform,
   SafeAreaView,
@@ -17,30 +20,70 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Button from '../../../components/ui/Button';
-import Card from '../../../components/ui/Card';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 
-const difficultyOptions = ["beginner", "intermediate", "advanced", "mixed"];
-const categoryOptions = ["grammar", "vocabulary", "speaking", "writing", "reading", "listening", "general"];
+// Airbnb color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#FF3347',
+  primaryLight: '#FF8589',
+  secondary: '#00A699',
+  secondaryDark: '#008F85',
+  secondaryLight: '#57C1BA',
+  neutral: colors.neutral,
+  accent: colors.accent,
+  status: colors.status
+};
+
+const { width } = Dimensions.get('window');
+
+interface DocumentPickerAsset {
+  name: string;
+  uri: string;
+  size?: number;
+  mimeType?: string;
+}
+
+interface Question {
+  text: string;
+  options: string[];
+  correctAnswer: string;
+  explanation: string;
+}
+
+const difficultyOptions = [
+  { value: "beginner", label: "Beginner", icon: "leaf-outline", color: airbnbColors.secondary },
+  { value: "intermediate", label: "Intermediate", icon: "trending-up-outline", color: "#F59E0B" },
+  { value: "advanced", label: "Advanced", icon: "flash-outline", color: airbnbColors.primary },
+  { value: "mixed", label: "Mixed", icon: "shuffle-outline", color: "#8B5CF6" }
+];
+
+const categoryOptions = [
+  { value: "vocabulary", label: "Vocabulary", icon: "library-outline", color: airbnbColors.primary },
+  { value: "grammar", label: "Grammar", icon: "construct-outline", color: airbnbColors.secondary },
+  { value: "general", label: "General", icon: "globe-outline", color: airbnbColors.primaryLight }
+];
 
 export default function QuizCreatorScreen() {
   const router = useRouter();
   const { courseId } = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [csvLoading, setCsvLoading] = useState(false);
-  const [csvFile, setCsvFile] = useState(null);
+  const [csvFile, setCsvFile] = useState<DocumentPickerAsset | null>(null);
+  const [currentStep, setCurrentStep] = useState(1);
   
   // Quiz form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [difficulty, setDifficulty] = useState('beginner');
-  const [category, setCategory] = useState('vocabulary'); // Default to vocabulary
-  const [timeLimit, setTimeLimit] = useState('60'); // Default to 60 seconds for vocabulary quiz
-  const [passScore, setPassScore] = useState('70'); // Default passing score is 70%
+  const [category, setCategory] = useState('vocabulary');
+  const [timeLimit, setTimeLimit] = useState('60');
+  const [passScore, setPassScore] = useState('70');
   const [isPublished, setIsPublished] = useState(false);
   const [csvImportMode, setCsvImportMode] = useState(false);
   
@@ -53,7 +96,7 @@ export default function QuizCreatorScreen() {
     category: '',
     csvFile: ''
   });
-  
+
   const validateForm = () => {
     let isValid = true;
     const newErrors = {
@@ -108,11 +151,10 @@ export default function QuizCreatorScreen() {
       });
       
       if (result.canceled) {
-        // User cancelled the picker
         return;
       }
 
-      const file = result.assets[0];
+      const file = result.assets[0] as DocumentPickerAsset;
       setCsvFile(file);
       Alert.alert('Success', 'CSV file selected: ' + file.name);
     } catch (error) {
@@ -123,32 +165,22 @@ export default function QuizCreatorScreen() {
     }
   };
 
-  const parseCsv = async (fileUri) => {
+  const parseCsv = async (fileUri: string): Promise<Question[]> => {
     try {
-      console.log('Reading CSV file from:', fileUri);
+      let fileContent: string;
       
-      let fileContent;
-      
-      // Check if we're on web platform
       if (Platform.OS === 'web') {
-        // For web, the fileUri is actually a data URL or blob URL
-        // We need to fetch it or read it differently
         if (fileUri.startsWith('data:')) {
-          // It's a data URL, decode the base64 content
           const base64Data = fileUri.split(',')[1];
           fileContent = atob(base64Data);
         } else if (fileUri.startsWith('blob:')) {
-          // It's a blob URL, fetch it
           const response = await fetch(fileUri);
           fileContent = await response.text();
         } else {
-          // Try to read it as a regular file for web
           const response = await fetch(fileUri);
           fileContent = await response.text();
         }
       } else {
-        // For native platforms, use FileSystem
-        const FileSystem = require('expo-file-system');
         fileContent = await FileSystem.readAsStringAsync(fileUri);
       }
       
@@ -156,14 +188,12 @@ export default function QuizCreatorScreen() {
         throw new Error('CSV file is empty');
       }
       
-      // Parse the CSV content using PapaParse
       return new Promise((resolve, reject) => {
         Papa.parse(fileContent, {
-          header: true, // Treat the first row as headers
+          header: true,
           skipEmptyLines: true,
           complete: (results) => {
             if (results.errors && results.errors.length > 0) {
-              console.error('CSV parsing errors:', results.errors);
               reject(new Error(`CSV parsing error: ${results.errors[0].message}`));
               return;
             }
@@ -174,25 +204,17 @@ export default function QuizCreatorScreen() {
             }
             
             try {
-              // Map CSV data to question format
-              const questions = results.data.map((row, index) => {
-                console.log(`Processing row ${index + 1}:`, row);
+              const questions = (results.data as any[]).map((row, index) => {
+                let questionText: string, options: string[], correctAnswer: string, explanation: string;
                 
-                // Handle different CSV formats
-                let questionText, options, correctAnswer, explanation;
-                
-                // Check if it's the new format (text, options, correctOption)
                 if (row.text && row.options) {
                   questionText = row.text;
-                  // Parse semicolon-separated options
-                  options = row.options.split(';').map(opt => opt.trim()).filter(opt => opt !== '');
+                  options = row.options.split(';').map((opt: string) => opt.trim()).filter((opt: string) => opt !== '');
                   correctAnswer = row.correctOption;
                   explanation = row.explanation || '';
                 } 
-                // Check if it's the old format (question, option1, option2, etc.)
                 else if (row.question) {
                   questionText = row.question;
-                  // Collect all options from the row (option1, option2, etc.)
                   options = [];
                   for (let i = 1; i <= 4; i++) {
                     const optionKey = `option${i}`;
@@ -203,41 +225,32 @@ export default function QuizCreatorScreen() {
                   correctAnswer = row.correctAnswer;
                   explanation = row.explanation || '';
                 }
-                // If neither format is detected, throw an error
                 else {
-                  console.error('Unrecognized CSV format for row:', row);
-                  throw new Error(`Row ${index + 1}: Unrecognized CSV format. Expected either 'text' or 'question' column.`);
+                  throw new Error(`Row ${index + 1}: Unrecognized CSV format.`);
                 }
                 
-                // Validate the question data
                 if (!questionText || questionText.trim() === '') {
-                  throw new Error(`Row ${index + 1}: Question text is missing or empty`);
+                  throw new Error(`Row ${index + 1}: Question text is missing`);
                 }
                 
                 if (!options || options.length < 2) {
-                  throw new Error(`Row ${index + 1}: Question "${questionText}" needs at least 2 options. Found: ${options ? options.length : 0}`);
+                  throw new Error(`Row ${index + 1}: At least 2 options required`);
                 }
                 
                 if (!correctAnswer || correctAnswer.trim() === '') {
-                  throw new Error(`Row ${index + 1}: Question "${questionText}" is missing a correct answer`);
+                  throw new Error(`Row ${index + 1}: Correct answer is missing`);
                 }
                 
-                // Handle correctAnswer that might be an index (0, 1, 2, 3)
                 let correctAnswerText = correctAnswer.trim();
                 if (/^[0-3]$/.test(correctAnswerText)) {
-                  const index = parseInt(correctAnswerText, 10);
-                  if (index >= 0 && index < options.length) {
-                    correctAnswerText = options[index];
-                  } else {
-                    throw new Error(`Row ${index + 1}: Question "${questionText}" has an invalid correct answer index: ${index}`);
+                  const answerIndex = parseInt(correctAnswerText, 10);
+                  if (answerIndex >= 0 && answerIndex < options.length) {
+                    correctAnswerText = options[answerIndex];
                   }
                 }
                 
-                // Check if correctAnswer exists in options
                 if (!options.includes(correctAnswerText)) {
-                  console.log(`Options for question "${questionText}":`, options);
-                  console.log(`Looking for correct answer:`, correctAnswerText);
-                  throw new Error(`Row ${index + 1}: Question "${questionText}" has a correct answer "${correctAnswerText}" that doesn't match any option. Available options: ${options.join(', ')}`);
+                  throw new Error(`Row ${index + 1}: Correct answer doesn't match any option`);
                 }
                 
                 return {
@@ -248,25 +261,21 @@ export default function QuizCreatorScreen() {
                 };
               });
               
-              console.log(`Successfully parsed ${questions.length} questions from CSV`);
               resolve(questions);
             } catch (error) {
-              console.error('Error processing CSV data:', error);
               reject(error);
             }
           },
           error: (error) => {
-            console.error('CSV parsing failed:', error);
-            reject(new Error('Failed to parse CSV file: ' + error.message));
+            reject(new Error('Failed to parse CSV file: ' + (error as Error).message));
           }
         });
       });
     } catch (error) {
-      console.error('Error reading CSV file:', error);
-      throw new Error('Failed to read CSV file: ' + error.message);
+      throw new Error('Failed to read CSV file: ' + (error as Error).message);
     }
   };
-  
+
   const handleCreateQuiz = async () => {
     if (!validateForm()) {
       return;
@@ -275,8 +284,7 @@ export default function QuizCreatorScreen() {
     setLoading(true);
     
     try {
-      // Create quiz data object
-      const quizData = {
+      const quizData: any = {
         title,
         description,
         difficulty,
@@ -286,52 +294,31 @@ export default function QuizCreatorScreen() {
         isPublished
       };
       
-      // Add courseId if it was passed as a parameter
       if (courseId) {
         quizData.courseId = courseId;
       }
       
-      console.log('Creating quiz with data:', JSON.stringify(quizData, null, 2));
-      
-      // Create quiz using appwrite service - this must succeed first
       const newQuiz = await appwriteService.createQuiz(quizData);
       
-      console.log('Quiz created successfully:', newQuiz.$id);
-      
-      // If we're in CSV import mode, parse the CSV and create questions
       if (csvImportMode && csvFile) {
-        console.log('Starting CSV import for quiz:', newQuiz.$id);
-        
         try {
           const questions = await parseCsv(csvFile.uri);
-          console.log(`Parsed ${questions.length} questions from CSV`);
-          
-          // Create questions in the database sequentially to avoid race conditions
           const createdQuestions = [];
+          
           for (let i = 0; i < questions.length; i++) {
             const question = questions[i];
-            console.log(`Creating question ${i + 1}/${questions.length}:`, question.text.substring(0, 50) + '...');
-            
-            try {
-              const createdQuestion = await appwriteService.createQuestion({
-                quizId: newQuiz.$id,
-                text: question.text,
-                type: 'multiple-choice',
-                options: question.options,
-                correctAnswer: question.correctAnswer,
-                explanation: question.explanation,
-                points: 1,
-                order: i + 1
-              });
-              createdQuestions.push(createdQuestion);
-              console.log(`Question ${i + 1} created successfully`);
-            } catch (questionError) {
-              console.error(`Failed to create question ${i + 1}:`, questionError);
-              throw new Error(`Failed to create question ${i + 1}: ${questionError.message}`);
-            }
+            const createdQuestion = await appwriteService.createQuestion({
+              quizId: newQuiz.$id,
+              text: question.text,
+              type: 'multiple-choice',
+              options: question.options,
+              correctAnswer: question.correctAnswer,
+              explanation: question.explanation,
+              points: 1,
+              order: i + 1
+            });
+            createdQuestions.push(createdQuestion);
           }
-          
-          console.log(`Successfully created ${createdQuestions.length} questions`);
           
           Alert.alert(
             'Success', 
@@ -351,10 +338,9 @@ export default function QuizCreatorScreen() {
             ]
           );
         } catch (csvError) {
-          console.error('Failed to import CSV:', csvError);
           Alert.alert(
             'Partial Success',
-            `Quiz "${newQuiz.title}" was created successfully, but there was an error importing questions from CSV: ${csvError.message}\n\nYou can add questions manually using the question editor.`,
+            `Quiz "${newQuiz.title}" was created successfully, but there was an error importing questions from CSV: ${(csvError as Error).message}`,
             [
               {
                 text: 'Add Questions Manually',
@@ -362,16 +348,11 @@ export default function QuizCreatorScreen() {
                   pathname: '/(admin)/(quiz)/question-editor',
                   params: { quizId: newQuiz.$id }
                 })
-              },
-              {
-                text: 'Back to Quiz List',
-                onPress: () => router.push('/(admin)/(quiz)')
               }
             ]
           );
         }
       } else {
-        // Standard quiz creation flow
         Alert.alert(
           'Success', 
           'Quiz created successfully!',
@@ -391,55 +372,109 @@ export default function QuizCreatorScreen() {
         );
       }
     } catch (error) {
-      console.error('Failed to create quiz:', error);
-      Alert.alert(
-        'Error',
-        'Failed to create quiz: ' + (error.message || error),
-        [{ text: 'OK' }]
-      );
+      Alert.alert('Error', 'Failed to create quiz: ' + ((error as Error).message || error));
     } finally {
       setLoading(false);
     }
   };
-  
-  const renderDifficultySelection = () => (
-    <View style={styles.optionsSelector}>
-      {difficultyOptions.map((option) => (
+
+  const createSampleCsv = async () => {
+    try {
+      const csvContent = 
+`question,option1,option2,option3,option4,correctAnswer,explanation
+What is the capital of France?,Paris,London,Berlin,Madrid,Paris,Paris is the capital and most populous city of France.
+What does "Hello" mean in Spanish?,Hola,Adios,Gracias,Buenos dias,Hola,Hola is the Spanish word for Hello.
+Which planet is closest to the sun?,Venus,Mercury,Earth,Mars,Mercury,Mercury is the closest planet to the sun in our solar system.`;
+      
+      const fileUri = FileSystem.cacheDirectory + 'sample_questions.csv';
+      await FileSystem.writeAsStringAsync(fileUri, csvContent);
+      
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Download Sample CSV',
+          UTI: 'public.comma-separated-values-text'
+        });
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to create sample CSV file');
+    }
+  };
+
+  const renderStepIndicator = () => (
+    <View style={styles.stepIndicator}>
+      <View style={styles.stepItem}>
+        <View style={[styles.stepCircle, currentStep >= 1 && styles.stepCircleActive]}>
+          <Text style={[styles.stepNumber, currentStep >= 1 && styles.stepNumberActive]}>1</Text>
+        </View>
+        <Text style={styles.stepLabel}>Basic Info</Text>
+      </View>
+      <View style={styles.stepConnector} />
+      <View style={styles.stepItem}>
+        <View style={[styles.stepCircle, currentStep >= 2 && styles.stepCircleActive]}>
+          <Text style={[styles.stepNumber, currentStep >= 2 && styles.stepNumberActive]}>2</Text>
+        </View>
+        <Text style={styles.stepLabel}>Settings</Text>
+      </View>
+      <View style={styles.stepConnector} />
+      <View style={styles.stepItem}>
+        <View style={[styles.stepCircle, currentStep >= 3 && styles.stepCircleActive]}>
+          <Text style={[styles.stepNumber, currentStep >= 3 && styles.stepNumberActive]}>3</Text>
+        </View>
+        <Text style={styles.stepLabel}>Questions</Text>
+      </View>
+    </View>
+  );
+
+  const renderCategoryGrid = () => (
+    <View style={styles.categoryGrid}>
+      {categoryOptions.map((option) => (
         <TouchableOpacity
-          key={option}
+          key={option.value}
           style={[
-            styles.option,
-            difficulty === option && styles.selectedOption
+            styles.categoryCard,
+            category === option.value && styles.categoryCardActive
           ]}
-          onPress={() => setDifficulty(option)}
+          onPress={() => setCategory(option.value)}
         >
-          <Text 
-            variant="button" 
-            color={difficulty === option ? colors.neutral.white : colors.neutral.text}
-          >
-            {option.charAt(0).toUpperCase() + option.slice(1)}
+          <View style={[styles.categoryIcon, { backgroundColor: option.color + '15' }]}>
+            <Ionicons name={option.icon as any} size={24} color={option.color} />
+          </View>
+          <Text style={[
+            styles.categoryLabel,
+            category === option.value && styles.categoryLabelActive
+          ]}>
+            {option.label}
           </Text>
+          {category === option.value && (
+            <View style={styles.checkmark}>
+              <Ionicons name="checkmark-circle" size={20} color={airbnbColors.primary} />
+            </View>
+          )}
         </TouchableOpacity>
       ))}
     </View>
   );
 
-  const renderCategorySelection = () => (
-    <View style={styles.optionsSelector}>
-      {categoryOptions.map((option) => (
+  const renderDifficultyCards = () => (
+    <View style={styles.difficultyCards}>
+      {difficultyOptions.map((option) => (
         <TouchableOpacity
-          key={option}
+          key={option.value}
           style={[
-            styles.option,
-            category === option && styles.selectedOption
+            styles.difficultyCard,
+            difficulty === option.value && styles.difficultyCardActive
           ]}
-          onPress={() => setCategory(option)}
+          onPress={() => setDifficulty(option.value)}
         >
-          <Text 
-            variant="button" 
-            color={category === option ? colors.neutral.white : colors.neutral.text}
-          >
-            {option.charAt(0).toUpperCase() + option.slice(1)}
+          <View style={[styles.difficultyIcon, { backgroundColor: option.color + '15' }]}>
+            <Ionicons name={option.icon as any} size={20} color={option.color} />
+          </View>
+          <Text style={[
+            styles.difficultyLabel,
+            difficulty === option.value && styles.difficultyLabelActive
+          ]}>
+            {option.label}
           </Text>
         </TouchableOpacity>
       ))}
@@ -448,247 +483,252 @@ export default function QuizCreatorScreen() {
 
   const renderCsvUpload = () => (
     <View style={styles.csvSection}>
-      <View style={styles.csvHeader}>
-        <Text variant="h6" style={styles.csvTitle}>CSV Upload</Text>
-        <Switch
-          value={csvImportMode}
-          onValueChange={setCsvImportMode}
-          trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-          thumbColor={csvImportMode ? colors.primary.main : colors.neutral.white}
-        />
-      </View>
-
-      {csvImportMode && (
-        <View style={styles.csvContent}>
-          <Text variant="body2" style={styles.csvDescription}>
-            Upload a CSV file with questions. Supports two formats:
-          </Text>
-          
-          <Text variant="caption" style={styles.csvNote}>
-            <Text style={{ fontWeight: 'bold' }}>Format 1 (Simple):</Text>
-          </Text>
-          <Text style={styles.csvFormat}>
-            question,option1,option2,option3,option4,correctAnswer,explanation
-          </Text>
-          
-          <Text variant="caption" style={styles.csvNote}>
-            <Text style={{ fontWeight: 'bold' }}>Format 2 (Advanced):</Text>
-          </Text>
-          <Text style={styles.csvFormat}>
-            text,options,correctOption,explanation
-          </Text>
-          
-          <Text variant="caption" style={styles.csvNote}>
-            Notes: 
-            - Format 1: Separate columns for each option (option1, option2, etc.)
-            - Format 2: Semicolon-separated options in one column (e.g., "option1;option2;option3")
-            - The correctAnswer/correctOption must exactly match one of the options
-            - Alternatively, it can be 0, 1, 2, or 3 to indicate the option index
-            - First row must be the header row
-            - At least 2 options required per question
-          </Text>
-          <View style={styles.csvFileSelection}>
-            <Text style={styles.selectedFile}>
-              {csvFile ? csvFile.name : 'No file selected'}
-            </Text>
-            <Button
-              title={csvLoading ? "Loading..." : "Select CSV"}
-              onPress={pickCsvFile}
-              disabled={csvLoading}
-              variant="outline"
-              size="small"
-            />
+      <LinearGradient
+        colors={csvImportMode ? [airbnbColors.primary, airbnbColors.primaryDark] : ['#F8FAFC', '#F1F5F9']}
+        style={styles.csvCard}
+      >
+        <View style={styles.csvHeader}>
+          <View style={styles.csvTitleContainer}>
+            <View style={[styles.csvIconContainer, { backgroundColor: csvImportMode ? 'rgba(255,255,255,0.2)' : airbnbColors.primary + '15' }]}>
+              <Ionicons name="document-text-outline" size={24} color={csvImportMode ? colors.neutral.white : airbnbColors.primary} />
+            </View>
+            <View>
+              <Text style={[styles.csvTitle, { color: csvImportMode ? colors.neutral.white : colors.neutral.text }]}>
+                CSV Import
+              </Text>
+              <Text style={[styles.csvSubtitle, { color: csvImportMode ? 'rgba(255,255,255,0.8)' : colors.neutral.gray }]}>
+                Bulk import questions from file
+              </Text>
+            </View>
           </View>
-          {errors.csvFile ? (
-            <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-              {errors.csvFile}
-            </Text>
-          ) : null}
-          
-          <TouchableOpacity 
-            style={styles.sampleCsvLink}
-            onPress={createSampleCsv}
-          >
-            <Text variant="caption" color={colors.primary.main}>
-              Download Sample CSV Template
-            </Text>
-          </TouchableOpacity>
+          <Switch
+            value={csvImportMode}
+            onValueChange={setCsvImportMode}
+            trackColor={{ false: '#E2E8F0', true: 'rgba(255,255,255,0.3)' }}
+            thumbColor={csvImportMode ? colors.neutral.white : airbnbColors.primary}
+          />
         </View>
-      )}
+
+        {csvImportMode && (
+          <View style={styles.csvContent}>
+            <View style={styles.csvFileUpload}>
+              <TouchableOpacity
+                style={styles.fileSelectButton}
+                onPress={pickCsvFile}
+                disabled={csvLoading}
+              >
+                <Ionicons name="cloud-upload-outline" size={20} color={airbnbColors.primary} />
+                <Text style={styles.fileSelectText}>
+                  {csvLoading ? 'Loading...' : 'Select CSV File'}
+                </Text>
+              </TouchableOpacity>
+              
+              {csvFile && (
+                <View style={styles.selectedFileInfo}>
+                  <Ionicons name="document" size={16} color={airbnbColors.primary} />
+                  <Text style={styles.selectedFileName}>{csvFile.name}</Text>
+                </View>
+              )}
+            </View>
+
+            <TouchableOpacity 
+              style={styles.sampleCsvButton}
+              onPress={createSampleCsv}
+            >
+              <Ionicons name="download-outline" size={16} color="rgba(255,255,255,0.8)" />
+              <Text style={styles.sampleCsvText}>Download Sample Template</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </LinearGradient>
+      
+      {errors.csvFile ? (
+        <Text style={styles.errorText}>{errors.csvFile}</Text>
+      ) : null}
     </View>
   );
-
-  const createSampleCsv = async () => {
-    try {
-      // Create a sample CSV content
-      const csvContent = 
-`question,option1,option2,option3,option4,correctAnswer,explanation
-What is the capital of France?,Paris,London,Berlin,Madrid,Paris,Paris is the capital and most populous city of France.
-What does "Hello" mean in Spanish?,Hola,Adios,Gracias,Buenos dias,Hola,Hola is the Spanish word for Hello.
-Which planet is closest to the sun?,Venus,Mercury,Earth,Mars,Mercury,Mercury is the closest planet to the sun in our solar system.`;
-      
-      // Create a temporary file in the app's cache directory
-      const fileUri = FileSystem.cacheDirectory + 'sample_questions.csv';
-      
-      // Write the CSV content to the file
-      await FileSystem.writeAsStringAsync(fileUri, csvContent);
-      
-      // Share the file with the user
-      await FileSystem.shareAsync(fileUri, {
-        mimeType: 'text/csv',
-        dialogTitle: 'Download Sample CSV',
-        UTI: 'public.comma-separated-values-text'
-      });
-      
-    } catch (error) {
-      console.error('Error creating sample CSV:', error);
-      Alert.alert('Error', 'Failed to create sample CSV file');
-    }
-  };
   
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <PreAuthHeader 
-        title="Create Quiz"
-        leftIcon={<Ionicons name="arrow-back" size={24} color="#333333" />}
-        onLeftIconPress={() => router.back()}
-      />
+    <View style={styles.safeArea}>
+      <SafeAreaView style={styles.headerContainer}>
+        <PreAuthHeader 
+          title="Create Quiz"
+          onLeftIconPress={() => router.back()}
+        />
+      </SafeAreaView>
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <ScrollView style={styles.scrollView}>
-          <View style={styles.contentContainer}>
-            <View style={styles.headerContainer}>
-              <Text variant="h4" style={styles.pageTitle}>Create New Quiz</Text>
-              <Text variant="body2" style={styles.pageSubtitle}>
-                Fill out the form below to create a new quiz. You can add questions manually or import them from a CSV file.
+        <ScrollView 
+          style={styles.scrollView} 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, 20) + 80 } // Tab bar height + extra padding
+          ]}
+        >
+          {/* Hero Section */}
+          <LinearGradient 
+            colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
+            style={styles.heroSection}
+          >
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>Create New Quiz</Text>
+              <Text style={styles.heroSubtitle}>
+                Design engaging language assessments with our intuitive quiz builder
               </Text>
             </View>
+          </LinearGradient>
+
+          <View style={styles.contentContainer}>
+            {/* Step Indicator */}
+            {renderStepIndicator()}
             
-            <Card style={styles.formCard}>
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Quiz Title *</Text>
-                <TextInput 
-                  style={[styles.input, errors.title ? styles.inputError : null]}
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholder="Enter quiz title"
-                  placeholderTextColor={colors.neutral.gray}
-                />
-                {errors.title ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.title}
-                  </Text>
-                ) : null}
+            {/* Basic Information */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Quiz Information</Text>
+              <View style={styles.formCard}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Quiz Title *</Text>
+                  <TextInput 
+                    style={[styles.input, errors.title ? styles.inputError : null]}
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholder="Enter an engaging quiz title"
+                    placeholderTextColor={colors.neutral.gray}
+                  />
+                  {errors.title ? (
+                    <Text style={styles.errorText}>{errors.title}</Text>
+                  ) : null}
+                </View>
+                
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Description *</Text>
+                  <TextInput 
+                    style={[styles.input, styles.textArea, errors.description ? styles.inputError : null]}
+                    value={description}
+                    onChangeText={setDescription}
+                    placeholder="Describe what this quiz covers and its learning objectives"
+                    placeholderTextColor={colors.neutral.gray}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                  {errors.description ? (
+                    <Text style={styles.errorText}>{errors.description}</Text>
+                  ) : null}
+                </View>
               </View>
-              
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Description *</Text>
-                <TextInput 
-                  style={[styles.input, styles.textArea, errors.description ? styles.inputError : null]}
-                  value={description}
-                  onChangeText={setDescription}
-                  placeholder="Enter quiz description"
-                  placeholderTextColor={colors.neutral.gray}
-                  multiline
-                  numberOfLines={5}
-                  textAlignVertical="top"
-                />
-                {errors.description ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.description}
-                  </Text>
-                ) : null}
-              </View>
+            </View>
 
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Category *</Text>
-                {renderCategorySelection()}
-                {errors.category ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.category}
-                  </Text>
-                ) : null}
-              </View>
-              
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Difficulty Level *</Text>
-                {renderDifficultySelection()}
-              </View>
-              
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Time Limit (seconds) *</Text>
-                <TextInput 
-                  style={[styles.input, errors.timeLimit ? styles.inputError : null]}
-                  value={timeLimit}
-                  onChangeText={setTimeLimit}
-                  placeholder="Enter time limit (0 for no limit)"
-                  placeholderTextColor={colors.neutral.gray}
-                  keyboardType="numeric"
-                />
-                {errors.timeLimit ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.timeLimit}
-                  </Text>
-                ) : (
-                  <Text variant="caption" style={styles.helperText}>
-                    Enter time in seconds (0 for no time limit)
-                  </Text>
-                )}
-              </View>
+            {/* Category Selection */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Category</Text>
+              <Text style={styles.sectionSubtitle}>Choose the primary focus of your quiz</Text>
+              {renderCategoryGrid()}
+            </View>
 
-              <View style={styles.formGroup}>
-                <Text variant="subtitle1" style={styles.label}>Pass Score (%) *</Text>
-                <TextInput 
-                  style={[styles.input, errors.passScore ? styles.inputError : null]}
-                  value={passScore}
-                  onChangeText={setPassScore}
-                  placeholder="Enter passing score percentage"
-                  placeholderTextColor={colors.neutral.gray}
-                  keyboardType="numeric"
-                />
-                {errors.passScore ? (
-                  <Text variant="caption" color={colors.status.error} style={styles.errorText}>
-                    {errors.passScore}
-                  </Text>
-                ) : null}
-              </View>
+            {/* Difficulty Selection */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Difficulty Level</Text>
+              <Text style={styles.sectionSubtitle}>Select the appropriate challenge level</Text>
+              {renderDifficultyCards()}
+            </View>
 
-              {/* CSV Upload Section */}
+            {/* Quiz Settings */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Quiz Settings</Text>
+              <View style={styles.formCard}>
+                <View style={styles.settingsRow}>
+                  <View style={styles.settingItem}>
+                    <Text style={styles.label}>Time Limit (seconds)</Text>
+                    <TextInput 
+                      style={[styles.input, styles.numberInput, errors.timeLimit ? styles.inputError : null]}
+                      value={timeLimit}
+                      onChangeText={setTimeLimit}
+                      placeholder="60"
+                      placeholderTextColor={colors.neutral.gray}
+                      keyboardType="numeric"
+                    />
+                    {errors.timeLimit ? (
+                      <Text style={styles.errorText}>{errors.timeLimit}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>0 for no time limit</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.settingItem}>
+                    <Text style={styles.label}>Pass Score (%)</Text>
+                    <TextInput 
+                      style={[styles.input, styles.numberInput, errors.passScore ? styles.inputError : null]}
+                      value={passScore}
+                      onChangeText={setPassScore}
+                      placeholder="70"
+                      placeholderTextColor={colors.neutral.gray}
+                      keyboardType="numeric"
+                    />
+                    {errors.passScore ? (
+                      <Text style={styles.errorText}>{errors.passScore}</Text>
+                    ) : (
+                      <Text style={styles.helperText}>Minimum score to pass</Text>
+                    )}
+                  </View>
+                </View>
+
+                <View style={styles.publishToggle}>
+                  <View style={styles.publishInfo}>
+                    <Text style={styles.publishTitle}>Publish Immediately</Text>
+                    <Text style={styles.publishSubtitle}>
+                      Make this quiz available to students right away
+                    </Text>
+                  </View>
+                  <Switch
+                    value={isPublished}
+                    onValueChange={setIsPublished}
+                    trackColor={{ false: '#E2E8F0', true: airbnbColors.primaryLight }}
+                    thumbColor={isPublished ? airbnbColors.primary : '#6B7280'}
+                  />
+                </View>
+              </View>
+            </View>
+
+            {/* CSV Upload Section */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Add Questions</Text>
+              <Text style={styles.sectionSubtitle}>Choose how you want to add questions to your quiz</Text>
               {renderCsvUpload()}
+            </View>
+            
+            {/* Action Buttons */}
+            <View style={styles.actionsContainer}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
               
-              <View style={styles.switchContainer}>
-                <Text variant="subtitle1">Publish immediately</Text>
-                <Switch
-                  value={isPublished}
-                  onValueChange={setIsPublished}
-                  trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-                  thumbColor={isPublished ? colors.primary.main : colors.neutral.white}
-                />
-              </View>
-              
-              <View style={styles.formActions}>
-                <Button 
-                  title="Cancel"
-                  variant="outline"
-                  onPress={() => router.back()}
-                  style={styles.actionButton}
-                />
-                <Button 
-                  title={loading ? 'Creating...' : 'Create Quiz'}
-                  onPress={handleCreateQuiz}
-                  disabled={loading}
-                  style={styles.actionButton}
-                  icon={loading ? <ActivityIndicator size="small" color={colors.neutral.white} /> : null}
-                />
-              </View>
-            </Card>
+              <TouchableOpacity
+                style={[styles.createButton, loading && styles.createButtonDisabled]}
+                onPress={handleCreateQuiz}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.neutral.white} />
+                ) : (
+                  <Ionicons name="add-circle" size={20} color={colors.neutral.white} />
+                )}
+                <Text style={styles.createButtonText}>
+                  {loading ? 'Creating...' : 'Create Quiz'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -697,141 +737,405 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral.white,
   },
+  headerContainer: {
+    backgroundColor: colors.neutral.white,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: '#FAFBFC',
   },
   scrollView: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+  },
+
+  // Hero Section
+  heroSection: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xxl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
+  heroContent: {
+    alignItems: 'center',
+  },
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.neutral.white,
+    textAlign: 'center',
+    marginBottom: spacing.sm,
+  },
+  heroSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: spacing.md,
+  },
+
+  // Content
   contentContainer: {
-    padding: spacing.md,
-    paddingBottom: spacing.xxl,
+    padding: spacing.lg,
+    paddingTop: spacing.xl,
   },
-  headerContainer: {
-    marginBottom: spacing.md,
+
+  // Step Indicator
+  stepIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.xxl,
+    paddingHorizontal: spacing.md,
   },
-  pageTitle: {
-    color: colors.primary.main,
+  stepItem: {
+    alignItems: 'center',
+  },
+  stepCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.xs,
   },
-  pageSubtitle: {
-    color: colors.neutral.darkGray,
+  stepCircleActive: {
+    backgroundColor: airbnbColors.primary,
   },
+  stepNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  stepNumberActive: {
+    color: colors.neutral.white,
+  },
+  stepLabel: {
+    fontSize: 12,
+    color: colors.neutral.gray,
+    fontWeight: '500',
+  },
+  stepConnector: {
+    width: 40,
+    height: 2,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: spacing.sm,
+  },
+
+  // Sections
+  section: {
+    marginBottom: spacing.xxl,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.neutral.text,
+    marginBottom: spacing.xs,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: colors.neutral.gray,
+    marginBottom: spacing.lg,
+  },
+
+  // Form Elements
   formCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 16,
     padding: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
-  formGroup: {
-    marginBottom: spacing.md,
+  inputGroup: {
+    marginBottom: spacing.lg,
   },
   label: {
-    marginBottom: spacing.xs,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.neutral.text,
+    marginBottom: spacing.sm,
   },
   input: {
-    backgroundColor: colors.neutral.white,
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
-    borderRadius: borderRadius.md,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     color: colors.neutral.text,
-    fontSize: typography.fontSizes.md,
+    fontSize: 16,
   },
   inputError: {
-    borderColor: colors.status.error,
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.primary + '10',
+  },
+  textArea: {
+    height: 100,
+    paddingTop: spacing.md,
+  },
+  numberInput: {
+    textAlign: 'center',
   },
   errorText: {
+    fontSize: 12,
+    color: airbnbColors.primary,
     marginTop: spacing.xs,
   },
   helperText: {
-    marginTop: spacing.xs,
+    fontSize: 12,
     color: colors.neutral.gray,
+    marginTop: spacing.xs,
   },
-  textArea: {
-    height: 120,
-    paddingTop: spacing.sm,
-  },
-  optionsSelector: {
+
+  // Category Grid
+  categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginTop: spacing.xs,
+    gap: spacing.md,
+    justifyContent: 'space-between',
   },
-  option: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-    marginRight: spacing.sm,
+  categoryCard: {
+    width: (width - spacing.lg * 2 - spacing.md * 2) / 3,
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    position: 'relative',
+  },
+  categoryCardActive: {
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.primary + '05',
+  },
+  categoryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: spacing.sm,
   },
-  selectedOption: {
-    backgroundColor: colors.primary.main,
+  categoryLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.neutral.darkGray,
+    textAlign: 'center',
   },
-  switchContainer: {
+  categoryLabelActive: {
+    color: airbnbColors.primary,
+    fontWeight: '600',
+  },
+  checkmark: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+  },
+
+  // Difficulty Cards
+  difficultyCards: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  difficultyCard: {
+    flex: 1,
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  difficultyCardActive: {
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.primary + '05',
+  },
+  difficultyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  difficultyLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.neutral.darkGray,
+  },
+  difficultyLabelActive: {
+    color: airbnbColors.primary,
+    fontWeight: '600',
+  },
+
+  // Settings
+  settingsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  settingItem: {
+    flex: 1,
+  },
+  publishToggle: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
-  formActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: spacing.md,
+  publishInfo: {
+    flex: 1,
+    marginRight: spacing.md,
   },
-  actionButton: {
-    marginLeft: spacing.sm,
-    minWidth: 120,
+  publishTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.text,
+    marginBottom: 2,
   },
+  publishSubtitle: {
+    fontSize: 12,
+    color: colors.neutral.gray,
+  },
+
+  // CSV Section
   csvSection: {
     marginBottom: spacing.lg,
-    padding: spacing.md,
-    backgroundColor: colors.neutral.background,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.neutral.lightGray,
+  },
+  csvCard: {
+    borderRadius: 16,
+    padding: spacing.lg,
   },
   csvHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: csvImportMode => csvImportMode ? spacing.md : 0,
+    marginBottom: spacing.md,
+  },
+  csvTitleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  csvIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
   csvTitle: {
-    color: colors.secondary.main,
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  csvSubtitle: {
+    fontSize: 12,
   },
   csvContent: {
-    marginTop: spacing.sm,
+    gap: spacing.md,
   },
-  csvDescription: {
-    marginBottom: spacing.sm,
+  csvFileUpload: {
+    gap: spacing.sm,
   },
-  csvFormat: {
-    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
-    backgroundColor: colors.neutral.lightGray + '30',
-    padding: spacing.sm,
-    borderRadius: borderRadius.sm,
-    fontSize: typography.fontSizes.sm,
-    marginBottom: spacing.md,
-  },
-  csvNote: {
-    marginBottom: spacing.md,
-    color: colors.neutral.darkGray,
-    fontSize: typography.fontSizes.sm,
-  },
-  csvFileSelection: {
+  fileSelectButton: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
   },
-  selectedFile: {
+  fileSelectText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.primary,
+    marginLeft: spacing.sm,
+  },
+  selectedFileInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 8,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  selectedFileName: {
+    fontSize: 12,
+    color: colors.neutral.white,
+    marginLeft: spacing.sm,
     flex: 1,
-    marginRight: spacing.sm,
-    color: colors.neutral.darkGray,
-    fontSize: typography.fontSizes.sm,
   },
-  sampleCsvLink: {
-    marginTop: spacing.sm,
+  sampleCsvButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.sm,
+  },
+  sampleCsvText: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.8)',
+    marginLeft: spacing.xs,
+  },
+
+  // Actions
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingTop: spacing.lg,
+    marginTop: spacing.lg,
+  },
+  cancelButton: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.darkGray,
+  },
+  createButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: airbnbColors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  createButtonDisabled: {
+    opacity: 0.7,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.white,
+    marginLeft: spacing.sm,
   },
 });

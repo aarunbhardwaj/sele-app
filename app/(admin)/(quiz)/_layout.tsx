@@ -15,6 +15,7 @@ export default function QuizLayout() {
       <Stack.Screen name="publish-quiz" />
       <Stack.Screen name="quiz-analytics" />
       <Stack.Screen name="question-bank" />
+      <Stack.Screen name="quiz-attempts" />
     </Stack>
   );
 }
