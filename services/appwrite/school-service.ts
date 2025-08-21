@@ -1,5 +1,5 @@
 import { ID, Query } from 'appwrite';
-import { databases, DATABASE_ID, SCHOOLS_COLLECTION_ID } from './client';
+import { DATABASE_ID, databases, SCHOOLS_COLLECTION_ID } from './client';
 
 // Define the School interface
 export interface School {
@@ -24,14 +24,51 @@ export interface School {
 }
 
 const schoolService = {
-  // Get all schools
-  getAllSchools: async () => {
+  // Get all schools with pagination and filtering
+  getAllSchools: async (limit?: number, offset?: number, queries?: string[]) => {
     try {
+      const queryFilters = [];
+      
+      // Add custom queries if provided
+      if (queries && queries.length > 0) {
+        // Convert string queries to proper Query objects
+        queries.forEach(queryStr => {
+          if (queryStr.includes('LIKE')) {
+            // Handle search queries like 'name LIKE "%searchterm%"'
+            const match = queryStr.match(/(\w+)\s+LIKE\s+"?%(.+)%"?/);
+            if (match) {
+              const [, field, term] = match;
+              queryFilters.push(Query.search(field, term));
+            }
+          } else if (queryStr.includes('=')) {
+            // Handle exact match queries like 'status = "active"'
+            const match = queryStr.match(/(\w+)\s*=\s*"?([^"]+)"?/);
+            if (match) {
+              const [, field, value] = match;
+              queryFilters.push(Query.equal(field, value));
+            }
+          }
+        });
+      }
+      
+      // Add pagination
+      if (limit) {
+        queryFilters.push(Query.limit(limit));
+      }
+      if (offset) {
+        queryFilters.push(Query.offset(offset));
+      }
+      
+      // Add ordering
+      queryFilters.push(Query.orderDesc('$createdAt'));
+      
       const response = await databases.listDocuments(
         DATABASE_ID,
-        SCHOOLS_COLLECTION_ID
+        SCHOOLS_COLLECTION_ID,
+        queryFilters
       );
-      return response.documents as School[];
+      
+      return response; // Return the full response with total count
     } catch (error) {
       console.error('Appwrite service :: getAllSchools :: error', error);
       throw error;

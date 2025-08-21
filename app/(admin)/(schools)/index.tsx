@@ -1,648 +1,860 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  FlatList,
+  Dimensions,
+  RefreshControl,
   SafeAreaView,
   ScrollView,
   StyleSheet,
-  Text,
   TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import Animated, { FadeInUp } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../../components/ui/theme';
+import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
-import { School } from '../../../services/appwrite/school-service';
 
-export default function SchoolsIndexPage() {
-  const router = useRouter();
-  const [schools, setSchools] = useState<School[]>([]);
-  const [filteredSchools, setFilteredSchools] = useState<School[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'active', 'inactive', 'pending'
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const ITEMS_PER_PAGE = 10;
+// Airbnb color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#FF3347',
+  primaryLight: '#FF8589',
+  secondary: '#00A699',
+  secondaryDark: '#008F85',
+  secondaryLight: '#57C1BA',
+  neutral: colors.neutral,
+  accent: colors.accent,
+  status: colors.status
+};
 
-  useEffect(() => {
-    loadData();
-  }, []);
+const { width } = Dimensions.get('window');
 
-  useEffect(() => {
-    filterSchools();
-  }, [schools, searchQuery, statusFilter, page]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load schools
-      const schoolsResponse = await appwriteService.getAllSchools();
-      setSchools(schoolsResponse);
-      
-      // Calculate total pages
-      setTotalPages(Math.ceil(schoolsResponse.length / ITEMS_PER_PAGE));
-    } catch (error) {
-      console.error('Failed to load schools data:', error);
-      Alert.alert('Error', 'Failed to load schools data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterSchools = () => {
-    // Apply filters
-    let filtered = [...schools];
-    
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(school => 
-        school.name?.toLowerCase().includes(query) || 
-        school.email?.toLowerCase().includes(query) ||
-        school.city?.toLowerCase().includes(query)
-      );
-    }
-    
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(school => school.status === statusFilter);
-    }
-    
-    // Calculate total pages after filtering
-    setTotalPages(Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    
-    // Apply pagination
-    const startIndex = (page - 1) * ITEMS_PER_PAGE;
-    const paginatedSchools = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    
-    setFilteredSchools(paginatedSchools);
-  };
-
-  const navigateToSchoolDetail = (school: School) => {
-    // Navigate to school details screen with school data
-    console.log('Navigating to school details with ID:', school.$id);
-    router.push({
-      pathname: '/(admin)/(schools)/school-details',
-      params: { 
-        id: school.$id,
-        name: school.name
-      }
-    });
-  };
-
-  const handleAddNewSchool = () => {
-    router.push('/(admin)/(schools)/add-school');
-  };
-
-  const handleDeleteSchool = async (schoolId: string) => {
-    try {
-      // Confirm delete
-      Alert.alert(
-        'Confirm Delete',
-        'Are you sure you want to delete this school? This action cannot be undone.',
-        [
-          {
-            text: 'Cancel',
-            style: 'cancel',
-          },
-          {
-            text: 'Delete',
-            style: 'destructive',
-            onPress: async () => {
-              await appwriteService.deleteSchool(schoolId);
-              Alert.alert('Success', 'School deleted successfully');
-              loadData(); // Reload the data
-            },
-          },
-        ]
-      );
-    } catch (error) {
-      console.error('Error deleting school:', error);
-      Alert.alert('Error', 'Failed to delete school. Please try again.');
-    }
-  };
-
-  const renderFilterBar = () => (
-    <View style={styles.filtersContainer}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={colors.neutral.gray} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search schools..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-      </View>
-      
-      <ScrollableFilters 
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
-      />
-    </View>
-  );
-
-  const renderSchoolRow = (school: School) => {
-    return (
-      <TouchableOpacity 
-        style={styles.schoolRow}
-        onPress={() => navigateToSchoolDetail(school)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.schoolInfo}>
-          <View style={styles.schoolAvatar}>
-            <Text style={styles.avatarText}>
-              {school.name ? school.name[0].toUpperCase() : 'S'}
-            </Text>
-          </View>
-          <View style={styles.schoolDetails}>
-            <Text style={styles.schoolName}>{school.name || 'Unnamed School'}</Text>
-            <Text style={styles.schoolEmail}>{school.email}</Text>
-            <Text style={styles.schoolLocation}>{school.city}, {school.state}</Text>
-          </View>
-        </View>
-        
-        <View style={styles.schoolStatus}>
-          <View style={[
-            styles.statusBadge,
-            school.status === 'active' && styles.activeBadge,
-            school.status === 'inactive' && styles.inactiveBadge,
-            school.status === 'pending' && styles.pendingBadge,
-          ]}>
-            <Text style={styles.statusText}>
-              {school.status || 'Unknown'}
-            </Text>
-          </View>
-        </View>
-        
-        <View style={styles.schoolEnrollment}>
-          <Text style={styles.enrollmentText}>
-            {school.enrollmentCount || 0} students
-          </Text>
-        </View>
-        
-        <View style={styles.actions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => navigateToSchoolDetail(school)}
-          >
-            <Ionicons name="eye-outline" size={18} color={colors.primary.main} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => router.push({
-              pathname: '/(admin)/(schools)/edit-school',
-              params: { id: school.$id }
-            })}
-          >
-            <Ionicons name="pencil-outline" size={18} color={colors.secondary.main} />
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => handleDeleteSchool(school.$id || '')}
-          >
-            <Ionicons name="trash-outline" size={18} color={colors.status.error} />
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderPagination = () => (
-    <View style={styles.paginationContainer}>
-      <TouchableOpacity
-        style={[styles.paginationButton, page === 1 && styles.disabledButton]}
-        onPress={() => setPage(prev => Math.max(1, prev - 1))}
-        disabled={page === 1}
-      >
-        <Ionicons name="chevron-back" size={18} color={page === 1 ? colors.neutral.gray : colors.primary.main} />
-        <Text style={[styles.paginationText, page === 1 && styles.disabledText]}>Previous</Text>
-      </TouchableOpacity>
-      
-      <Text style={styles.pageInfo}>
-        Page {page} of {totalPages}
-      </Text>
-      
-      <TouchableOpacity
-        style={[styles.paginationButton, page === totalPages && styles.disabledButton]}
-        onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
-        disabled={page === totalPages}
-      >
-        <Text style={[styles.paginationText, page === totalPages && styles.disabledText]}>Next</Text>
-        <Ionicons name="chevron-forward" size={18} color={page === totalPages ? colors.neutral.gray : colors.primary.main} />
-      </TouchableOpacity>
-    </View>
-  );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safeArea}>
-        <PreAuthHeader title="School Management" />
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
-          <Text style={styles.loadingText}>Loading schools...</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <PreAuthHeader 
-        title="School Management" 
-        rightComponent={
-          <View style={styles.headerButtons}>
-            <TouchableOpacity 
-              style={styles.refreshButton}
-              onPress={loadData}
-            >
-              <Ionicons name="refresh-outline" size={24} color="#333333" />
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={styles.addButton}
-              onPress={handleAddNewSchool}
-            >
-              <Ionicons name="add-outline" size={24} color="#333333" />
-            </TouchableOpacity>
-          </View>
-        }
-      />
-      
-      <View style={styles.container}>
-        <View style={styles.headerContainer}>
-          <Text style={styles.headerTitle}>School Directory</Text>
-          <Text style={styles.headerSubtitle}>
-            {schools.length} total schools • {filteredSchools.length} shown
-          </Text>
-        </View>
-        
-        {renderFilterBar()}
-        
-        {filteredSchools.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="school-outline" size={48} color={colors.neutral.lightGray} />
-            <Text style={styles.emptyText}>No schools found</Text>
-            <Text style={styles.emptySubtext}>Try adjusting your filters or add a new school</Text>
-            <TouchableOpacity
-              style={styles.addSchoolButton}
-              onPress={handleAddNewSchool}
-            >
-              <Text style={styles.addSchoolButtonText}>Add New School</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <View style={styles.tableHeader}>
-              <Text style={[styles.headerCell, { flex: 2 }]}>School</Text>
-              <Text style={styles.headerCell}>Status</Text>
-              <Text style={styles.headerCell}>Enrollment</Text>
-              <Text style={[styles.headerCell, { flex: 1.2 }]}>Actions</Text>
-            </View>
-            
-            <FlatList
-              data={filteredSchools}
-              renderItem={({ item }) => renderSchoolRow(item)}
-              keyExtractor={item => item.$id || Math.random().toString()}
-              contentContainerStyle={styles.listContainer}
-              showsVerticalScrollIndicator={false}
-            />
-            
-            {renderPagination()}
-          </>
-        )}
-      </View>
-    </SafeAreaView>
-  );
+interface School {
+  $id: string;
+  name: string;
+  address: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+  phone: string;
+  email: string;
+  website?: string;
+  contactPerson: string;
+  contactEmail: string;
+  contactPhone: string;
+  status: 'active' | 'inactive' | 'pending';
+  enrollmentCount?: number;
+  logo?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-// Helper component for horizontal scrollable filters
-const ScrollableFilters = ({ 
-  statusFilter, 
-  setStatusFilter,
-}: { 
-  statusFilter: string;
-  setStatusFilter: (filter: string) => void;
-}) => {
-  return (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={styles.filtersScrollContent}
-    >
-      {/* Status filters */}
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'all' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('all')}
+export default function SchoolsScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
+  const [schools, setSchools] = useState<School[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'pending'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalSchools, setTotalSchools] = useState(0);
+
+  const itemsPerPage = 10;
+
+  const loadSchools = useCallback(async (page = 1, refresh = false) => {
+    try {
+      if (refresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      const offset = (page - 1) * itemsPerPage;
+      const queries = [];
+
+      if (searchQuery.trim()) {
+        queries.push(`name LIKE "%${searchQuery.trim()}%"`);
+      }
+
+      if (statusFilter !== 'all') {
+        queries.push(`status = "${statusFilter}"`);
+      }
+
+      const response = await appwriteService.getAllSchools(
+        itemsPerPage,
+        offset,
+        queries.length > 0 ? queries : undefined
+      );
+
+      setSchools(response.documents);
+      setTotalSchools(response.total);
+      setTotalPages(Math.ceil(response.total / itemsPerPage));
+      setCurrentPage(page);
+    } catch (error) {
+      console.error('Failed to load schools:', error);
+      Alert.alert('Error', 'Failed to load schools data: ' + (error as Error).message);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [searchQuery, statusFilter]);
+
+  useEffect(() => {
+    loadSchools(1);
+  }, [loadSchools]);
+
+  const handleRefresh = () => {
+    loadSchools(currentPage, true);
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilter = (status: typeof statusFilter) => {
+    setStatusFilter(status);
+    setCurrentPage(1);
+  };
+
+  const handleDeleteSchool = async (schoolId: string, schoolName: string) => {
+    Alert.alert(
+      'Delete School',
+      `Are you sure you want to delete "${schoolName}"? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await appwriteService.deleteSchool(schoolId);
+              Alert.alert('Success', 'School deleted successfully');
+              loadSchools(currentPage);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete school: ' + (error as Error).message);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return airbnbColors.secondary;
+      case 'inactive':
+        return '#6B7280';
+      case 'pending':
+        return '#F59E0B';
+      default:
+        return '#6B7280';
+    }
+  };
+
+  const renderStatusFilter = () => (
+    <View style={styles.filterSection}>
+      <Text style={styles.filterSectionTitle}>Filter by Status</Text>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        style={styles.filterContainer}
+        contentContainerStyle={styles.filterContent}
       >
-        <Text style={[styles.filterText, statusFilter === 'all' && styles.activeFilterText]}>
-          All Schools
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'active' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('active')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'active' && styles.activeFilterText]}>
-          Active
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'inactive' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('inactive')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'inactive' && styles.activeFilterText]}>
-          Inactive
-        </Text>
-      </TouchableOpacity>
-      
-      <TouchableOpacity
-        style={[styles.filterChip, statusFilter === 'pending' && styles.activeFilterChip]}
-        onPress={() => setStatusFilter('pending')}
-      >
-        <Text style={[styles.filterText, statusFilter === 'pending' && styles.activeFilterText]}>
-          Pending
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        {[
+          { 
+            key: 'all', 
+            label: 'All', 
+            icon: 'grid-outline', 
+            color: airbnbColors.primary,
+            count: totalSchools 
+          },
+          { 
+            key: 'active', 
+            label: 'Active', 
+            icon: 'checkmark-circle', 
+            color: airbnbColors.secondary,
+            count: schools && Array.isArray(schools) ? schools.filter(s => s.status === 'active').length : 0
+          },
+          { 
+            key: 'pending', 
+            label: 'Pending', 
+            icon: 'time', 
+            color: '#F59E0B',
+            count: schools && Array.isArray(schools) ? schools.filter(s => s.status === 'pending').length : 0
+          },
+          { 
+            key: 'inactive', 
+            label: 'Inactive', 
+            icon: 'pause-circle', 
+            color: '#6B7280',
+            count: schools && Array.isArray(schools) ? schools.filter(s => s.status === 'inactive').length : 0
+          }
+        ].map((filter) => {
+          const isActive = statusFilter === filter.key;
+          return (
+            <TouchableOpacity
+              key={filter.key}
+              style={[
+                styles.filterButton,
+                isActive && [styles.filterButtonActive, { backgroundColor: filter.color }]
+              ]}
+              onPress={() => handleStatusFilter(filter.key as typeof statusFilter)}
+              activeOpacity={0.7}
+            >
+              <View style={[
+                styles.filterIconContainer,
+                isActive && styles.filterIconContainerActive
+              ]}>
+                <Ionicons 
+                  name={filter.icon as any} 
+                  size={18} 
+                  color={isActive ? filter.color : filter.color} 
+                />
+              </View>
+              <View style={styles.filterTextContainer}>
+                <Text style={[
+                  styles.filterButtonText,
+                  isActive && styles.filterButtonTextActive
+                ]}>
+                  {filter.label}
+                </Text>
+                <View style={[
+                  styles.filterCountBadge,
+                  isActive ? styles.filterCountBadgeActive : { backgroundColor: filter.color + '15' }
+                ]}>
+                  <Text style={[
+                    styles.filterCountText,
+                    isActive ? styles.filterCountTextActive : { color: filter.color }
+                  ]}>
+                    {filter.count}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
   );
-};
+
+  const renderSchoolCard = (school: School) => (
+    <TouchableOpacity
+      key={school.$id}
+      style={styles.schoolCard}
+      onPress={() => router.push(`/(admin)/(schools)/school-details?id=${school.$id}`)}
+    >
+      <View style={styles.schoolCardHeader}>
+        <View style={styles.schoolInfo}>
+          <View style={styles.schoolIconContainer}>
+            <Ionicons name="school" size={24} color={airbnbColors.primary} />
+          </View>
+          <View style={styles.schoolDetails}>
+            <Text style={styles.schoolName}>{school.name}</Text>
+            <Text style={styles.schoolLocation}>
+              {school.city}, {school.state}
+            </Text>
+            <Text style={styles.schoolContact}>
+              {school.contactPerson} • {school.contactPhone}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.schoolActions}>
+          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(school.status) + '15' }]}>
+            <Text style={[styles.statusText, { color: getStatusColor(school.status) }]}>
+              {school.status.charAt(0).toUpperCase() + school.status.slice(1)}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.schoolCardBody}>
+        <View style={styles.schoolMeta}>
+          <View style={styles.metaItem}>
+            <Ionicons name="people-outline" size={16} color={colors.neutral.gray} />
+            <Text style={styles.metaText}>
+              {school.enrollmentCount || 0} Students
+            </Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="mail-outline" size={16} color={colors.neutral.gray} />
+            <Text style={styles.metaText}>{school.email}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="call-outline" size={16} color={colors.neutral.gray} />
+            <Text style={styles.metaText}>{school.phone}</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.schoolCardFooter}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => router.push(`/(admin)/(schools)/edit-school?id=${school.$id}`)}
+        >
+          <Ionicons name="create-outline" size={16} color={airbnbColors.secondary} />
+          <Text style={[styles.actionButtonText, { color: airbnbColors.secondary }]}>Edit</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={() => handleDeleteSchool(school.$id, school.name)}
+        >
+          <Ionicons name="trash-outline" size={16} color={airbnbColors.primary} />
+          <Text style={[styles.actionButtonText, { color: airbnbColors.primary }]}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    </TouchableOpacity>
+  );
+
+  const renderPagination = () => {
+    if (totalPages <= 1) return null;
+
+    return (
+      <View style={styles.paginationContainer}>
+        <TouchableOpacity
+          style={[styles.paginationButton, currentPage === 1 && styles.paginationButtonDisabled]}
+          onPress={() => currentPage > 1 && loadSchools(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          <Ionicons name="chevron-back" size={20} color={currentPage === 1 ? '#9CA3AF' : airbnbColors.primary} />
+        </TouchableOpacity>
+
+        <Text style={styles.paginationText}>
+          Page {currentPage} of {totalPages}
+        </Text>
+
+        <TouchableOpacity
+          style={[styles.paginationButton, currentPage === totalPages && styles.paginationButtonDisabled]}
+          onPress={() => currentPage < totalPages && loadSchools(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          <Ionicons name="chevron-forward" size={20} color={currentPage === totalPages ? '#9CA3AF' : airbnbColors.primary} />
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
+  return (
+    <View style={styles.safeArea}>
+      <SafeAreaView style={styles.headerContainer}>
+        <PreAuthHeader 
+          title="Schools Management"
+          onLeftIconPress={() => router.back()}
+        />
+      </SafeAreaView>
+
+      <View style={styles.container}>
+        {/* Hero Section */}
+        <LinearGradient 
+          colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
+          style={styles.heroSection}
+        >
+          <View style={styles.heroContent}>
+            <Text style={styles.heroTitle}>Schools Directory</Text>
+            <Text style={styles.heroSubtitle}>
+              Manage educational institutions and partnerships
+            </Text>
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>{totalSchools}</Text>
+                <Text style={styles.statLabel}>Total Schools</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'active').length : 0}
+                </Text>
+                <Text style={styles.statLabel}>Active</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'pending').length : 0}
+                </Text>
+                <Text style={styles.statLabel}>Pending</Text>
+              </View>
+            </View>
+          </View>
+        </LinearGradient>
+
+        {/* Search and Filters */}
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color={colors.neutral.gray} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search schools by name..."
+              placeholderTextColor={colors.neutral.gray}
+              value={searchQuery}
+              onChangeText={handleSearch}
+            />
+            {searchQuery !== '' && (
+              <TouchableOpacity onPress={() => handleSearch('')}>
+                <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+
+        {/* Status Filters */}
+        {renderStatusFilter()}
+
+        {/* Add School Button */}
+        <View style={styles.addButtonContainer}>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => router.push('/(admin)/(schools)/add-school')}
+          >
+            <Ionicons name="add-circle" size={20} color={colors.neutral.white} />
+            <Text style={styles.addButtonText}>Add New School</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Schools List */}
+        <ScrollView
+          style={styles.schoolsList}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[airbnbColors.primary]}
+              tintColor={airbnbColors.primary}
+            />
+          }
+          contentContainerStyle={[
+            styles.schoolsListContent,
+            { paddingBottom: Math.max(insets.bottom || 0, 20) + 80 }
+          ]}
+        >
+          {loading ? (
+            <Animated.View 
+              entering={FadeInUp.delay(100).duration(600)}
+              style={styles.loadingContainer}
+            >
+              <ActivityIndicator size="large" color={airbnbColors.primary} />
+              <Text style={styles.loadingText}>Loading schools...</Text>
+            </Animated.View>
+          ) : (!schools || schools.length === 0) ? (
+            <Animated.View 
+              entering={FadeInUp.delay(200).duration(600)}
+              style={styles.emptyContainer}
+            >
+              <Ionicons name="school-outline" size={64} color={colors.neutral.gray} />
+              <Text style={styles.emptyTitle}>No Schools Found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery || statusFilter !== 'all' 
+                  ? 'Try adjusting your search or filters'
+                  : 'Get started by adding your first school'
+                }
+              </Text>
+              {!searchQuery && statusFilter === 'all' && (
+                <TouchableOpacity
+                  style={styles.emptyButton}
+                  onPress={() => router.push('/(admin)/(schools)/add-school')}
+                >
+                  <Ionicons name="add" size={20} color={airbnbColors.primary} />
+                  <Text style={[styles.emptyButtonText, { color: airbnbColors.primary }]}>
+                    Add First School
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </Animated.View>
+          ) : (
+            <>
+              {schools.map((school, index) => (
+                <Animated.View
+                  key={school.$id}
+                  entering={FadeInUp.delay(index * 100).duration(600)}
+                  style={styles.schoolCardWrapper}
+                >
+                  {renderSchoolCard(school)}
+                </Animated.View>
+              ))}
+              {renderPagination()}
+            </>
+          )}
+        </ScrollView>
+      </View>
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.neutral.white,
   },
+  headerContainer: {
+    backgroundColor: colors.neutral.white,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: '#FAFBFC',
   },
-  headerContainer: {
-    padding: spacing.md,
-    backgroundColor: colors.neutral.white,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+
+  // Hero Section
+  heroSection: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  headerTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.neutral.text,
-  },
-  headerSubtitle: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.gray,
-    marginTop: 4,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  heroContent: {
     alignItems: 'center',
   },
-  loadingText: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.gray,
-    marginTop: spacing.sm,
+  heroTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.neutral.white,
+    textAlign: 'center',
+    marginBottom: spacing.xs,
   },
-  filtersContainer: {
-    backgroundColor: colors.neutral.white,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+  heroSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    gap: spacing.xl,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.neutral.white,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.8)',
+    marginTop: 2,
+  },
+
+  // Search Section
+  searchSection: {
+    padding: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral.background,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    marginLeft: spacing.xs,
-    fontSize: typography.fontSizes.md,
+    marginLeft: spacing.sm,
+    fontSize: 16,
     color: colors.neutral.text,
   },
-  filtersScrollContent: {
-    paddingVertical: spacing.xs,
+
+  // Filters
+  filterSection: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.sm,
   },
-  filterChip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.neutral.background,
-    borderRadius: borderRadius.full,
-    marginRight: spacing.xs,
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.neutral.text,
+    marginBottom: spacing.xs,
   },
-  activeFilterChip: {
-    backgroundColor: colors.primary.light,
-  },
-  filterText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
-  },
-  activeFilterText: {
-    color: colors.neutral.white,
-    fontWeight: typography.fontWeights.medium as any,
-  },
-  tableHeader: {
+  filterContainer: {
     flexDirection: 'row',
-    backgroundColor: colors.neutral.background,
+    gap: spacing.sm,
+  },
+  filterContent: {
+    gap: spacing.sm,
+  },
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
-  },
-  headerCell: {
-    flex: 1,
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.neutral.darkGray,
-  },
-  listContainer: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.xl,
-  },
-  schoolRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: airbnbColors.primary + '30',
     backgroundColor: colors.neutral.white,
-    borderRadius: borderRadius.md,
-    marginBottom: spacing.sm,
-    padding: spacing.md,
-    shadowColor: colors.neutral.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
   },
-  schoolInfo: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
+  filterButtonActive: {
+    backgroundColor: airbnbColors.primary,
+    borderColor: airbnbColors.primary,
   },
-  schoolAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: colors.primary.main,
+  filterIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: airbnbColors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.sm,
   },
-  avatarText: {
+  filterIconContainerActive: {
+    backgroundColor: colors.neutral.white,
+  },
+  filterTextContainer: {
+    flex: 1,
+  },
+  filterButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.primary,
+  },
+  filterButtonTextActive: {
     color: colors.neutral.white,
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.bold as any,
+  },
+  filterCountBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: spacing.xs,
+  },
+  filterCountBadgeActive: {
+    backgroundColor: airbnbColors.secondary,
+  },
+  filterCountText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: airbnbColors.primary,
+  },
+  filterCountTextActive: {
+    color: colors.neutral.white,
+  },
+
+  // Add Button
+  addButtonContainer: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: airbnbColors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  addButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.white,
+    marginLeft: spacing.sm,
+  },
+
+  // Schools List
+  schoolsList: {
+    flex: 1,
+  },
+  schoolsListContent: {
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+
+  // School Card
+  schoolCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 16,
+    padding: spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  schoolCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+  },
+  schoolInfo: {
+    flexDirection: 'row',
+    flex: 1,
+  },
+  schoolIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: airbnbColors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
   schoolDetails: {
     flex: 1,
   },
   schoolName: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.medium as any,
+    fontSize: 16,
+    fontWeight: '600',
     color: colors.neutral.text,
-    marginBottom: 4,
-  },
-  schoolEmail: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.gray,
     marginBottom: 2,
   },
   schoolLocation: {
-    fontSize: typography.fontSizes.sm,
+    fontSize: 14,
+    color: colors.neutral.gray,
+    marginBottom: 2,
+  },
+  schoolContact: {
+    fontSize: 12,
     color: colors.neutral.gray,
   },
-  schoolStatus: {
-    flex: 1,
-    alignItems: 'flex-start',
+  schoolActions: {
+    alignItems: 'flex-end',
   },
   statusBadge: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-  },
-  activeBadge: {
-    backgroundColor: colors.status.success + '20',
-  },
-  inactiveBadge: {
-    backgroundColor: colors.status.error + '20',
-  },
-  pendingBadge: {
-    backgroundColor: colors.status.warning + '20',
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
-    color: colors.neutral.darkGray,
-    textTransform: 'capitalize',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  schoolEnrollment: {
-    flex: 1,
-    alignItems: 'flex-start',
-  },
-  enrollmentText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
-  },
-  actions: {
-    flex: 1.2,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.neutral.background,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: spacing.xs,
-  },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: spacing.xl,
-  },
-  emptyText: {
-    fontSize: typography.fontSizes.lg,
-    color: colors.neutral.darkGray,
-    marginTop: spacing.md,
-  },
-  emptySubtext: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.gray,
-    marginTop: spacing.xs,
+  schoolCardBody: {
     marginBottom: spacing.md,
   },
-  addSchoolButton: {
-    backgroundColor: colors.primary.main,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
+  schoolMeta: {
+    gap: spacing.xs,
   },
-  addSchoolButtonText: {
-    color: colors.neutral.white,
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.medium as any,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
+  metaText: {
+    fontSize: 12,
+    color: colors.neutral.gray,
+    flex: 1,
+  },
+  schoolCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+
+  // Pagination
   paginationContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.neutral.white,
-    borderTopWidth: 1,
-    borderTopColor: colors.neutral.lightGray,
+    gap: spacing.lg,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
   },
   paginationButton: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.neutral.white,
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.neutral.background,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
-  disabledButton: {
+  paginationButtonDisabled: {
     opacity: 0.5,
   },
   paginationText: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.primary.main,
-    marginHorizontal: spacing.xs,
+    fontSize: 14,
+    color: colors.neutral.text,
+    fontWeight: '500',
   },
-  disabledText: {
+
+  // Loading & Empty States
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  loadingText: {
+    fontSize: 16,
     color: colors.neutral.gray,
+    marginTop: spacing.md,
   },
-  pageInfo: {
-    fontSize: typography.fontSizes.sm,
-    color: colors.neutral.darkGray,
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: spacing.xxl,
   },
-  headerButtons: {
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.neutral.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: colors.neutral.gray,
+    textAlign: 'center',
+    marginBottom: spacing.lg,
+  },
+  emptyButton: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: airbnbColors.primary,
   },
-  refreshButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
-    marginRight: 8,
+  emptyButtonText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
-  addButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: '#E5E5E5',
+  schoolCardWrapper: {
+    marginBottom: spacing.md,
   },
 });

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   ScrollView,
   StyleSheet,
   TextInput,
@@ -308,9 +309,17 @@ export default function UsersIndexPage() {
                   >
                     <View style={styles.userInfo}>
                       <View style={[styles.userAvatar, { backgroundColor: airbnbColors.primary + '20' }]}>
-                        <Text style={styles.avatarText}>
-                          {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
-                        </Text>
+                        {user.profileImage ? (
+                          <Image 
+                            source={{ uri: user.profileImage }}
+                            style={styles.avatarImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <Text style={styles.avatarText}>
+                            {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
+                          </Text>
+                        )}
                       </View>
                       <View style={styles.userDetails}>
                         <Text style={styles.userName}>{user.displayName || 'Unnamed User'}</Text>
@@ -549,6 +558,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
+  },
+  avatarImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   avatarText: {
     color: airbnbColors.primary,

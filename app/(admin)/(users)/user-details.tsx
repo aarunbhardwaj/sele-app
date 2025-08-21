@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -16,10 +18,23 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
-import Button from '../../../components/ui/Button';
-import { borderRadius, colors, spacing, typography } from '../../../components/ui/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
+
+// Airbnb color palette
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#FF3347',
+  primaryLight: '#FF8589',
+  secondary: '#00A699',
+  secondaryDark: '#008F85',
+  secondaryLight: '#57C1BA',
+  neutral: colors.neutral,
+  accent: colors.accent,
+  status: colors.status
+};
 
 interface User {
   $id: string;
@@ -37,6 +52,10 @@ interface User {
   lastActive?: string;
   createdAt?: string;
   lastLoginAt?: string;
+  nativeLanguage?: string;
+  englishLevel?: string;
+  learningGoal?: string;
+  dailyGoalMinutes?: number;
 }
 
 interface Role {
@@ -47,6 +66,7 @@ interface Role {
 export default function UserDetailsScreen() {
   const router = useRouter();
   const rawParams = useLocalSearchParams();
+  const insets = useSafeAreaInsets();
   const initRef = useRef(false);
   
   // Stabilize params using useMemo to prevent infinite re-renders
@@ -129,6 +149,9 @@ export default function UserDetailsScreen() {
           setEnglishLevel(userData.englishLevel || 'beginner');
           setLearningGoal(userData.learningGoal || '');
           setDailyGoalMinutes(userData.dailyGoalMinutes ? userData.dailyGoalMinutes.toString() : '15');
+          setPhone(userData.phone ? userData.phone.toString() : '');
+          setLocation(userData.location || '');
+          setBio(userData.bio || '');
           setIsActive(userData.status !== 'suspended');
           setIsAdmin(userData.isAdmin || false);
         }
@@ -150,21 +173,35 @@ export default function UserDetailsScreen() {
       setSaving(true);
       
       // Prepare updated user data - only include fields that exist in the database collection
-      const updatedData = {
+      // Handle type conversions and empty values properly
+      const updatedData: any = {
         displayName,
         profileImage,
         nativeLanguage,
         englishLevel,
         learningGoal,
         dailyGoalMinutes: parseInt(dailyGoalMinutes, 10) || 15,
-        // Don't include status as it's not in the Appwrite schema
-        // Store active/inactive status in a different way or add it to schema first
         isAdmin,
-        phone,
-        location,
-        bio,
-        lastActive: new Date().toISOString() // Update the last active timestamp
+        lastActive: new Date().toISOString()
       };
+      
+      // Only include phone if it's not empty and is a valid number
+      if (phone && phone.trim() !== '') {
+        const phoneNumber = parseInt(phone.replace(/\D/g, ''), 10);
+        if (!isNaN(phoneNumber)) {
+          updatedData.phone = phoneNumber;
+        }
+      }
+      
+      // Only include location if it's not empty
+      if (location && location.trim() !== '') {
+        updatedData.location = location;
+      }
+      
+      // Only include bio if it's not empty
+      if (bio && bio.trim() !== '') {
+        updatedData.bio = bio;
+      }
       
       try {
         if (!user || !user.$id) {
@@ -243,325 +280,435 @@ export default function UserDetailsScreen() {
     return new Date(dateString).toLocaleDateString();
   };
   
+  const handleImagePicker = useCallback(async () => {
+    try {
+      // Request permission to access media library
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      
+      if (permissionResult.granted === false) {
+        Alert.alert('Permission required', 'We need permission to access your photos to update the profile image.');
+        return;
+      }
+      
+      // Launch image picker with compatible options
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: 'Images', // Use string instead of ImagePicker.MediaType.Images
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      
+      // Check if user cancelled (updated API)
+      if (result.canceled) {
+        return;
+      }
+      
+      // Image selected, update profileImage state
+      if (result.assets && result.assets[0]) {
+        const selectedImageUri = result.assets[0].uri;
+        setProfileImage(selectedImageUri);
+        
+        // Show feedback to user
+        Alert.alert('Image Selected', 'Profile image updated. Don\'t forget to save your changes.');
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to select image. Please try again.');
+    }
+  }, []);
+  
   if (loading && !user) {
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <PreAuthHeader 
-          title="User Profile"
-          leftComponent={
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={colors.neutral.text} />
-            </TouchableOpacity>
-          }
-        />
+      <View style={styles.safeArea}>
+        <SafeAreaView style={styles.headerContainer}>
+          <PreAuthHeader 
+            title="User Details"
+            onLeftIconPress={() => router.back()}
+          />
+        </SafeAreaView>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary.main} />
-          <Text style={styles.loadingText}>Loading user profile...</Text>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <Text style={styles.loadingText}>Loading user details...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
   
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView 
+    <View style={styles.safeArea}>
+      <SafeAreaView style={styles.headerContainer}>
+        <PreAuthHeader 
+          title="User Details"
+          showBackButton={true}
+          onBackPress={() => router.back()}
+        />
+      </SafeAreaView>
+
+      <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.container}
       >
-        <PreAuthHeader 
-          title="User Details"
-          leftComponent={
-            <TouchableOpacity onPress={() => router.back()}>
-              <Ionicons name="arrow-back" size={24} color={colors.neutral.text} />
-            </TouchableOpacity>
-          }
-          rightComponent={
-            <View style={styles.headerRightContainer}>
-              <TouchableOpacity 
-                onPress={() => {/* Handle notifications */}}
-                style={styles.headerButton}
-              >
-                <Ionicons 
-                  name="notifications-outline" 
-                  size={22} 
-                  color={colors.neutral.text} 
-                />
-              </TouchableOpacity>
-              <TouchableOpacity 
-                onPress={() => setEditMode(!editMode)}
-                style={styles.headerButton}
-              >
-                <Ionicons 
-                  name={editMode ? "close" : "pencil"} 
-                  size={20} 
-                  color={editMode ? colors.status.error : colors.primary.main} 
-                />
-              </TouchableOpacity>
-            </View>
-          }
-        />
-        
         <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.contentContainer}
+          style={styles.scrollView} 
           showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, 20) + 80 }
+          ]}
         >
-          <View style={styles.profileHeader}>
-            <View style={styles.avatarContainer}>
-              {user?.profileImage ? (
-                <Image 
-                  source={{ uri: user.profileImage }} 
-                  style={styles.avatar} 
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder}>
-                  <Text style={styles.avatarText}>
-                    {user?.displayName ? user.displayName[0].toUpperCase() : 'U'}
-                  </Text>
-                </View>
-              )}
-              
-              {editMode && (
-                <TouchableOpacity style={styles.changeAvatarButton}>
-                  <Ionicons name="camera" size={18} color={colors.neutral.white} />
-                </TouchableOpacity>
-              )}
-            </View>
-            
-            <View style={styles.userMeta}>
-              <View style={styles.statusContainer}>
-                <View style={[
-                  styles.statusBadge,
-                  user?.status === 'active' && styles.activeBadge,
-                  user?.status === 'suspended' && styles.suspendedBadge,
-                ]}>
-                  <Text style={styles.statusText}>
-                    {user?.status || 'Active'}
-                  </Text>
+          {/* Hero Section with User Profile */}
+          <LinearGradient 
+            colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
+            style={styles.heroSection}
+          >
+            <View style={styles.heroContent}>
+              <View style={styles.userProfileCard}>
+                <View style={styles.avatarContainer}>
+                  {profileImage ? (
+                    <Image 
+                      source={{ uri: profileImage }} 
+                      style={styles.avatar} 
+                    />
+                  ) : (
+                    <View style={styles.avatarPlaceholder}>
+                      <Text style={styles.avatarText}>
+                        {user?.displayName ? user.displayName[0].toUpperCase() : 'U'}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {editMode && (
+                    <TouchableOpacity 
+                      style={styles.changeAvatarButton}
+                      onPress={handleImagePicker}
+                    >
+                      <Ionicons name="camera" size={16} color={colors.neutral.white} />
+                    </TouchableOpacity>
+                  )}
                 </View>
                 
-                <View style={[
-                  styles.roleBadge,
-                  getUserRoleName() === 'Admin' && styles.adminRoleBadge,
-                  getUserRoleName() === 'Instructor' && styles.instructorRoleBadge,
-                  getUserRoleName() === 'Student' && styles.studentRoleBadge,
-                ]}>
-                  <Text style={[
-                    styles.roleText,
-                    getUserRoleName() === 'Admin' && styles.adminRoleText,
-                    getUserRoleName() === 'Instructor' && styles.instructorRoleText,
-                    getUserRoleName() === 'Student' && styles.studentRoleText,
-                  ]}>
-                    {getUserRoleName()}
+                <View style={styles.userInfo}>
+                  <Text style={styles.heroUserName}>
+                    {user?.displayName || 'Unnamed User'}
                   </Text>
+                  <Text style={styles.heroUserEmail}>{user?.email}</Text>
+                  
+                  <View style={styles.heroBadgesContainer}>
+                    <View style={[
+                      styles.heroStatusBadge,
+                      user?.status === 'active' && styles.heroActiveBadge,
+                      user?.status === 'suspended' && styles.heroSuspendedBadge,
+                    ]}>
+                      <Text style={styles.heroStatusText}>
+                        {user?.status || 'Active'}
+                      </Text>
+                    </View>
+                    
+                    <View style={[
+                      styles.heroRoleBadge,
+                      getUserRoleName() === 'Admin' && styles.heroAdminRoleBadge,
+                      getUserRoleName() === 'Instructor' && styles.heroInstructorRoleBadge,
+                      getUserRoleName() === 'Student' && styles.heroStudentRoleBadge,
+                    ]}>
+                      <Text style={styles.heroRoleText}>
+                        {getUserRoleName()}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                
+                <TouchableOpacity 
+                  style={styles.editButton}
+                  onPress={() => setEditMode(!editMode)}
+                >
+                  <Ionicons 
+                    name={editMode ? "close" : "create-outline"} 
+                    size={20} 
+                    color={airbnbColors.primary} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </LinearGradient>
+
+          <View style={styles.contentContainer}>
+            {/* Basic Information Card */}
+            <View style={styles.infoCard}>
+              <Text style={styles.cardTitle}>Basic Information</Text>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="person-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Display Name</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={displayName}
+                      onChangeText={setDisplayName}
+                      placeholder="Enter display name"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.displayName || 'Not set'}</Text>
+                  )}
                 </View>
               </View>
               
-              <Text style={styles.userName}>
-                {user?.displayName || 'Unnamed User'}
-              </Text>
-              <Text style={styles.userEmail}>{user?.email}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Basic Information</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Display Name</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Enter display name"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.displayName || 'Not set'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Native Language</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={nativeLanguage}
-                  onChangeText={setNativeLanguage}
-                  placeholder="Enter native language"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.nativeLanguage || 'Not set'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>English Level</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={englishLevel}
-                  onChangeText={setEnglishLevel}
-                  placeholder="Enter English proficiency level"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.englishLevel || 'Beginner'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Learning Goal</Text>
-              {editMode ? (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={learningGoal}
-                  onChangeText={setLearningGoal}
-                  placeholder="Enter learning goal"
-                  multiline
-                  numberOfLines={2}
-                  textAlignVertical="top"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.learningGoal || 'Not set'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Daily Goal (Minutes)</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={dailyGoalMinutes}
-                  onChangeText={setDailyGoalMinutes}
-                  placeholder="Enter daily goal in minutes"
-                  keyboardType="numeric"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.dailyGoalMinutes || '15'} minutes</Text>
-              )}
-            </View>
-          </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Phone</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={phone}
-                  onChangeText={setPhone}
-                  placeholder="Enter phone number"
-                  keyboardType="phone-pad"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.phone || 'Not set'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Location</Text>
-              {editMode ? (
-                <TextInput
-                  style={styles.input}
-                  value={location}
-                  onChangeText={setLocation}
-                  placeholder="Enter location"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.location || 'Not set'}</Text>
-              )}
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Bio</Text>
-              {editMode ? (
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  value={bio}
-                  onChangeText={setBio}
-                  placeholder="Enter user bio"
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              ) : (
-                <Text style={styles.value}>{user?.bio || 'No bio available'}</Text>
-              )}
-            </View>
-          
-          
-          <View style={styles.infoSection}>
-            <Text style={styles.sectionTitle}>Account Details</Text>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>User ID</Text>
-              <Text style={styles.value}>{user?.userId || user?.$id || 'Not available'}</Text>
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Account Created</Text>
-              <Text style={styles.value}>{formatDate(user?.createdAt)}</Text>
-            </View>
-            
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Last Login</Text>
-              <Text style={styles.value}>{formatDate(user?.lastLoginAt)}</Text>
-            </View>
-            
-            {editMode && (
-              <>
-                <View style={styles.switchGroup}>
-                  <Text style={styles.label}>Account Active</Text>
-                  <Switch
-                    value={isActive}
-                    onValueChange={setIsActive}
-                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-                    thumbColor={isActive ? colors.primary.main : colors.neutral.gray}
-                  />
+              <View style={styles.infoItem}>
+                <Ionicons name="mail-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Email</Text>
+                  <Text style={styles.infoValue}>{user?.email || 'Not set'}</Text>
                 </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="call-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Phone</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="Enter phone number"
+                      keyboardType="phone-pad"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.phone || 'Not set'}</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="location-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Location</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={location}
+                      onChangeText={setLocation}
+                      placeholder="Enter location"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.location || 'Not set'}</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* Learning Profile Card */}
+            <View style={styles.infoCard}>
+              <Text style={styles.cardTitle}>Learning Profile</Text>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="language-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Native Language</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={nativeLanguage}
+                      onChangeText={setNativeLanguage}
+                      placeholder="Enter native language"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.nativeLanguage || 'Not set'}</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="school-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>English Level</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={englishLevel}
+                      onChangeText={setEnglishLevel}
+                      placeholder="Enter English proficiency level"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.englishLevel || 'Beginner'}</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="flag-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Learning Goal</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={[styles.input, styles.textArea]}
+                      value={learningGoal}
+                      onChangeText={setLearningGoal}
+                      placeholder="Enter learning goal"
+                      multiline
+                      numberOfLines={2}
+                      textAlignVertical="top"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.learningGoal || 'Not set'}</Text>
+                  )}
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="time-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Daily Goal</Text>
+                  {editMode ? (
+                    <TextInput
+                      style={styles.input}
+                      value={dailyGoalMinutes}
+                      onChangeText={setDailyGoalMinutes}
+                      placeholder="Daily goal in minutes"
+                      keyboardType="numeric"
+                    />
+                  ) : (
+                    <Text style={styles.infoValue}>{user?.dailyGoalMinutes || '15'} minutes</Text>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* Account Details Card */}
+            <View style={styles.infoCard}>
+              <Text style={styles.cardTitle}>Account Details</Text>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="finger-print-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>User ID</Text>
+                  <Text style={styles.infoValue}>{user?.userId || user?.$id || 'Not available'}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="calendar-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Account Created</Text>
+                  <Text style={styles.infoValue}>{formatDate(user?.createdAt)}</Text>
+                </View>
+              </View>
+              
+              <View style={styles.infoItem}>
+                <Ionicons name="log-in-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                <View style={styles.infoContent}>
+                  <Text style={styles.infoLabel}>Last Login</Text>
+                  <Text style={styles.infoValue}>{formatDate(user?.lastLoginAt)}</Text>
+                </View>
+              </View>
+              
+              {editMode && (
+                <>
+                  <View style={styles.switchItem}>
+                    <View style={styles.switchInfo}>
+                      <Ionicons name="shield-checkmark-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Account Active</Text>
+                        <Text style={styles.switchDescription}>Allow user to access the platform</Text>
+                      </View>
+                    </View>
+                    <Switch
+                      value={isActive}
+                      onValueChange={setIsActive}
+                      trackColor={{ false: '#E2E8F0', true: airbnbColors.primaryLight }}
+                      thumbColor={isActive ? airbnbColors.primary : colors.neutral.white}
+                    />
+                  </View>
+                  
+                  <View style={styles.switchItem}>
+                    <View style={styles.switchInfo}>
+                      <Ionicons name="key-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                      <View style={styles.infoContent}>
+                        <Text style={styles.infoLabel}>Admin Privileges</Text>
+                        <Text style={styles.switchDescription}>Grant admin access to this user</Text>
+                      </View>
+                    </View>
+                    <Switch
+                      value={isAdmin}
+                      onValueChange={setIsAdmin}
+                      trackColor={{ false: '#E2E8F0', true: airbnbColors.primaryLight }}
+                      thumbColor={isAdmin ? airbnbColors.primary : colors.neutral.white}
+                    />
+                  </View>
+                </>
+              )}
+            </View>
+
+            {/* Bio Card */}
+            {(user?.bio || editMode) && (
+              <View style={styles.infoCard}>
+                <Text style={styles.cardTitle}>Bio</Text>
                 
-                <View style={styles.switchGroup}>
-                  <Text style={styles.label}>Admin Privileges</Text>
-                  <Switch
-                    value={isAdmin}
-                    onValueChange={setIsAdmin}
-                    trackColor={{ false: colors.neutral.lightGray, true: colors.primary.light }}
-                    thumbColor={isAdmin ? colors.primary.main : colors.neutral.gray}
-                  />
+                <View style={styles.infoItem}>
+                  <Ionicons name="document-text-outline" size={20} color={colors.neutral.darkGray} style={styles.infoIcon} />
+                  <View style={styles.infoContent}>
+                    {editMode ? (
+                      <TextInput
+                        style={[styles.input, styles.textArea]}
+                        value={bio}
+                        onChangeText={setBio}
+                        placeholder="Enter user bio"
+                        multiline
+                        numberOfLines={4}
+                        textAlignVertical="top"
+                      />
+                    ) : (
+                      <Text style={styles.infoValue}>{user?.bio || 'No bio available'}</Text>
+                    )}
+                  </View>
                 </View>
-              </>
+              </View>
+            )}
+            
+            {/* Action Buttons */}
+            {editMode && (
+              <View style={styles.actionsContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => {
+                    setEditMode(false);
+                    // Reset form values
+                    setDisplayName(user?.displayName || '');
+                    setProfileImage(user?.profileImage || '');
+                    setNativeLanguage(user?.nativeLanguage || '');
+                    setEnglishLevel(user?.englishLevel || 'beginner');
+                    setLearningGoal(user?.learningGoal || '');
+                    setDailyGoalMinutes(user?.dailyGoalMinutes ? user.dailyGoalMinutes.toString() : '15');
+                    setPhone(user?.phone ? user.phone.toString() : '');
+                    setLocation(user?.location || '');
+                    setBio(user?.bio || '');
+                    setIsActive(user?.status !== 'suspended');
+                    setIsAdmin(user?.isAdmin || false);
+                  }}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                  onPress={handleSaveChanges}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color={colors.neutral.white} />
+                  ) : (
+                    <Ionicons name="checkmark-circle" size={20} color={colors.neutral.white} />
+                  )}
+                  <Text style={styles.saveButtonText}>
+                    {saving ? 'Updating...' : 'Save Changes'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             )}
           </View>
-          
-          {editMode && (
-            <View style={styles.actionButtons}>
-              <Button
-                title="Cancel"
-                onPress={() => {
-                  setEditMode(false);
-                  // Reset form values
-                  setDisplayName(user?.displayName || '');
-                  setProfileImage(user?.profileImage || '');
-                  setNativeLanguage(user?.nativeLanguage || '');
-                  setEnglishLevel(user?.englishLevel || 'beginner');
-                  setLearningGoal(user?.learningGoal || '');
-                  setDailyGoalMinutes(user?.dailyGoalMinutes ? user.dailyGoalMinutes.toString() : '15');
-   
-                  setIsAdmin(user?.isAdmin || false);
-                }}
-                variant="secondary"
-                style={styles.cancelButton}
-              />
-              <Button
-                title="Save Changes"
-                onPress={handleSaveChanges}
-                loading={saving}
-                style={styles.saveButton}
-              />
-            </View>
-          )}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -570,204 +717,292 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.neutral.white,
   },
+  headerContainer: {
+    backgroundColor: colors.neutral.white,
+    zIndex: 10,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: '#FAFBFC',
   },
   scrollView: {
     flex: 1,
   },
-  contentContainer: {
-    paddingBottom: spacing.xxl,
+  scrollContent: {
+    flexGrow: 1,
   },
+
+  // Loading
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   loadingText: {
-    fontSize: typography.fontSizes.md,
+    fontSize: 16,
     color: colors.neutral.gray,
-    marginTop: spacing.sm,
+    marginTop: spacing.md,
   },
-  editButton: {
-    padding: 8,
-    borderRadius: 16,
-    backgroundColor: colors.neutral.background,
+
+  // Hero Section
+  heroSection: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xl,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  profileHeader: {
+  heroContent: {
+    alignItems: 'center',
+  },
+  userProfileCard: {
     backgroundColor: colors.neutral.white,
+    borderRadius: 16,
     padding: spacing.lg,
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.neutral.lightGray,
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarContainer: {
     position: 'relative',
-    marginRight: spacing.lg,
+    marginRight: spacing.md,
   },
   avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
   },
   avatarPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: colors.primary.main,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: airbnbColors.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   avatarText: {
-    fontSize: 32,
-    fontWeight: typography.fontWeights.bold as any,
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.neutral.white,
   },
   changeAvatarButton: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
-    backgroundColor: colors.primary.main,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    bottom: -2,
+    right: -2,
+    backgroundColor: airbnbColors.secondary,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.neutral.white,
   },
-  userMeta: {
+  userInfo: {
     flex: 1,
   },
-  statusContainer: {
+  heroUserName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.neutral.text,
+    marginBottom: 4,
+  },
+  heroUserEmail: {
+    fontSize: 14,
+    color: colors.neutral.gray,
+    marginBottom: 8,
+  },
+  heroBadgesContainer: {
     flexDirection: 'row',
-    marginBottom: spacing.xs,
+    gap: 8,
   },
-  statusBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
-    marginRight: spacing.xs,
+  heroStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
   },
-  activeBadge: {
-    backgroundColor: colors.status.success + '20',
+  heroActiveBadge: {
+    backgroundColor: airbnbColors.secondary + '20',
   },
-  suspendedBadge: {
-    backgroundColor: colors.status.error + '20',
+  heroSuspendedBadge: {
+    backgroundColor: airbnbColors.primary + '20',
   },
-  statusText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
+  heroStatusText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.neutral.darkGray,
     textTransform: 'capitalize',
   },
-  roleBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.neutral.lightGray,
+  heroRoleBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    backgroundColor: '#E2E8F0',
   },
-  adminRoleBadge: {
-    backgroundColor: colors.primary.main + '20',
+  heroAdminRoleBadge: {
+    backgroundColor: airbnbColors.primary + '20',
   },
-  instructorRoleBadge: {
-    backgroundColor: colors.secondary.main + '20',
+  heroInstructorRoleBadge: {
+    backgroundColor: airbnbColors.secondary + '20',
   },
-  studentRoleBadge: {
-    backgroundColor: colors.status.info + '20',
+  heroStudentRoleBadge: {
+    backgroundColor: '#F59E0B' + '20',
   },
-  roleText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.medium as any,
+  heroRoleText: {
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.neutral.darkGray,
   },
-  adminRoleText: {
-    color: colors.primary.main,
-  },
-  instructorRoleText: {
-    color: colors.secondary.main,
-  },
-  studentRoleText: {
-    color: colors.status.info,
-  },
-  userName: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.neutral.text,
-    marginBottom: 4,
-  },
-  userEmail: {
-    fontSize: typography.fontSizes.md,
-    color: colors.neutral.gray,
-  },
-  infoSection: {
+  editButton: {
+    padding: 12,
+    borderRadius: 12,
     backgroundColor: colors.neutral.white,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+
+  // Content
+  contentContainer: {
     padding: spacing.lg,
-    marginTop: spacing.md,
+    paddingTop: spacing.xl,
   },
-  sectionTitle: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.primary.main,
+
+  // Info Cards
+  infoCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 12,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    shadowColor: colors.neutral.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.neutral.text,
     marginBottom: spacing.md,
   },
-  formGroup: {
-    marginBottom: spacing.md,
-  },
-  switchGroup: {
+  infoItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
   },
-  label: {
-    fontSize: typography.fontSizes.sm,
+  infoIcon: {
+    marginRight: spacing.md,
+    marginTop: 2,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontSize: 14,
     color: colors.neutral.darkGray,
     marginBottom: 4,
+    fontWeight: '500',
   },
-  value: {
-    fontSize: typography.fontSizes.md,
+  infoValue: {
+    fontSize: 16,
     color: colors.neutral.text,
+    lineHeight: 22,
   },
   input: {
     backgroundColor: colors.neutral.background,
-    borderRadius: borderRadius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    borderRadius: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.neutral.lightGray,
-    fontSize: typography.fontSizes.md,
+    fontSize: 16,
     color: colors.neutral.text,
+    minHeight: 44,
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 88,
     paddingTop: spacing.sm,
+    textAlignVertical: 'top',
   },
-  actionButtons: {
+
+  // Switch Items
+  switchItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  switchInfo: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  switchDescription: {
+    fontSize: 12,
+    color: colors.neutral.gray,
+    marginTop: 2,
+  },
+
+  // Actions
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingTop: spacing.lg,
     marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
   },
   cancelButton: {
     flex: 1,
-    marginRight: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.neutral.white,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.darkGray,
   },
   saveButton: {
-    flex: 1,
-    marginLeft: spacing.sm,
-  },
-  headerRightContainer: {
+    flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: airbnbColors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  headerButton: {
-    padding: 8,
-    borderRadius: 16,
-    marginLeft: spacing.md,
-    backgroundColor: colors.neutral.background,
+  saveButtonDisabled: {
+    opacity: 0.7,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.white,
+    marginLeft: spacing.sm,
   },
 });
