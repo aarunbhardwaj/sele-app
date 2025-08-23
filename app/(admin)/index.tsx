@@ -151,17 +151,10 @@ export default function AdminControlCenter() {
     <View style={styles.container}>
       <PreAuthHeader 
         title="Admin Control Center"
-        rightComponent={
-          <TouchableOpacity 
-            onPress={handleLogout}
-            style={styles.logoutButton}
-            accessible={true}
-            accessibilityLabel="Logout"
-            accessibilityRole="button"
-          >
-            <Ionicons name="log-out" size={20} color={airbnbColors.error} />
-          </TouchableOpacity>
-        }
+        showNotifications={true}
+        showRefresh={false}
+        showLogout={true}
+        onNotificationPress={() => console.log('Admin notifications')}
       />
       
       <ScrollView 

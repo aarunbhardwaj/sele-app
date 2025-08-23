@@ -1,34 +1,113 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
-    Dimensions,
+    Animated,
     KeyboardAvoidingView,
     Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     TextInput,
+    TextStyle,
     TouchableOpacity,
     View
 } from 'react-native';
-import { colors, spacing } from '../../../components/ui/theme';
-import Text from '../../../components/ui/Typography';
-import PreAuthHeader from '../../../components/ui2/pre-auth-header';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import appwriteService from '../../../services/appwrite';
 
-const { width } = Dimensions.get('window');
+// Airbnb Colors (matching lesson-view.tsx and quiz-list.tsx)
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E1474C',
+  secondary: '#00A699',
+  tertiary: '#FC642D',
+  dark: '#484848',
+  mediumGray: '#767676',
+  lightGray: '#EBEBEB',
+  superLightGray: '#F7F7F7',
+  white: '#FFFFFF',
+  black: '#222222',
+  success: '#008A05',
+  warning: '#FFB400',
+  error: '#C13515',
+  background: '#FDFDFD',
+  border: '#DDDDDD',
+};
+
+// Airbnb Typography
+const airbnbTypography = {
+  fontFamily: Platform.OS === 'ios' ? 'Circular' : 'CircularStd',
+  sizes: {
+    xs: 10,
+    sm: 12,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    xxl: 20,
+    xxxl: 24,
+    huge: 32,
+  },
+  weights: {
+    light: '300' as const,
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+  },
+};
+
+// Airbnb Spacing
+const airbnbSpacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
+
+interface Quiz {
+  $id: string;
+  title: string;
+  description: string;
+  category: string;
+  difficulty: string;
+  timeLimit: number;
+  passScore: number;
+  isPublished: boolean;
+}
+
+interface Question {
+  $id: string;
+  text: string;
+  type: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+  points: number;
+}
+
+interface AirbnbTextProps {
+  children: React.ReactNode;
+  style?: TextStyle;
+  variant?: 'hero' | 'title' | 'subtitle' | 'body' | 'caption' | 'small';
+  color?: string;
+  numberOfLines?: number;
+  [key: string]: any;
+}
 
 function QuestionEditorScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { quizId } = useLocalSearchParams();
   
   const [loading, setLoading] = useState(true);
-  const [quiz, setQuiz] = useState(null);
-  const [questions, setQuestions] = useState([]);
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestion, setLoadingQuestion] = useState(false);
   
   // Question form state
@@ -38,7 +117,7 @@ function QuestionEditorScreen() {
   const [correctAnswer, setCorrectAnswer] = useState(0);
   const [explanation, setExplanation] = useState('');
   const [points, setPoints] = useState('1');
-  const [editingQuestion, setEditingQuestion] = useState(null);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   
   // Errors state
   const [errors, setErrors] = useState({
@@ -48,18 +127,45 @@ function QuestionEditorScreen() {
     points: ''
   });
 
-  // Load quiz and questions
-  useEffect(() => {
-    if (!quizId) {
-      Alert.alert('Error', 'Quiz ID not provided');
-      router.back();
-      return;
-    }
-    
-    fetchQuizData();
-  }, [quizId]);
+  // Create Airbnb-style Text component
+  const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
+    const getTextStyle = (): TextStyle => {
+      switch (variant) {
+        case 'hero':
+          return { fontSize: airbnbTypography.sizes.huge, fontWeight: airbnbTypography.weights.bold };
+        case 'title':
+          return { fontSize: airbnbTypography.sizes.xxxl, fontWeight: airbnbTypography.weights.semibold };
+        case 'subtitle':
+          return { fontSize: airbnbTypography.sizes.xl, fontWeight: airbnbTypography.weights.medium };
+        case 'body':
+          return { fontSize: airbnbTypography.sizes.lg, fontWeight: airbnbTypography.weights.regular };
+        case 'caption':
+          return { fontSize: airbnbTypography.sizes.md, fontWeight: airbnbTypography.weights.regular };
+        case 'small':
+          return { fontSize: airbnbTypography.sizes.sm, fontWeight: airbnbTypography.weights.regular };
+        default:
+          return { fontSize: airbnbTypography.sizes.lg, fontWeight: airbnbTypography.weights.regular };
+      }
+    };
 
-  const fetchQuizData = async () => {
+    return (
+      <Animated.Text
+        style={[
+          {
+            color,
+            fontFamily: airbnbTypography.fontFamily,
+            ...getTextStyle(),
+          },
+          style,
+        ]}
+        {...props}
+      >
+        {children}
+      </Animated.Text>
+    );
+  };
+
+  const fetchQuizData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -76,8 +182,18 @@ function QuestionEditorScreen() {
     } finally {
       setLoading(false);
     }
-  };
-  
+  }, [quizId]);
+
+  useEffect(() => {
+    if (!quizId) {
+      Alert.alert('Error', 'Quiz ID not provided');
+      router.back();
+      return;
+    }
+    
+    fetchQuizData();
+  }, [quizId, fetchQuizData]);
+
   const validateQuestionForm = () => {
     let isValid = true;
     const newErrors = {
@@ -195,7 +311,7 @@ function QuestionEditorScreen() {
     }
   };
   
-  const handleEditQuestion = (question) => {
+  const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question);
     setQuestionText(question.text);
     setQuestionType(question.type);
@@ -212,7 +328,7 @@ function QuestionEditorScreen() {
     setPoints(question.points.toString());
   };
   
-  const handleDeleteQuestion = async (question) => {
+  const handleDeleteQuestion = async (question: Question) => {
     Alert.alert(
       'Delete Question',
       `Are you sure you want to delete this question? This action cannot be undone.`,
@@ -239,7 +355,7 @@ function QuestionEditorScreen() {
     );
   };
   
-  const handleUpdateOption = (text, index) => {
+  const handleUpdateOption = (text: string, index: number) => {
     const newOptions = [...options];
     newOptions[index] = text;
     setOptions(newOptions);
@@ -250,6 +366,29 @@ function QuestionEditorScreen() {
       newErrors.options[index] = '';
       setErrors(newErrors);
     }
+  };
+
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      vocabulary: airbnbColors.secondary,
+      grammar: airbnbColors.success,
+      speaking: airbnbColors.error,
+      writing: airbnbColors.tertiary,
+      reading: '#06B6D4',
+      listening: '#84CC16',
+      general: airbnbColors.mediumGray
+    };
+    return colors[category] || airbnbColors.mediumGray;
+  };
+
+  const getDifficultyColor = (difficulty: string) => {
+    const colors = {
+      beginner: airbnbColors.success,
+      intermediate: airbnbColors.warning,
+      advanced: airbnbColors.error,
+      mixed: airbnbColors.tertiary
+    };
+    return colors[difficulty] || airbnbColors.mediumGray;
   };
 
   const getQuizProgressStats = () => {
@@ -271,96 +410,106 @@ function QuestionEditorScreen() {
     const stats = getQuizProgressStats();
     
     return (
-      <LinearGradient 
-        colors={['#667eea', '#764ba2']} 
-        style={styles.quizHeader}
-      >
+      <View style={styles.quizHeader}>
         <View style={styles.quizHeaderContent}>
+          {/* Quiz Title and Description */}
           <View style={styles.quizTitleSection}>
-            <Text style={styles.quizTitle}>{quiz.title}</Text>
-            <Text style={styles.quizDescription}>
+            <AirbnbText variant="title" style={styles.quizTitle}>
+              {quiz.title}
+            </AirbnbText>
+            <AirbnbText variant="body" style={styles.quizDescription}>
               {quiz.description}
-            </Text>
+            </AirbnbText>
           </View>
 
+          {/* Quiz Meta Information */}
           <View style={styles.quizMeta}>
-            <View style={styles.metaChip}>
-              <Ionicons name="library-outline" size={14} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.metaText}>
+            <View style={[styles.metaChip, { backgroundColor: getCategoryColor(quiz.category) + '20' }]}>
+              <Ionicons name="library-outline" size={14} color={getCategoryColor(quiz.category)} />
+              <AirbnbText variant="small" style={[styles.metaText, { color: getCategoryColor(quiz.category) }]}>
                 {quiz.category.charAt(0).toUpperCase() + quiz.category.slice(1)}
-              </Text>
+              </AirbnbText>
             </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="trending-up-outline" size={14} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.metaText}>
+            <View style={[styles.metaChip, { backgroundColor: getDifficultyColor(quiz.difficulty) + '20' }]}>
+              <Ionicons name="trending-up-outline" size={14} color={getDifficultyColor(quiz.difficulty)} />
+              <AirbnbText variant="small" style={[styles.metaText, { color: getDifficultyColor(quiz.difficulty) }]}>
                 {quiz.difficulty.charAt(0).toUpperCase() + quiz.difficulty.slice(1)}
-              </Text>
+              </AirbnbText>
             </View>
-            <View style={styles.metaChip}>
-              <Ionicons name="time-outline" size={14} color="rgba(255,255,255,0.9)" />
-              <Text style={styles.metaText}>
-                {quiz.timeLimit > 0 ? `${quiz.timeLimit}s` : 'No limit'}
-              </Text>
+            <View style={[styles.metaChip, { backgroundColor: airbnbColors.mediumGray + '20' }]}>
+              <Ionicons name="time-outline" size={14} color={airbnbColors.mediumGray} />
+              <AirbnbText variant="small" style={[styles.metaText, { color: airbnbColors.mediumGray }]}>
+                {quiz.timeLimit > 0 ? `${quiz.timeLimit}m` : 'No limit'}
+              </AirbnbText>
             </View>
           </View>
 
+          {/* Progress Section */}
           <View style={styles.progressSection}>
             <View style={styles.progressHeader}>
-              <Text style={styles.progressTitle}>Quiz Progress</Text>
-              <Text style={styles.progressPercentage}>{Math.round(stats.completionRate)}%</Text>
+              <AirbnbText variant="subtitle" style={styles.progressTitle}>Quiz Progress</AirbnbText>
+              <AirbnbText variant="subtitle" style={[styles.progressPercentage, { color: airbnbColors.primary }]}>
+                {Math.round(stats.completionRate)}%
+              </AirbnbText>
             </View>
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${stats.completionRate}%` }]} />
             </View>
             <View style={styles.progressStats}>
-              <Text style={styles.progressStat}>{stats.total} Questions</Text>
-              <Text style={styles.progressStat}>{stats.withExplanations} Explanations</Text>
+              <AirbnbText variant="caption" style={styles.progressStat}>
+                {stats.total} Questions
+              </AirbnbText>
+              <AirbnbText variant="caption" style={styles.progressStat}>
+                {stats.withExplanations} Explanations
+              </AirbnbText>
             </View>
           </View>
         </View>
-      </LinearGradient>
+      </View>
     );
   };
 
   const renderQuestionForm = () => (
     <View style={styles.formSection}>
       <View style={styles.formHeader}>
-        <Text style={styles.formTitle}>
+        <AirbnbText variant="title" style={styles.formTitle}>
           {editingQuestion ? 'Edit Question' : 'Add New Question'}
-        </Text>
+        </AirbnbText>
         {editingQuestion && (
           <TouchableOpacity
             style={styles.cancelEditButton}
             onPress={resetQuestionForm}
           >
-            <Ionicons name="close" size={20} color={colors.neutral.gray} />
+            <Ionicons name="close" size={20} color={airbnbColors.mediumGray} />
           </TouchableOpacity>
         )}
       </View>
 
       <View style={styles.formCard}>
+        {/* Question Text Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Question Text *</Text>
+          <AirbnbText variant="body" style={styles.inputLabel}>Question Text *</AirbnbText>
           <TextInput 
             style={[styles.textInput, styles.textArea, errors.questionText ? styles.inputError : null]}
             value={questionText}
             onChangeText={setQuestionText}
             placeholder="What would you like to ask?"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={airbnbColors.mediumGray}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
           />
           {errors.questionText && (
-            <Text style={styles.errorText}>{errors.questionText}</Text>
+            <AirbnbText variant="small" style={styles.errorText}>{errors.questionText}</AirbnbText>
           )}
         </View>
         
+        {/* Answer Options */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Answer Options *</Text>
-          <Text style={styles.inputHelper}>
+          <AirbnbText variant="body" style={styles.inputLabel}>Answer Options *</AirbnbText>
+          <AirbnbText variant="caption" style={styles.inputHelper}>
             Add at least two options and select the correct answer
-          </Text>
+          </AirbnbText>
           
           {options.map((option, index) => (
             <View key={index} style={styles.optionRow}>
@@ -376,12 +525,12 @@ function QuestionEditorScreen() {
                   correctAnswer === index && styles.optionSelectorInnerActive
                 ]}>
                   {correctAnswer === index && (
-                    <Ionicons name="checkmark" size={14} color={colors.neutral.white} />
+                    <Ionicons name="checkmark" size={14} color={airbnbColors.white} />
                   )}
                 </View>
-                <Text style={styles.optionLetter}>
+                <AirbnbText variant="caption" style={styles.optionLetter}>
                   {String.fromCharCode(65 + index)}
-                </Text>
+                </AirbnbText>
               </TouchableOpacity>
               <TextInput
                 style={[
@@ -392,53 +541,56 @@ function QuestionEditorScreen() {
                 value={option}
                 onChangeText={(text) => handleUpdateOption(text, index)}
                 placeholder={`Option ${String.fromCharCode(65 + index)}`}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={airbnbColors.mediumGray}
               />
             </View>
           ))}
           
           {(errors.options[0] || errors.correctAnswer) && (
-            <Text style={styles.errorText}>
+            <AirbnbText variant="small" style={styles.errorText}>
               {errors.options[0] || errors.correctAnswer}
-            </Text>
+            </AirbnbText>
           )}
         </View>
         
+        {/* Explanation Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Explanation (Optional)</Text>
+          <AirbnbText variant="body" style={styles.inputLabel}>Explanation (Optional)</AirbnbText>
           <TextInput 
             style={[styles.textInput, styles.textArea]}
             value={explanation}
             onChangeText={setExplanation}
             placeholder="Explain why this answer is correct..."
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={airbnbColors.mediumGray}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
           />
         </View>
         
+        {/* Points Input */}
         <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Points *</Text>
+          <AirbnbText variant="body" style={styles.inputLabel}>Points *</AirbnbText>
           <TextInput 
             style={[styles.textInput, styles.pointsInput, errors.points ? styles.inputError : null]}
             value={points}
             onChangeText={setPoints}
             placeholder="1"
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={airbnbColors.mediumGray}
             keyboardType="numeric"
           />
           {errors.points && (
-            <Text style={styles.errorText}>{errors.points}</Text>
+            <AirbnbText variant="small" style={styles.errorText}>{errors.points}</AirbnbText>
           )}
         </View>
         
+        {/* Form Actions */}
         <View style={styles.formActions}>
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={resetQuestionForm}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <AirbnbText variant="body" style={styles.cancelButtonText}>Cancel</AirbnbText>
           </TouchableOpacity>
           
           <TouchableOpacity
@@ -447,43 +599,46 @@ function QuestionEditorScreen() {
             disabled={loadingQuestion}
           >
             {loadingQuestion ? (
-              <ActivityIndicator size="small" color={colors.neutral.white} />
+              <ActivityIndicator size="small" color={airbnbColors.white} />
             ) : (
-              <Ionicons name="checkmark" size={20} color={colors.neutral.white} />
+              <Ionicons name="checkmark" size={20} color={airbnbColors.white} />
             )}
-            <Text style={styles.saveButtonText}>
+            <AirbnbText variant="body" style={styles.saveButtonText}>
               {editingQuestion ? 'Update' : 'Add Question'}
-            </Text>
+            </AirbnbText>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
   
-  const renderQuestionItem = (question, index) => (
+  const renderQuestionItem = (question: Question, index: number) => (
     <View key={question.$id} style={styles.questionCard}>
+      {/* Question Header */}
       <View style={styles.questionCardHeader}>
         <View style={styles.questionNumberBadge}>
-          <Text style={styles.questionNumber}>Q{index + 1}</Text>
+          <AirbnbText variant="small" style={styles.questionNumber}>Q{index + 1}</AirbnbText>
         </View>
         <View style={styles.questionActions}>
           <TouchableOpacity 
             style={styles.editButton} 
             onPress={() => handleEditQuestion(question)}
           >
-            <Ionicons name="create-outline" size={18} color="#667eea" />
+            <Ionicons name="create-outline" size={18} color={airbnbColors.primary} />
           </TouchableOpacity>
           <TouchableOpacity 
             style={styles.deleteButton} 
             onPress={() => handleDeleteQuestion(question)}
           >
-            <Ionicons name="trash-outline" size={18} color="#EF4444" />
+            <Ionicons name="trash-outline" size={18} color={airbnbColors.error} />
           </TouchableOpacity>
         </View>
       </View>
       
-      <Text style={styles.questionText}>{question.text}</Text>
+      {/* Question Text */}
+      <AirbnbText variant="body" style={styles.questionText}>{question.text}</AirbnbText>
       
+      {/* Options List */}
       <View style={styles.optionsList}>
         {question.options.map((option, optIndex) => (
           <View key={`${question.$id}-option-${optIndex}`} style={styles.optionItem}>
@@ -491,40 +646,44 @@ function QuestionEditorScreen() {
               styles.optionBadge, 
               optIndex === question.correctAnswer && styles.correctOptionBadge
             ]}>
-              <Text style={[
+              <AirbnbText variant="small" style={[
                 styles.optionBadgeText,
                 optIndex === question.correctAnswer && styles.correctOptionBadgeText
               ]}>
                 {String.fromCharCode(65 + optIndex)}
-              </Text>
+              </AirbnbText>
             </View>
-            <Text style={[
+            <AirbnbText variant="caption" style={[
               styles.optionText,
               optIndex === question.correctAnswer && styles.correctOptionText
             ]}>
               {option}
-            </Text>
+            </AirbnbText>
             {optIndex === question.correctAnswer && (
-              <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+              <Ionicons name="checkmark-circle" size={16} color={airbnbColors.success} />
             )}
           </View>
         ))}
       </View>
       
+      {/* Explanation */}
       {question.explanation && (
         <View style={styles.explanationCard}>
           <View style={styles.explanationHeader}>
-            <Ionicons name="bulb-outline" size={16} color="#F59E0B" />
-            <Text style={styles.explanationLabel}>Explanation</Text>
+            <Ionicons name="bulb-outline" size={16} color={airbnbColors.warning} />
+            <AirbnbText variant="caption" style={styles.explanationLabel}>Explanation</AirbnbText>
           </View>
-          <Text style={styles.explanationText}>{question.explanation}</Text>
+          <AirbnbText variant="caption" style={styles.explanationText}>{question.explanation}</AirbnbText>
         </View>
       )}
       
+      {/* Question Footer */}
       <View style={styles.questionFooter}>
         <View style={styles.pointsBadge}>
-          <Ionicons name="trophy-outline" size={14} color="#F59E0B" />
-          <Text style={styles.pointsText}>{question.points} point{question.points !== 1 ? 's' : ''}</Text>
+          <Ionicons name="trophy-outline" size={14} color={airbnbColors.warning} />
+          <AirbnbText variant="small" style={styles.pointsText}>
+            {question.points} point{question.points !== 1 ? 's' : ''}
+          </AirbnbText>
         </View>
       </View>
     </View>
@@ -537,34 +696,31 @@ function QuestionEditorScreen() {
       <View style={styles.questionsSection}>
         <View style={styles.questionsHeader}>
           <View>
-            <Text style={styles.questionsTitle}>Questions</Text>
-            <Text style={styles.questionsSubtitle}>
+            <AirbnbText variant="title" style={styles.questionsTitle}>Questions</AirbnbText>
+            <AirbnbText variant="caption" style={styles.questionsSubtitle}>
               {stats.total} question{stats.total !== 1 ? 's' : ''} added
-            </Text>
+            </AirbnbText>
           </View>
           {questions.length > 0 && (
             <TouchableOpacity 
               style={styles.doneButton}
               onPress={() => router.push('/(admin)/(quiz)')}
             >
-              <Ionicons name="checkmark-circle" size={20} color={colors.neutral.white} />
-              <Text style={styles.doneButtonText}>Done</Text>
+              <Ionicons name="checkmark-circle" size={20} color={airbnbColors.white} />
+              <AirbnbText variant="caption" style={styles.doneButtonText}>Done</AirbnbText>
             </TouchableOpacity>
           )}
         </View>
         
         {questions.length === 0 ? (
           <View style={styles.emptyState}>
-            <LinearGradient
-              colors={['#F3F4F6', '#E5E7EB']}
-              style={styles.emptyStateCard}
-            >
-              <Ionicons name="help-circle-outline" size={64} color="#9CA3AF" />
-              <Text style={styles.emptyStateTitle}>No questions yet</Text>
-              <Text style={styles.emptyStateSubtitle}>
+            <View style={styles.emptyStateCard}>
+              <Ionicons name="help-circle-outline" size={64} color={airbnbColors.lightGray} />
+              <AirbnbText variant="subtitle" style={styles.emptyStateTitle}>No questions yet</AirbnbText>
+              <AirbnbText variant="body" style={styles.emptyStateSubtitle}>
                 Start building your quiz by adding your first question above
-              </Text>
-            </LinearGradient>
+              </AirbnbText>
+            </View>
           </View>
         ) : (
           <View style={styles.questionsList}>
@@ -580,9 +736,21 @@ function QuestionEditorScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={airbnbColors.dark} />
+          </TouchableOpacity>
+          <AirbnbText variant="subtitle" style={styles.headerTitle}>Question Editor</AirbnbText>
+          <View style={styles.headerRight} />
+        </View>
+        
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#667eea" />
-          <Text style={styles.loadingText}>Loading quiz data...</Text>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <AirbnbText style={styles.loadingText}>Loading quiz data...</AirbnbText>
         </View>
       </SafeAreaView>
     );
@@ -590,10 +758,17 @@ function QuestionEditorScreen() {
   
   return (
     <SafeAreaView style={styles.safeArea}>
-      <PreAuthHeader 
-        title="Question Editor"
-        onLeftIconPress={() => router.back()}
-      />
+      {/* Fixed Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={24} color={airbnbColors.dark} />
+        </TouchableOpacity>
+        <AirbnbText variant="subtitle" style={styles.headerTitle}>Question Editor</AirbnbText>
+        <View style={styles.headerRight} />
+      </View>
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -603,7 +778,10 @@ function QuestionEditorScreen() {
         <ScrollView 
           style={styles.scrollView}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: insets.bottom + 100 }
+          ]}
         >
           {renderQuizHeader()}
           
@@ -620,53 +798,100 @@ function QuestionEditorScreen() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.background,
   },
   container: {
     flex: 1,
-    backgroundColor: '#FAFBFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#FAFBFC',
-  },
-  loadingText: {
-    marginTop: spacing.md,
-    fontSize: 16,
-    color: '#6B7280',
+    backgroundColor: airbnbColors.background,
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: spacing.xxl,
+    flexGrow: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: airbnbSpacing.xl,
+  },
+  loadingText: {
+    marginTop: airbnbSpacing.md,
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.mediumGray,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: airbnbSpacing.md,
+    paddingHorizontal: airbnbSpacing.lg,
+    backgroundColor: airbnbColors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  backButton: {
+    padding: airbnbSpacing.sm,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.white,
+  },
+  headerTitle: {
+    fontSize: airbnbTypography.sizes.xl,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
+    textAlign: 'center',
+    flex: 1,
+  },
+  headerRight: {
+    width: 40,
   },
 
   // Quiz Header
   quizHeader: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    backgroundColor: airbnbColors.white,
+    paddingHorizontal: airbnbSpacing.lg,
+    paddingVertical: airbnbSpacing.xl,
+    marginBottom: airbnbSpacing.md,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   quizHeaderContent: {
-    gap: spacing.lg,
+    gap: airbnbSpacing.lg,
   },
   quizTitleSection: {
     alignItems: 'center',
   },
   quizTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.xxxl,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.dark,
     textAlign: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: airbnbSpacing.sm,
   },
   quizDescription: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.mediumGray,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -674,52 +899,49 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: spacing.sm,
+    gap: airbnbSpacing.sm,
   },
   metaChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: airbnbSpacing.sm,
+    paddingVertical: airbnbSpacing.xs,
     borderRadius: 16,
     gap: 4,
   },
   metaText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '500',
+    fontSize: airbnbTypography.sizes.sm,
+    fontWeight: airbnbTypography.weights.medium,
   },
   progressSection: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: airbnbColors.superLightGray,
     borderRadius: 16,
-    padding: spacing.md,
+    padding: airbnbSpacing.md,
   },
   progressHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: airbnbSpacing.sm,
   },
   progressTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
   },
   progressPercentage: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.bold,
   },
   progressBar: {
     height: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: airbnbColors.lightGray,
     borderRadius: 4,
-    marginBottom: spacing.sm,
+    marginBottom: airbnbSpacing.sm,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.primary,
     borderRadius: 4,
   },
   progressStats: {
@@ -727,19 +949,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   progressStat: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
+    fontSize: airbnbTypography.sizes.sm,
+    color: airbnbColors.mediumGray,
   },
 
   // Content
   content: {
-    padding: spacing.lg,
-    gap: spacing.xl,
+    padding: airbnbSpacing.lg,
+    gap: airbnbSpacing.xl,
   },
 
   // Form Section
   formSection: {
-    gap: spacing.md,
+    gap: airbnbSpacing.md,
   },
   formHeader: {
     flexDirection: 'row',
@@ -747,53 +969,60 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   formTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: airbnbTypography.sizes.xxl,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.dark,
   },
   cancelEditButton: {
-    padding: spacing.sm,
+    padding: airbnbSpacing.sm,
     borderRadius: 20,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: airbnbColors.superLightGray,
   },
   formCard: {
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.white,
     borderRadius: 20,
-    padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    gap: spacing.lg,
+    padding: airbnbSpacing.lg,
+    gap: airbnbSpacing.lg,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
 
   // Input Styles
   inputGroup: {
-    gap: spacing.sm,
+    gap: airbnbSpacing.sm,
   },
   inputLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
   },
   inputHelper: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.mediumGray,
   },
   textInput: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: airbnbColors.superLightGray,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: airbnbColors.border,
     borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: 16,
-    color: '#1F2937',
+    paddingHorizontal: airbnbSpacing.md,
+    paddingVertical: airbnbSpacing.md,
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.dark,
+    fontFamily: airbnbTypography.fontFamily,
   },
   textArea: {
     height: 100,
-    paddingTop: spacing.md,
+    paddingTop: airbnbSpacing.md,
     textAlignVertical: 'top',
   },
   pointsInput: {
@@ -801,12 +1030,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   inputError: {
-    borderColor: '#EF4444',
-    backgroundColor: '#FEF2F2',
+    borderColor: airbnbColors.error,
+    backgroundColor: airbnbColors.error + '10',
   },
   errorText: {
-    fontSize: 12,
-    color: '#EF4444',
+    fontSize: airbnbTypography.sizes.sm,
+    color: airbnbColors.error,
     marginTop: 4,
   },
 
@@ -814,31 +1043,31 @@ const styles = StyleSheet.create({
   optionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    gap: airbnbSpacing.sm,
+    marginBottom: airbnbSpacing.sm,
   },
   optionSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
+    gap: airbnbSpacing.xs,
   },
   optionSelectorInner: {
     width: 20,
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#D1D5DB',
+    borderColor: airbnbColors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
   optionSelectorInnerActive: {
-    backgroundColor: '#667eea',
-    borderColor: '#667eea',
+    backgroundColor: airbnbColors.primary,
+    borderColor: airbnbColors.primary,
   },
   optionLetter: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.md,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.mediumGray,
     minWidth: 20,
   },
   optionInput: {
@@ -848,47 +1077,58 @@ const styles = StyleSheet.create({
   // Form Actions
   formActions: {
     flexDirection: 'row',
-    gap: spacing.md,
-    paddingTop: spacing.md,
+    gap: airbnbSpacing.md,
+    paddingTop: airbnbSpacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    borderTopColor: airbnbColors.superLightGray,
   },
   cancelButton: {
     flex: 1,
-    paddingVertical: spacing.md,
+    paddingVertical: airbnbSpacing.md,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderColor: airbnbColors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.mediumGray,
   },
   saveButton: {
     flex: 2,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#667eea',
-    paddingVertical: spacing.md,
+    backgroundColor: airbnbColors.primary,
+    paddingVertical: airbnbSpacing.md,
     borderRadius: 12,
-    gap: spacing.sm,
+    gap: airbnbSpacing.sm,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   saveButtonDisabled: {
     opacity: 0.7,
   },
   saveButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.white,
   },
 
   // Questions Section
   questionsSection: {
-    gap: spacing.lg,
+    gap: airbnbSpacing.lg,
   },
   questionsHeader: {
     flexDirection: 'row',
@@ -896,143 +1136,158 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   questionsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1F2937',
+    fontSize: airbnbTypography.sizes.xxl,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.dark,
   },
   questionsSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.mediumGray,
   },
   doneButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#10B981',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
+    backgroundColor: airbnbColors.success,
+    paddingVertical: airbnbSpacing.sm,
+    paddingHorizontal: airbnbSpacing.md,
     borderRadius: 20,
-    gap: spacing.xs,
+    gap: airbnbSpacing.xs,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   doneButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.md,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.white,
   },
 
   // Question Cards
   questionsList: {
-    gap: spacing.md,
+    gap: airbnbSpacing.md,
   },
   questionCard: {
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.white,
     borderRadius: 16,
-    padding: spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    padding: airbnbSpacing.lg,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
   questionCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.md,
+    marginBottom: airbnbSpacing.md,
   },
   questionNumberBadge: {
-    backgroundColor: '#667eea',
-    paddingHorizontal: spacing.sm,
+    backgroundColor: airbnbColors.primary,
+    paddingHorizontal: airbnbSpacing.sm,
     paddingVertical: 4,
     borderRadius: 12,
   },
   questionNumber: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.neutral.white,
+    fontSize: airbnbTypography.sizes.sm,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.white,
   },
   questionActions: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: airbnbSpacing.sm,
   },
   editButton: {
-    padding: spacing.sm,
+    padding: airbnbSpacing.sm,
     borderRadius: 20,
-    backgroundColor: '#EEF2FF',
+    backgroundColor: airbnbColors.primary + '15',
   },
   deleteButton: {
-    padding: spacing.sm,
+    padding: airbnbSpacing.sm,
     borderRadius: 20,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: airbnbColors.error + '15',
   },
   questionText: {
-    fontSize: 16,
-    color: '#1F2937',
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.dark,
     lineHeight: 24,
-    marginBottom: spacing.md,
+    marginBottom: airbnbSpacing.md,
   },
 
   // Options List
   optionsList: {
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: airbnbSpacing.sm,
+    marginBottom: airbnbSpacing.md,
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: airbnbSpacing.sm,
   },
   optionBadge: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: airbnbColors.superLightGray,
     justifyContent: 'center',
     alignItems: 'center',
   },
   correctOptionBadge: {
-    backgroundColor: '#10B981',
+    backgroundColor: airbnbColors.success,
   },
   optionBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.sm,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.mediumGray,
   },
   correctOptionBadgeText: {
-    color: colors.neutral.white,
+    color: airbnbColors.white,
   },
   optionText: {
     flex: 1,
-    fontSize: 14,
-    color: '#374151',
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.dark,
   },
   correctOptionText: {
-    fontWeight: '600',
-    color: '#10B981',
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.success,
   },
 
   // Explanation
   explanationCard: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: airbnbColors.warning + '10',
     borderRadius: 12,
-    padding: spacing.md,
-    marginBottom: spacing.md,
+    padding: airbnbSpacing.md,
+    marginBottom: airbnbSpacing.md,
   },
   explanationHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+    gap: airbnbSpacing.xs,
+    marginBottom: airbnbSpacing.xs,
   },
   explanationLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontSize: airbnbTypography.sizes.md,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.warning,
   },
   explanationText: {
-    fontSize: 14,
-    color: '#92400E',
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.dark,
     lineHeight: 20,
   },
 
@@ -1047,9 +1302,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   pointsText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#F59E0B',
+    fontSize: airbnbTypography.sizes.sm,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.warning,
   },
 
   // Empty State
@@ -1058,21 +1313,33 @@ const styles = StyleSheet.create({
   },
   emptyStateCard: {
     borderRadius: 20,
-    padding: spacing.xxl,
+    padding: airbnbSpacing.xxl,
     alignItems: 'center',
     width: '100%',
+    backgroundColor: airbnbColors.white,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   emptyStateTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#6B7280',
+    fontSize: airbnbTypography.sizes.xl,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.mediumGray,
     textAlign: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    marginTop: airbnbSpacing.md,
+    marginBottom: airbnbSpacing.sm,
   },
   emptyStateSubtitle: {
-    fontSize: 14,
-    color: '#9CA3AF',
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.mediumGray,
     textAlign: 'center',
     lineHeight: 20,
   },

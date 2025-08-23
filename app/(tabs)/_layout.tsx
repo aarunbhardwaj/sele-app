@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, usePathname, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
-import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Tabs } from 'expo-router';
+import React from 'react';
+import { Platform, StyleSheet, View } from 'react-native';
 import { colors } from '../../components/ui/theme';
 
 // Airbnb-inspired color palette (matching login screen)
@@ -32,44 +32,6 @@ const airbnbColors = {
 };
 
 export default function TabsLayout() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [isNavigating, setIsNavigating] = useState(false);
-
-  // Debounced navigation function to prevent rapid navigation
-  const handleNavigation = useCallback((route: string) => {
-    if (isNavigating) return;
-    
-    setIsNavigating(true);
-    
-    requestAnimationFrame(() => {
-      try {
-        router.push(route as any);
-      } catch (error) {
-        console.warn('Tabs navigation error:', error);
-      } finally {
-        setTimeout(() => setIsNavigating(false), 300);
-      }
-    });
-  }, [router, isNavigating]);
-
-  // Custom function to handle Courses tab navigation
-  const handleCoursesTab = () => {
-    // If we're already in courses tab but not on catalog, navigate to catalog
-    if (pathname.includes('/(tabs)/(courses)') && !pathname.includes('/(tabs)/(courses)/catalog')) {
-      router.navigate('/(tabs)/(courses)/catalog');
-      return true; // Indicate we handled the navigation
-    }
-    
-    // If we're already on the catalog page, do nothing
-    if (pathname.includes('/(tabs)/(courses)/catalog')) {
-      return true; // Indicate we handled the navigation
-    }
-    
-    // Otherwise, let default navigation happen
-    return false;
-  };
-
   return (
     <Tabs
       screenOptions={({ route }) => ({
@@ -128,13 +90,6 @@ export default function TabsLayout() {
         tabBarStyle: styles.tabBar,
         unmountOnBlur: false, // Keep screens mounted to prevent state loss
         lazy: false, // Don't lazy load tabs
-        tabBarButton: (props) => (
-          <TouchableOpacity
-            {...props}
-            disabled={isNavigating}
-            style={[props.style, isNavigating && { opacity: 0.6 }]}
-          />
-        ),
       })}
     >
       {/* Only the most essential tabs */}
@@ -142,9 +97,7 @@ export default function TabsLayout() {
       <Tabs.Screen 
         name="(courses)" 
         options={{ 
-          title: 'Courses',
-          // We'll override the default navigation with our own
-          onPress: () => handleCoursesTab()
+          title: 'Courses'
         }} 
       />
       <Tabs.Screen

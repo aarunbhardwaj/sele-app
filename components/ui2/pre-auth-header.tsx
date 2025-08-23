@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, Platform, SafeAreaView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, SafeAreaView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useAuth } from '../../services/AuthContext';
 import Text from '../ui/Typography';
 
 // Airbnb-inspired color palette (matching the tab bars)
@@ -37,10 +39,19 @@ export interface PreAuthHeaderProps {
   rightComponent?: React.ReactNode;
   children?: React.ReactNode;
   subtitle?: string;
+  // Admin-specific props
+  showNotifications?: boolean;
+  showRefresh?: boolean;
+  showLogout?: boolean;
+  onNotificationPress?: () => void;
+  onRefreshPress?: () => void;
+  onLogoutPress?: () => void;
+  onLeftIconPress?: () => void;
+  leftIcon?: React.ReactNode;
 }
 
 /**
- * Airbnb-inspired header component for pre-auth screens with clean, modern styling
+ * Airbnb-inspired header component for admin screens with consistent navigation options
  */
 export default function PreAuthHeader({
   title,
@@ -49,7 +60,135 @@ export default function PreAuthHeader({
   rightComponent,
   children,
   subtitle,
+  showNotifications = true,
+  showRefresh = false,
+  showLogout = false,
+  onNotificationPress,
+  onRefreshPress,
+  onLogoutPress,
+  onLeftIconPress,
+  leftIcon,
 }: PreAuthHeaderProps) {
+  const router = useRouter();
+  const { logout } = useAuth();
+
+  const handleNotificationPress = () => {
+    if (onNotificationPress) {
+      onNotificationPress();
+    } else {
+      // Default notification behavior - could navigate to notifications screen
+      console.log('Notifications pressed');
+      // TODO: Implement notifications screen navigation
+      // router.push('/(admin)/notifications');
+    }
+  };
+
+  const handleLogoutPress = async () => {
+    if (onLogoutPress) {
+      onLogoutPress();
+    } else {
+      Alert.alert(
+        'Logout',
+        'Are you sure you want to logout?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Logout',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                await logout();
+              } catch (error) {
+                console.error('Logout failed:', error);
+                Alert.alert('Error', 'Failed to logout. Please try again.');
+              }
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const handleBackPress = () => {
+    if (onBackPress) {
+      onBackPress();
+    } else if (onLeftIconPress) {
+      onLeftIconPress();
+    } else {
+      router.back();
+    }
+  };
+
+  const renderRightActions = () => {
+    if (rightComponent) {
+      return rightComponent;
+    }
+
+    const actions = [];
+
+    if (showNotifications) {
+      actions.push(
+        <TouchableOpacity
+          key="notifications"
+          onPress={handleNotificationPress}
+          style={styles.actionButton}
+          accessible={true}
+          accessibilityLabel="Notifications"
+          accessibilityRole="button"
+        >
+          <View style={styles.actionButtonContainer}>
+            <Ionicons name="notifications-outline" size={20} color={airbnbColors.charcoal} />
+            {/* Notification badge - could be dynamic based on unread count */}
+            <View style={styles.notificationBadge} />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    if (showRefresh && onRefreshPress) {
+      actions.push(
+        <TouchableOpacity
+          key="refresh"
+          onPress={onRefreshPress}
+          style={styles.actionButton}
+          accessible={true}
+          accessibilityLabel="Refresh"
+          accessibilityRole="button"
+        >
+          <View style={styles.actionButtonContainer}>
+            <Ionicons name="refresh-outline" size={20} color={airbnbColors.charcoal} />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    if (showLogout) {
+      actions.push(
+        <TouchableOpacity
+          key="logout"
+          onPress={handleLogoutPress}
+          style={styles.actionButton}
+          accessible={true}
+          accessibilityLabel="Logout"
+          accessibilityRole="button"
+        >
+          <View style={[styles.actionButtonContainer, styles.logoutButton]}>
+            <Ionicons name="log-out-outline" size={20} color={airbnbColors.error} />
+          </View>
+        </TouchableOpacity>
+      );
+    }
+
+    if (actions.length === 0) {
+      return <View style={styles.placeholder} />;
+    }
+
+    return (
+      <View style={styles.actionsContainer}>
+        {actions}
+      </View>
+    );
+  };
   
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,18 +199,18 @@ export default function PreAuthHeader({
       />
       <View style={styles.header}>
         <View style={styles.headerContent}>
-          {/* Left section with back button or logo */}
+          {/* Left section with back button, custom icon, or logo */}
           <View style={styles.leftSection}>
-            {showBackButton ? (
+            {showBackButton || leftIcon ? (
               <TouchableOpacity 
-                onPress={onBackPress} 
+                onPress={handleBackPress} 
                 style={styles.backButton}
                 accessible={true}
                 accessibilityLabel="Go back"
                 accessibilityRole="button"
               >
                 <View style={styles.backButtonContainer}>
-                  <Ionicons name="arrow-back" size={20} color={airbnbColors.charcoal} />
+                  {leftIcon || <Ionicons name="arrow-back" size={20} color={airbnbColors.charcoal} />}
                 </View>
               </TouchableOpacity>
             ) : (
@@ -100,9 +239,9 @@ export default function PreAuthHeader({
             {children}
           </View>
           
-          {/* Right section */}
+          {/* Right section with actions */}
           <View style={styles.rightSection}>
-            {rightComponent || <View style={styles.placeholder} />}
+            {renderRightActions()}
           </View>
         </View>
       </View>
@@ -147,7 +286,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   rightSection: {
-    width: 44,
+    minWidth: 44,
     alignItems: 'flex-end',
     justifyContent: 'center',
   },
@@ -205,5 +344,45 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 32,
     height: 32,
+  },
+  actionButton: {
+    padding: 2,
+  },
+  actionButtonContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: airbnbColors.lightGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    right: 6,
+    top: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: airbnbColors.primary,
+    shadowColor: airbnbColors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 1,
+    elevation: 1,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  logoutButton: {
+    backgroundColor: airbnbColors.error + '15',
   },
 });

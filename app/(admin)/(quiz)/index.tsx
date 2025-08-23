@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors, spacing, typography } from '../../../components/ui/theme';
+import { SafeAreaView, ScrollView, StyleSheet, Text, TextStyle, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { colors, spacing } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
-
-const { width } = Dimensions.get('window');
 
 // Airbnb color palette - keeping original colors
 const airbnbColors = {
@@ -43,27 +41,27 @@ interface FeatureCardProps {
   featured?: boolean;
 }
 
-const QuizFeatureCard = ({ title, description, icon, route, color = airbnbColors.primary, gradient, featured = false }: FeatureCardProps) => {
+const QuizFeatureCard = ({ title, description, icon, route, color = airbnbColors.primary, featured = false }: FeatureCardProps) => {
   const router = useRouter();
   
   const cardContent = (
-    <View style={[styles.featureCard, featured && styles.featuredCard]}>
-      <View style={styles.cardHeader}>
-        <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+    <View style={[styles.featureCard as ViewStyle, featured && styles.featuredCard as ViewStyle]}>
+      <View style={styles.cardHeader as ViewStyle}>
+        <View style={[styles.iconContainer as ViewStyle, { backgroundColor: color + '15' }]}>
           <Ionicons name={icon} size={28} color={color} />
         </View>
         {featured && (
-          <View style={[styles.featuredBadge, { backgroundColor: color }]}>
-            <Text style={styles.featuredText}>Popular</Text>
+          <View style={[styles.featuredBadge as ViewStyle, { backgroundColor: color }]}>
+            <Text style={styles.featuredText as TextStyle}>Popular</Text>
           </View>
         )}
       </View>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{title}</Text>
-        <Text style={styles.cardDescription}>{description}</Text>
+      <View style={styles.cardContent as ViewStyle}>
+        <Text style={styles.cardTitle as TextStyle}>{title}</Text>
+        <Text style={styles.cardDescription as TextStyle}>{description}</Text>
       </View>
-      <View style={styles.cardFooter}>
-        <Text style={[styles.actionText, { color }]}>Get started</Text>
+      <View style={styles.cardFooter as ViewStyle}>
+        <Text style={[styles.actionText as TextStyle, { color }]}>Get started</Text>
         <Ionicons name="arrow-forward" size={16} color={color} />
       </View>
     </View>
@@ -71,7 +69,7 @@ const QuizFeatureCard = ({ title, description, icon, route, color = airbnbColors
 
   return (
     <TouchableOpacity 
-      style={[styles.cardWrapper, featured && styles.featuredWrapper]}
+      style={[styles.cardWrapper as ViewStyle, featured && styles.featuredWrapper as ViewStyle]}
       onPress={() => router.push(route as any)}
       activeOpacity={0.95}
     >
@@ -113,15 +111,14 @@ export default function QuizIndexPage() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <PreAuthHeader 
-        title="Quiz Management" 
-        rightComponent={
-          <TouchableOpacity 
-            style={styles.notificationButton}
-            onPress={() => {}}
-          >
-            <Ionicons name="notifications-outline" size={24} color={airbnbColors.primary} />
-          </TouchableOpacity>
-        }
+        title="Quiz Management"
+        showNotifications={true}
+        showRefresh={true}
+        onNotificationPress={() => console.log('Quiz notifications')}
+        onRefreshPress={() => {
+          // Add refresh functionality here if needed
+          console.log('Refreshing quiz data');
+        }}
       />
       
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -180,17 +177,17 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: colors.neutral.white,
-  },
+  } as ViewStyle,
   container: {
     flex: 1,
     backgroundColor: '#FAFBFC',
-  },
+  } as ViewStyle,
   
   // Modern Hero Section - White card without background gradient
   heroSection: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
-  },
+  } as ViewStyle,
   heroCard: {
     backgroundColor: colors.neutral.white,
     borderRadius: 20,
@@ -202,12 +199,12 @@ const styles = StyleSheet.create({
     elevation: 4,
     borderWidth: 1,
     borderColor: '#F1F5F9',
-  },
+  } as ViewStyle,
   heroHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: spacing.lg,
-  },
+  } as ViewStyle,
   heroIconContainer: {
     width: 64,
     height: 64,
@@ -216,21 +213,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
-  },
+  } as ViewStyle,
   heroContent: {
     flex: 1,
-  },
+  } as ViewStyle,
   heroTitle: {
     fontSize: 24,
     fontWeight: '700',
     color: colors.neutral.text,
     marginBottom: 4,
-  },
+  } as TextStyle,
   heroSubtitle: {
     fontSize: 16,
     color: colors.neutral.darkGray,
     lineHeight: 22,
-  },
+  } as TextStyle,
   heroButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -244,56 +241,50 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
-  },
+  } as ViewStyle,
   heroButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.neutral.white,
     marginLeft: spacing.sm,
-  },
+  } as TextStyle,
 
   // Content Container
   contentContainer: {
     padding: spacing.lg,
     paddingTop: spacing.xl,
-  },
+  } as ViewStyle,
 
   // Sections
   section: {
     marginBottom: spacing.xxl,
-  },
+  } as ViewStyle,
   sectionTitle: {
-    fontSize: typography.fontSizes.xxl,
-    fontWeight: typography.fontWeights.bold,
+    fontSize: 24,
+    fontWeight: '700',
     color: colors.neutral.text,
     marginBottom: spacing.xs,
-  },
+  } as TextStyle,
   sectionSubtitle: {
-    fontSize: typography.fontSizes.md,
+    fontSize: 16,
     color: colors.neutral.darkGray,
     marginBottom: spacing.lg,
     lineHeight: 22,
-  },
+  } as TextStyle,
 
   // Grid Layouts
   primaryGrid: {
     gap: spacing.lg,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    justifyContent: 'space-between',
-  },
+  } as ViewStyle,
 
   // Card Styles
   cardWrapper: {
     width: '100%',
     marginBottom: spacing.md,
-  },
+  } as ViewStyle,
   featuredWrapper: {
     width: '100%',
-  },
+  } as ViewStyle,
   featureCard: {
     backgroundColor: colors.neutral.white,
     borderRadius: 16,
@@ -307,65 +298,58 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#F1F5F9',
-  },
+  } as ViewStyle,
   featuredCard: {
     minHeight: 160,
     borderWidth: 2,
     borderColor: airbnbColors.primary + '20',
-  },
+  } as ViewStyle,
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: spacing.md,
-  },
+  } as ViewStyle,
   iconContainer: {
     width: 56,
     height: 56,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  },
+  } as ViewStyle,
   featuredBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 12,
-  },
+  } as ViewStyle,
   featuredText: {
-    fontSize: typography.fontSizes.xs,
-    fontWeight: typography.fontWeights.semibold,
+    fontSize: 12,
+    fontWeight: '600',
     color: colors.neutral.white,
-  },
+  } as TextStyle,
   cardContent: {
     flex: 1,
     marginBottom: spacing.md,
-  },
+  } as ViewStyle,
   cardTitle: {
-    fontSize: typography.fontSizes.lg,
-    fontWeight: typography.fontWeights.semibold,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.neutral.text,
     marginBottom: spacing.xs,
     lineHeight: 24,
-  },
+  } as TextStyle,
   cardDescription: {
-    fontSize: typography.fontSizes.sm,
+    fontSize: 14,
     color: colors.neutral.darkGray,
     lineHeight: 20,
-  },
+  } as TextStyle,
   cardFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-  },
+  } as ViewStyle,
   actionText: {
-    fontSize: typography.fontSizes.sm,
-    fontWeight: typography.fontWeights.semibold,
-  },
-  
-  // Header Elements
-  notificationButton: {
-    padding: spacing.sm,
-    borderRadius: 20,
-    backgroundColor: airbnbColors.primary + '15',
-  },
+    fontSize: 14,
+    fontWeight: '600',
+  } as TextStyle,
 });

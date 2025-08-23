@@ -10,9 +10,11 @@ import {
   SafeAreaView,
   ScrollView,
   StyleSheet,
+  TextStyle,
   TouchableOpacity,
   View
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import appwriteService from '../../../services/appwrite';
 
@@ -49,11 +51,11 @@ const airbnbTypography = {
     huge: 32,
   },
   weights: {
-    light: '300',
-    regular: '400',
-    medium: '500',
-    semibold: '600',
-    bold: '700',
+    light: '300' as const,
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
   },
 };
 
@@ -83,10 +85,20 @@ interface Lesson {
   updatedAt: string;
 }
 
+interface AirbnbTextProps {
+  children: React.ReactNode;
+  style?: TextStyle;
+  variant?: 'hero' | 'title' | 'subtitle' | 'body' | 'caption' | 'small';
+  color?: string;
+  numberOfLines?: number;
+  [key: string]: any;
+}
+
 export default function LessonViewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const lessonId = params.id as string;
+  const insets = useSafeAreaInsets();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [courseTitle, setCourseTitle] = useState('');
@@ -95,7 +107,6 @@ export default function LessonViewScreen() {
   const [isBuffering, setIsBuffering] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const [scrollY] = useState(new Animated.Value(0));
   const videoRef = useRef<Video>(null);
   
   const fetchLessonData = useCallback(async (lessonId: string) => {
@@ -238,8 +249,8 @@ export default function LessonViewScreen() {
   };
   
   // Create Airbnb-style Text component
-  const AirbnbText = ({ children, style, variant = 'body', color = airbnbColors.dark, ...props }) => {
-    const getTextStyle = () => {
+  const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
+    const getTextStyle = (): TextStyle => {
       switch (variant) {
         case 'hero':
           return { fontSize: airbnbTypography.sizes.huge, fontWeight: airbnbTypography.weights.bold };
@@ -319,12 +330,6 @@ export default function LessonViewScreen() {
     );
   }
 
-  const headerOpacity = scrollY.interpolate({
-    inputRange: [0, 100],
-    outputRange: [0, 1],
-    extrapolate: 'clamp',
-  });
-
   return (
     <SafeAreaView style={styles.safeArea}>
       {/* Fixed Header - Always visible */}
@@ -352,6 +357,10 @@ export default function LessonViewScreen() {
       <ScrollView
         style={styles.container}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 100 } // Add safe area + tab bar height
+        ]}
       >
         {/* Breadcrumb */}
         <TouchableOpacity
@@ -564,9 +573,6 @@ export default function LessonViewScreen() {
             </AirbnbText>
           </TouchableOpacity>
         </View>
-
-        {/* Bottom Spacing */}
-        <View style={{ height: airbnbSpacing.xl }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -580,6 +586,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: airbnbColors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,

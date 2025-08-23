@@ -470,7 +470,12 @@ export default function SchoolsScreen() {
       <SafeAreaView style={styles.headerContainer}>
         <PreAuthHeader 
           title="Schools Management"
-          onLeftIconPress={() => router.back()}
+          showBackButton={true}
+          onBackPress={() => router.back()}
+          showNotifications={true}
+          showRefresh={true}
+          onRefreshPress={handleRefresh}
+          onNotificationPress={() => console.log('Schools notifications')}
         />
       </SafeAreaView>
 

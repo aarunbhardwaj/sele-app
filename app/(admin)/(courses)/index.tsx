@@ -114,14 +114,10 @@ export default function CoursesIndexPage() {
     <View style={styles.container}>
       <PreAuthHeader 
         title="Course Management"
-        rightComponent={
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={loadCourseStats}
-          >
-            <Ionicons name="refresh" size={20} color={airbnbColors.primary} />
-          </TouchableOpacity>
-        }
+        showNotifications={true}
+        showRefresh={true}
+        onNotificationPress={() => console.log('Course notifications')}
+        onRefreshPress={loadCourseStats}
       />
       
       <ScrollView 

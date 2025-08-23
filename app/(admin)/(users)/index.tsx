@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -58,49 +58,15 @@ interface Role {
 export default function UsersIndexPage() {
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [roleFilter, setRoleFilter] = useState('all');
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const ITEMS_PER_PAGE = 10;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    filterUsers();
-  }, [users, searchQuery, statusFilter, roleFilter, page]);
-
-  const loadData = async () => {
-    try {
-      setLoading(true);
-      
-      // Load users and roles in parallel
-      const [usersResponse, rolesResponse] = await Promise.all([
-        appwriteService.getAllUsers(),
-        appwriteService.getAllRoles()
-      ]);
-      
-      setUsers(usersResponse);
-      setRoles(rolesResponse);
-      
-      // Calculate total pages
-      setTotalPages(Math.ceil(usersResponse.length / ITEMS_PER_PAGE));
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      Alert.alert('Error', 'Failed to load users data. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filterUsers = () => {
-    // Apply filters
+  // Memoize filtered users to prevent unnecessary recalculations
+  const filteredUsers = useMemo(() => {
     let filtered = [...users];
     
     // Search filter
@@ -117,24 +83,51 @@ export default function UsersIndexPage() {
       filtered = filtered.filter(user => user.status === statusFilter);
     }
     
-    // Role filter
-    if (roleFilter !== 'all') {
-      filtered = filtered.filter(user => 
-        user.roles?.includes(roleFilter)
-      );
-    }
-    
-    // Calculate total pages after filtering
-    setTotalPages(Math.ceil(filtered.length / ITEMS_PER_PAGE));
-    
-    // Apply pagination
-    const startIndex = (page - 1) * ITEMS_PER_PAGE;
-    const paginatedUsers = filtered.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    
-    setFilteredUsers(paginatedUsers);
-  };
+    return filtered;
+  }, [users, searchQuery, statusFilter]);
 
-  const getUserRoleName = (user: User): string => {
+  // Memoize paginated users
+  const paginatedUsers = useMemo(() => {
+    const startIndex = (page - 1) * ITEMS_PER_PAGE;
+    return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredUsers, page, ITEMS_PER_PAGE]);
+
+  // Memoize total pages
+  const totalPages = useMemo(() => {
+    return Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
+  }, [filteredUsers.length, ITEMS_PER_PAGE]);
+
+  // Load data only once on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Load users and roles in parallel
+      const [usersResponse, rolesResponse] = await Promise.all([
+        appwriteService.getAllUsers(),
+        appwriteService.getAllRoles()
+      ]);
+      
+      setUsers(usersResponse);
+      setRoles(rolesResponse);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      Alert.alert('Error', 'Failed to load users data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const getUserRoleName = useCallback((user: User): string => {
     if (user.isAdmin) return 'Admin';
     
     const userRoles = roles.filter(role => user.roles?.includes(role.$id));
@@ -145,39 +138,53 @@ export default function UsersIndexPage() {
     } else {
       return 'Student';
     }
-  };
+  }, [roles]);
 
-  const navigateToUserProfile = (user: User) => {
-    console.log('Navigating to user profile with ID:', user.userId || user.$id);
-    router.push({
-      pathname: '/(admin)/(users)/user-details',
-      params: { 
-        id: user.userId || user.$id,
-        displayName: user.displayName,
-        email: user.email,
-        status: user.status,
-        isAdmin: user.isAdmin ? 'true' : 'false'
-      }
-    });
-  };
+  const navigateToUserProfile = useCallback((user: User) => {
+    try {
+      console.log('Navigating to user profile with ID:', user.userId || user.$id);
+      router.push({
+        pathname: '/(admin)/(users)/user-details',
+        params: { 
+          id: user.userId || user.$id,
+          displayName: user.displayName || '',
+          email: user.email || '',
+          status: user.status || 'active',
+          isAdmin: user.isAdmin ? 'true' : 'false'
+        }
+      });
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to navigate to user details');
+    }
+  }, [router]);
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = useCallback((status: string) => {
     switch (status?.toLowerCase()) {
       case 'active': return airbnbColors.success;
       case 'suspended': return airbnbColors.error;
       case 'pending': return airbnbColors.warning;
       default: return airbnbColors.mediumGray;
     }
-  };
+  }, []);
 
-  const getRoleColor = (roleName: string) => {
+  const getRoleColor = useCallback((roleName: string) => {
     switch (roleName) {
       case 'Admin': return airbnbColors.primary;
       case 'Instructor': return airbnbColors.secondary;
       case 'Student': return airbnbColors.warning;
       default: return airbnbColors.mediumGray;
     }
-  };
+  }, []);
+
+  // Handle pagination with bounds checking
+  const handlePreviousPage = useCallback(() => {
+    setPage(prev => Math.max(1, prev - 1));
+  }, []);
+
+  const handleNextPage = useCallback(() => {
+    setPage(prev => Math.min(totalPages, prev + 1));
+  }, [totalPages]);
 
   // Display loading indicator
   if (loading) {
@@ -193,20 +200,17 @@ export default function UsersIndexPage() {
     <View style={styles.container}>
       <PreAuthHeader 
         title="User Management"
-        rightComponent={
-          <TouchableOpacity 
-            style={styles.refreshButton}
-            onPress={loadData}
-          >
-            <Ionicons name="refresh" size={20} color={airbnbColors.primary} />
-          </TouchableOpacity>
-        }
+        showNotifications={true}
+        showRefresh={true}
+        onRefreshPress={loadData}
+        onNotificationPress={() => console.log('User management notifications')}
       />
       
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.content}>
           {/* Header Section */}
@@ -218,7 +222,7 @@ export default function UsersIndexPage() {
               <View style={styles.headerContent}>
                 <Text style={styles.headerTitle}>User Directory</Text>
                 <Text style={styles.headerSubtitle}>
-                  {users.length} total users • {filteredUsers.length} shown
+                  {users.length} total users • {filteredUsers.length} filtered
                 </Text>
               </View>
               <View style={styles.statsContainer}>
@@ -245,6 +249,9 @@ export default function UsersIndexPage() {
                   placeholderTextColor={airbnbColors.mediumGray}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
               </View>
               
@@ -290,7 +297,7 @@ export default function UsersIndexPage() {
             style={styles.usersSection}
           >
             <Text style={styles.sectionTitle}>Users</Text>
-            {filteredUsers.length === 0 ? (
+            {paginatedUsers.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={48} color={airbnbColors.mediumGray} />
                 <Text style={styles.emptyText}>No users found</Text>
@@ -298,14 +305,15 @@ export default function UsersIndexPage() {
               </View>
             ) : (
               <View style={styles.usersCard}>
-                {filteredUsers.map((user, index) => (
+                {paginatedUsers.map((user, index) => (
                   <TouchableOpacity 
-                    key={user.$id}
+                    key={`user-${user.$id}`}
                     style={[
                       styles.userRow,
-                      index === filteredUsers.length - 1 && styles.lastUserRow
+                      index === paginatedUsers.length - 1 && styles.lastUserRow
                     ]}
                     onPress={() => navigateToUserProfile(user)}
+                    activeOpacity={0.7}
                   >
                     <View style={styles.userInfo}>
                       <View style={[styles.userAvatar, { backgroundColor: airbnbColors.primary + '20' }]}>
@@ -314,6 +322,7 @@ export default function UsersIndexPage() {
                             source={{ uri: user.profileImage }}
                             style={styles.avatarImage}
                             resizeMode="cover"
+                            onError={() => console.log('Failed to load user avatar')}
                           />
                         ) : (
                           <Text style={styles.avatarText}>
@@ -322,8 +331,12 @@ export default function UsersIndexPage() {
                         )}
                       </View>
                       <View style={styles.userDetails}>
-                        <Text style={styles.userName}>{user.displayName || 'Unnamed User'}</Text>
-                        <Text style={styles.userEmail}>{user.email}</Text>
+                        <Text style={styles.userName} numberOfLines={1}>
+                          {user.displayName || 'Unnamed User'}
+                        </Text>
+                        <Text style={styles.userEmail} numberOfLines={1}>
+                          {user.email}
+                        </Text>
                         <View style={styles.userBadges}>
                           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(user.status || 'active') + '20' }]}>
                             <Text style={[styles.statusText, { color: getStatusColor(user.status || 'active') }]}>
@@ -354,8 +367,9 @@ export default function UsersIndexPage() {
               <View style={styles.paginationCard}>
                 <TouchableOpacity
                   style={[styles.paginationButton, page === 1 && styles.disabledButton]}
-                  onPress={() => setPage(prev => Math.max(1, prev - 1))}
+                  onPress={handlePreviousPage}
                   disabled={page === 1}
+                  activeOpacity={0.7}
                 >
                   <Ionicons name="chevron-back" size={18} color={page === 1 ? airbnbColors.mediumGray : airbnbColors.primary} />
                   <Text style={[styles.paginationText, page === 1 && styles.disabledText]}>Previous</Text>
@@ -367,8 +381,9 @@ export default function UsersIndexPage() {
                 
                 <TouchableOpacity
                   style={[styles.paginationButton, page === totalPages && styles.disabledButton]}
-                  onPress={() => setPage(prev => Math.min(totalPages, prev + 1))}
+                  onPress={handleNextPage}
                   disabled={page === totalPages}
+                  activeOpacity={0.7}
                 >
                   <Text style={[styles.paginationText, page === totalPages && styles.disabledText]}>Next</Text>
                   <Ionicons name="chevron-forward" size={18} color={page === totalPages ? airbnbColors.mediumGray : airbnbColors.primary} />
