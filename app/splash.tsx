@@ -1,21 +1,23 @@
 import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Image, Text, View } from 'react-native';
 import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
+    Easing,
+    useAnimatedStyle,
+    useSharedValue,
+    withTiming,
 } from 'react-native-reanimated';
 import { useAuth } from '../services/AuthContext';
 
 export default function SplashScreen() {
+  const { isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useAuth();
+  const hasNavigated = useRef(false); // Prevent multiple navigations
+
+  // Animation values
   const opacity = useSharedValue(0);
   const scale = useSharedValue(0.8);
 
-  // Animation styles
   const logoAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: opacity.value,
@@ -24,35 +26,57 @@ export default function SplashScreen() {
   });
 
   useEffect(() => {
-    // Start animations
-    opacity.value = withTiming(1, { 
-      duration: 1000,
-      easing: Easing.bezier(0.25, 0.1, 0.25, 1)
+    // Start animation immediately
+    opacity.value = withTiming(1, {
+      duration: 800,
+      easing: Easing.out(Easing.quad),
     });
-    
     scale.value = withTiming(1, {
       duration: 800,
-      easing: Easing.bezier(0.25, 1, 0.5, 1)
+      easing: Easing.out(Easing.quad),
     });
 
-    // Navigate to appropriate screen after splash duration
+    // Handle navigation with proper cleanup
     const timer = setTimeout(() => {
-      if (!isLoading) {
-        if (isAuthenticated) {
-          router.replace('/(tabs)');
-        } else {
-          router.replace('/(pre-auth)');
-        }
+      if (!hasNavigated.current && !isLoading) {
+        hasNavigated.current = true;
+
+        // Use requestAnimationFrame for smooth navigation
+        requestAnimationFrame(() => {
+          try {
+            if (isAuthenticated) {
+              router.replace('/(tabs)');
+            } else {
+              router.replace('/(pre-auth)');
+            }
+          } catch (error) {
+            console.warn('Splash navigation error:', error);
+            // Fallback navigation
+            setTimeout(() => {
+              if (!hasNavigated.current) {
+                hasNavigated.current = true;
+                router.replace('/(pre-auth)');
+              }
+            }, 100);
+          }
+        });
       }
     }, 2500);
 
-    return () => clearTimeout(timer);
-  }, [isLoading, isAuthenticated]);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [isLoading, isAuthenticated, router]);
+
+  // Reset navigation flag when auth state changes
+  useEffect(() => {
+    hasNavigated.current = false;
+  }, [isAuthenticated]);
 
   return (
     <View className="flex-1 bg-white justify-center items-center">
       <Animated.View style={logoAnimatedStyle} className="items-center">
-        <Image 
+        <Image
           source={require('../assets/images/app-logo.png')}
           className="w-60 h-60"
           resizeMode="contain"

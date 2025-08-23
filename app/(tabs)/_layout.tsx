@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, usePathname, useRouter } from 'expo-router';
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { Platform, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { colors } from '../../components/ui/theme';
 
 // Airbnb-inspired color palette (matching login screen)
 const airbnbColors = {
@@ -33,6 +34,24 @@ const airbnbColors = {
 export default function TabsLayout() {
   const pathname = usePathname();
   const router = useRouter();
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  // Debounced navigation function to prevent rapid navigation
+  const handleNavigation = useCallback((route: string) => {
+    if (isNavigating) return;
+    
+    setIsNavigating(true);
+    
+    requestAnimationFrame(() => {
+      try {
+        router.push(route as any);
+      } catch (error) {
+        console.warn('Tabs navigation error:', error);
+      } finally {
+        setTimeout(() => setIsNavigating(false), 300);
+      }
+    });
+  }, [router, isNavigating]);
 
   // Custom function to handle Courses tab navigation
   const handleCoursesTab = () => {
@@ -54,26 +73,35 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={({ route }) => ({
-        tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: airbnbColors.primary,
-        tabBarInactiveTintColor: airbnbColors.mediumGray,
-        tabBarShowLabel: true,
-        headerShown: false,
-        tabBarLabelStyle: styles.tabBarLabel,
-        tabBarItemStyle: styles.tabBarItem,
-        tabBarIcon: ({ color, size, focused }) => {
-          let iconName: keyof typeof Ionicons.glyphMap = 'home-outline';
-          
-          if (route.name === 'index') {
-            iconName = focused ? 'home' : 'home-outline';
-          } else if (route.name === '(courses)') {
-            iconName = focused ? 'book' : 'book-outline';
-          } else if (route.name === '(quiz)') {
-            iconName = focused ? 'help-circle' : 'help-circle-outline';
-          } else if (route.name === '(profile)') {
-            iconName = focused ? 'person' : 'person-outline';
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: any;
+
+          switch (route.name) {
+            case 'index':
+              iconName = focused ? 'home' : 'home-outline';
+              break;
+            case '(courses)':
+              iconName = focused ? 'book' : 'book-outline';
+              break;
+            case '(learning)':
+              iconName = focused ? 'school' : 'school-outline';
+              break;
+            case '(quiz)':
+              iconName = focused ? 'help-circle' : 'help-circle-outline';
+              break;
+            case '(classes)':
+              iconName = focused ? 'people' : 'people-outline';
+              break;
+            case '(profile)':
+              iconName = focused ? 'person' : 'person-outline';
+              break;
+            case '(support)':
+              iconName = focused ? 'chatbubble' : 'chatbubble-outline';
+              break;
+            default:
+              iconName = 'ellipse-outline';
           }
-          
+
           return (
             <View style={[
               styles.iconContainer,
@@ -91,7 +119,22 @@ export default function TabsLayout() {
               </View>
             </View>
           );
-        }
+        },
+        tabBarActiveTintColor: colors.primary.main,
+        tabBarInactiveTintColor: colors.neutral.gray,
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarStyle: styles.tabBar,
+        unmountOnBlur: false, // Keep screens mounted to prevent state loss
+        lazy: false, // Don't lazy load tabs
+        tabBarButton: (props) => (
+          <TouchableOpacity
+            {...props}
+            disabled={isNavigating}
+            style={[props.style, isNavigating && { opacity: 0.6 }]}
+          />
+        ),
       })}
     >
       {/* Only the most essential tabs */}
@@ -104,56 +147,51 @@ export default function TabsLayout() {
           onPress: () => handleCoursesTab()
         }} 
       />
-      <Tabs.Screen name="(quiz)" options={{ title: 'Quizzes' }} />
+      <Tabs.Screen
+        name="(learning)"
+        options={{
+          title: 'Learning',
+          href: null, // Hide from tab bar but keep navigable
+        }}
+      />
+      <Tabs.Screen name="(quiz)" options={{ title: 'Quiz' }} />
+      <Tabs.Screen
+        name="(classes)"
+        options={{
+          title: 'Classes',
+          href: null, // Hide from tab bar but keep navigable
+        }}
+      />
       <Tabs.Screen name="(profile)" options={{ title: 'Profile' }} />
-      
-      {/* Explicitly hide other folders from tab bar */}
-      <Tabs.Screen name="(classes)" options={{ href: null }} />
-      <Tabs.Screen name="(learning)" options={{ href: null }} />
-      <Tabs.Screen name="(support)" options={{ href: null }} />
+      <Tabs.Screen
+        name="(support)"
+        options={{
+          title: 'Support',
+          href: null, // Hide from tab bar but keep navigable
+        }}
+      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderTopWidth: 0,
-    borderTopLeftRadius: 20, // Reduced from 28
-    borderTopRightRadius: 20,
-    height: 82, // Reduced from 95
-    paddingHorizontal: 8, // Reduced from 20
-    paddingTop: 8, // Reduced from 12
-    paddingBottom: 20, // Reduced from 28
-    position: 'absolute',
-    // Enhanced shadow for better separation from background
-    shadowColor: airbnbColors.black,
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 20,
-    // Stronger border for definition
-    borderWidth: 0.5, // Reduced border
-    borderColor: airbnbColors.lightGray,
-    borderBottomWidth: 0,
+    backgroundColor: colors.neutral.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.neutral.lightGray,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 25 : 8,
+    height: Platform.OS === 'ios' ? 85 : 65,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
   },
   tabBarLabel: {
-    fontSize: 10, // Reduced from 11
-    fontWeight: '600', // Reduced from 700
-    marginTop: 4, // Reduced from 6
-    marginBottom: 2, // Reduced from 4
-    letterSpacing: 0.1, // Reduced from 0.2
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
-  },
-  tabBarItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 4, // Reduced from 8
-    paddingHorizontal: 2, // Reduced from 4
-    minHeight: 58, // Reduced from 70
+    fontSize: 12,
+    fontWeight: '500',
+    marginTop: 4,
   },
   iconContainer: {
     alignItems: 'center',

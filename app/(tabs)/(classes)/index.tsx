@@ -311,7 +311,11 @@ export default function ClassesIndex() {
             {/* Upcoming Classes */}
             <View style={styles.featuredSection}>
               <Text variant="h5" style={styles.sectionTitle}>Upcoming Classes</Text>
-              {upcomingClasses.map((item, index) => renderClassCard({item, index}))}
+              {upcomingClasses.map((item, index) => (
+                <View key={item.id}>
+                  {renderClassCard({item, index})}
+                </View>
+              ))}
             </View>
             
             {/* Popular Instructors */}

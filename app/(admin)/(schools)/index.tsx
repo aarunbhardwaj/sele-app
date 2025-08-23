@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   RefreshControl,
   SafeAreaView,
-  ScrollView,
   StyleSheet,
   TextInput,
   TouchableOpacity,
@@ -21,7 +20,7 @@ import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
 
-// Airbnb color palette
+// Airbnb color palette - keeping original colors
 const airbnbColors = {
   primary: '#FF5A5F',
   primaryDark: '#FF3347',
@@ -170,13 +169,8 @@ export default function SchoolsScreen() {
   const renderStatusFilter = () => (
     <View style={styles.filterSection}>
       <Text style={styles.filterSectionTitle}>Filter by Status</Text>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterContainer}
-        contentContainerStyle={styles.filterContent}
-      >
-        {[
+      <FlatList
+        data={[
           { 
             key: 'all', 
             label: 'All', 
@@ -205,11 +199,11 @@ export default function SchoolsScreen() {
             color: '#6B7280',
             count: schools && Array.isArray(schools) ? schools.filter(s => s.status === 'inactive').length : 0
           }
-        ].map((filter) => {
+        ]}
+        renderItem={({ item: filter }) => {
           const isActive = statusFilter === filter.key;
           return (
             <TouchableOpacity
-              key={filter.key}
               style={[
                 styles.filterButton,
                 isActive && [styles.filterButtonActive, { backgroundColor: filter.color }]
@@ -248,78 +242,89 @@ export default function SchoolsScreen() {
               </View>
             </TouchableOpacity>
           );
-        })}
-      </ScrollView>
+        }}
+        keyExtractor={(item) => item.key}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterContent}
+      />
     </View>
   );
 
   const renderSchoolCard = (school: School) => (
-    <TouchableOpacity
-      key={school.$id}
-      style={styles.schoolCard}
-      onPress={() => router.push(`/(admin)/(schools)/school-details?id=${school.$id}`)}
-    >
-      <View style={styles.schoolCardHeader}>
-        <View style={styles.schoolInfo}>
-          <View style={styles.schoolIconContainer}>
-            <Ionicons name="school" size={24} color={airbnbColors.primary} />
+    <View style={styles.schoolCardContainer}>
+      <TouchableOpacity
+        style={styles.schoolCard}
+        onPress={() => router.push(`/(admin)/(schools)/school-details?id=${school.$id}`)}
+      >
+        <View style={styles.schoolCardHeader}>
+          <View style={styles.schoolInfo}>
+            <View style={styles.schoolIconContainer}>
+              <Ionicons name="school" size={24} color={airbnbColors.primary} />
+            </View>
+            <View style={styles.schoolDetails}>
+              <Text style={styles.schoolName}>{school.name}</Text>
+              <Text style={styles.schoolLocation}>
+                {school.city}, {school.state}
+              </Text>
+              <Text style={styles.schoolContact}>
+                {school.contactPerson} • {school.contactPhone}
+              </Text>
+            </View>
           </View>
-          <View style={styles.schoolDetails}>
-            <Text style={styles.schoolName}>{school.name}</Text>
-            <Text style={styles.schoolLocation}>
-              {school.city}, {school.state}
-            </Text>
-            <Text style={styles.schoolContact}>
-              {school.contactPerson} • {school.contactPhone}
-            </Text>
+          <View style={styles.schoolActions}>
+            <View style={[styles.statusBadge, { backgroundColor: getStatusColor(school.status) + '15' }]}>
+              <Text style={[styles.statusText, { color: getStatusColor(school.status) }]}>
+                {school.status.charAt(0).toUpperCase() + school.status.slice(1)}
+              </Text>
+            </View>
           </View>
         </View>
-        <View style={styles.schoolActions}>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(school.status) + '15' }]}>
-            <Text style={[styles.statusText, { color: getStatusColor(school.status) }]}>
-              {school.status.charAt(0).toUpperCase() + school.status.slice(1)}
-            </Text>
-          </View>
-        </View>
-      </View>
 
-      <View style={styles.schoolCardBody}>
-        <View style={styles.schoolMeta}>
-          <View style={styles.metaItem}>
-            <Ionicons name="people-outline" size={16} color={colors.neutral.gray} />
-            <Text style={styles.metaText}>
-              {school.enrollmentCount || 0} Students
-            </Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="mail-outline" size={16} color={colors.neutral.gray} />
-            <Text style={styles.metaText}>{school.email}</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <Ionicons name="call-outline" size={16} color={colors.neutral.gray} />
-            <Text style={styles.metaText}>{school.phone}</Text>
+        <View style={styles.schoolCardBody}>
+          <View style={styles.schoolMeta}>
+            <View style={styles.metaItem}>
+              <Ionicons name="people-outline" size={16} color={colors.neutral.gray} />
+              <Text style={styles.metaText}>
+                {school.enrollmentCount || 0} Students
+              </Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="mail-outline" size={16} color={colors.neutral.gray} />
+              <Text style={styles.metaText}>{school.email}</Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="call-outline" size={16} color={colors.neutral.gray} />
+              <Text style={styles.metaText}>{school.phone}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.schoolCardFooter}>
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => router.push(`/(admin)/(schools)/edit-school?id=${school.$id}`)}
-        >
-          <Ionicons name="create-outline" size={16} color={airbnbColors.secondary} />
-          <Text style={[styles.actionButtonText, { color: airbnbColors.secondary }]}>Edit</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          style={styles.actionButton}
-          onPress={() => handleDeleteSchool(school.$id, school.name)}
-        >
-          <Ionicons name="trash-outline" size={16} color={airbnbColors.primary} />
-          <Text style={[styles.actionButtonText, { color: airbnbColors.primary }]}>Delete</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+        <View style={styles.schoolCardFooter}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              router.push(`/(admin)/(schools)/edit-school?id=${school.$id}`);
+            }}
+          >
+            <Ionicons name="create-outline" size={16} color={airbnbColors.secondary} />
+            <Text style={[styles.actionButtonText, { color: airbnbColors.secondary }]}>Edit</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={(e) => {
+              e.stopPropagation();
+              handleDeleteSchool(school.$id, school.name);
+            }}
+          >
+            <Ionicons name="trash-outline" size={16} color={airbnbColors.primary} />
+            <Text style={[styles.actionButtonText, { color: airbnbColors.primary }]}>Delete</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 
   const renderPagination = () => {
@@ -350,6 +355,116 @@ export default function SchoolsScreen() {
     );
   };
 
+  const renderHeader = () => (
+    <>
+      {/* Hero Section */}
+      <View style={styles.heroSection}>
+        <View style={styles.heroCard}>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroIconContainer}>
+              <Ionicons name="school" size={32} color={airbnbColors.primary} />
+            </View>
+            <View style={styles.heroContent}>
+              <Text style={styles.heroTitle}>Schools Directory</Text>
+              <Text style={styles.heroSubtitle}>
+                Manage educational institutions and partnerships
+              </Text>
+            </View>
+          </View>
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{totalSchools}</Text>
+              <Text style={styles.statLabel}>Total Schools</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: airbnbColors.secondary }]}>
+                {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'active').length : 0}
+              </Text>
+              <Text style={styles.statLabel}>Active</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={[styles.statNumber, { color: '#F59E0B' }]}>
+                {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'pending').length : 0}
+              </Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      {/* Search and Filters */}
+      <View style={styles.searchSection}>
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={colors.neutral.gray} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search schools by name..."
+            placeholderTextColor={colors.neutral.gray}
+            value={searchQuery}
+            onChangeText={handleSearch}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity onPress={() => handleSearch('')}>
+              <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Status Filters */}
+      {renderStatusFilter()}
+
+      {/* Add School Button */}
+      <View style={styles.addButtonContainer}>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/(admin)/(schools)/add-school')}
+        >
+          <Ionicons name="add-circle" size={20} color={colors.neutral.white} />
+          <Text style={styles.addButtonText}>Add New School</Text>
+        </TouchableOpacity>
+      </View>
+    </>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Ionicons name="school-outline" size={64} color={colors.neutral.gray} />
+      <Text style={styles.emptyTitle}>No Schools Found</Text>
+      <Text style={styles.emptySubtitle}>
+        {searchQuery || statusFilter !== 'all' 
+          ? 'Try adjusting your search or filters'
+          : 'Get started by adding your first school'
+        }
+      </Text>
+      {!searchQuery && statusFilter === 'all' && (
+        <TouchableOpacity
+          style={styles.emptyButton}
+          onPress={() => router.push('/(admin)/(schools)/add-school')}
+        >
+          <Ionicons name="add" size={20} color={airbnbColors.primary} />
+          <Text style={[styles.emptyButtonText, { color: airbnbColors.primary }]}>
+            Add First School
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  const renderFooter = () => {
+    if (loading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <Text style={styles.loadingText}>Loading schools...</Text>
+        </View>
+      );
+    }
+    return renderPagination();
+  };
+
   return (
     <View style={styles.safeArea}>
       <SafeAreaView style={styles.headerContainer}>
@@ -360,74 +475,19 @@ export default function SchoolsScreen() {
       </SafeAreaView>
 
       <View style={styles.container}>
-        {/* Hero Section */}
-        <LinearGradient 
-          colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
-          style={styles.heroSection}
-        >
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Schools Directory</Text>
-            <Text style={styles.heroSubtitle}>
-              Manage educational institutions and partnerships
-            </Text>
-            <View style={styles.statsContainer}>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>{totalSchools}</Text>
-                <Text style={styles.statLabel}>Total Schools</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'active').length : 0}
-                </Text>
-                <Text style={styles.statLabel}>Active</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statNumber}>
-                  {schools && Array.isArray(schools) ? schools.filter(s => s.status === 'pending').length : 0}
-                </Text>
-                <Text style={styles.statLabel}>Pending</Text>
-              </View>
-            </View>
-          </View>
-        </LinearGradient>
-
-        {/* Search and Filters */}
-        <View style={styles.searchSection}>
-          <View style={styles.searchContainer}>
-            <Ionicons name="search" size={20} color={colors.neutral.gray} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search schools by name..."
-              placeholderTextColor={colors.neutral.gray}
-              value={searchQuery}
-              onChangeText={handleSearch}
-            />
-            {searchQuery !== '' && (
-              <TouchableOpacity onPress={() => handleSearch('')}>
-                <Ionicons name="close-circle" size={20} color={colors.neutral.gray} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Status Filters */}
-        {renderStatusFilter()}
-
-        {/* Add School Button */}
-        <View style={styles.addButtonContainer}>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => router.push('/(admin)/(schools)/add-school')}
-          >
-            <Ionicons name="add-circle" size={20} color={colors.neutral.white} />
-            <Text style={styles.addButtonText}>Add New School</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Schools List */}
-        <ScrollView
-          style={styles.schoolsList}
-          showsVerticalScrollIndicator={false}
+        <FlatList
+          data={schools}
+          renderItem={({ item, index }) => (
+            <Animated.View
+              entering={FadeInUp.delay(index * 50).duration(400)}
+            >
+              {renderSchoolCard(item)}
+            </Animated.View>
+          )}
+          keyExtractor={(item) => item.$id}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={!loading ? renderEmptyState : null}
+          ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -436,59 +496,17 @@ export default function SchoolsScreen() {
               tintColor={airbnbColors.primary}
             />
           }
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={[
-            styles.schoolsListContent,
+            styles.flatListContent,
             { paddingBottom: Math.max(insets.bottom || 0, 20) + 80 }
           ]}
-        >
-          {loading ? (
-            <Animated.View 
-              entering={FadeInUp.delay(100).duration(600)}
-              style={styles.loadingContainer}
-            >
-              <ActivityIndicator size="large" color={airbnbColors.primary} />
-              <Text style={styles.loadingText}>Loading schools...</Text>
-            </Animated.View>
-          ) : (!schools || schools.length === 0) ? (
-            <Animated.View 
-              entering={FadeInUp.delay(200).duration(600)}
-              style={styles.emptyContainer}
-            >
-              <Ionicons name="school-outline" size={64} color={colors.neutral.gray} />
-              <Text style={styles.emptyTitle}>No Schools Found</Text>
-              <Text style={styles.emptySubtitle}>
-                {searchQuery || statusFilter !== 'all' 
-                  ? 'Try adjusting your search or filters'
-                  : 'Get started by adding your first school'
-                }
-              </Text>
-              {!searchQuery && statusFilter === 'all' && (
-                <TouchableOpacity
-                  style={styles.emptyButton}
-                  onPress={() => router.push('/(admin)/(schools)/add-school')}
-                >
-                  <Ionicons name="add" size={20} color={airbnbColors.primary} />
-                  <Text style={[styles.emptyButtonText, { color: airbnbColors.primary }]}>
-                    Add First School
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </Animated.View>
-          ) : (
-            <>
-              {schools.map((school, index) => (
-                <Animated.View
-                  key={school.$id}
-                  entering={FadeInUp.delay(index * 100).duration(600)}
-                  style={styles.schoolCardWrapper}
-                >
-                  {renderSchoolCard(school)}
-                </Animated.View>
-              ))}
-              {renderPagination()}
-            </>
-          )}
-        </ScrollView>
+          removeClippedSubviews={true}
+          maxToRenderPerBatch={10}
+          updateCellsBatchingPeriod={50}
+          initialNumToRender={5}
+          windowSize={10}
+        />
       </View>
     </View>
   );
@@ -508,45 +526,79 @@ const styles = StyleSheet.create({
     backgroundColor: '#FAFBFC',
   },
 
-  // Hero Section
+  // Modern Hero Section - White card without background gradient
   heroSection: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xl,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingVertical: spacing.lg,
+  },
+  heroCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 20,
+    padding: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  heroIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
   heroContent: {
-    alignItems: 'center',
+    flex: 1,
   },
   heroTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.neutral.white,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
+    color: colors.neutral.text,
+    marginBottom: 4,
   },
   heroSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginBottom: spacing.lg,
+    fontSize: 16,
+    color: colors.neutral.darkGray,
+    lineHeight: 22,
   },
   statsContainer: {
     flexDirection: 'row',
-    gap: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
   },
   statItem: {
     alignItems: 'center',
+    flex: 1,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: '700',
-    color: colors.neutral.white,
+    color: airbnbColors.primary,
   },
   statLabel: {
     fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+    color: colors.neutral.darkGray,
+    marginTop: 4,
+    fontWeight: '500',
+  },
+  statDivider: {
+    width: 1,
+    height: 32,
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: spacing.sm,
   },
 
   // Search Section
@@ -686,6 +738,10 @@ const styles = StyleSheet.create({
   },
 
   // School Card
+  schoolCardContainer: {
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
+  },
   schoolCard: {
     backgroundColor: colors.neutral.white,
     borderRadius: 16,
@@ -789,6 +845,7 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
     marginTop: spacing.lg,
     paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   paginationButton: {
     width: 40,
@@ -815,6 +872,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
   },
   loadingText: {
     fontSize: 16,
@@ -826,6 +884,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.lg,
   },
   emptyTitle: {
     fontSize: 20,
@@ -856,5 +915,8 @@ const styles = StyleSheet.create({
   },
   schoolCardWrapper: {
     marginBottom: spacing.md,
+  },
+  flatListContent: {
+    flexGrow: 1,
   },
 });

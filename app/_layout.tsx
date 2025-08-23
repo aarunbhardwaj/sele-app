@@ -34,63 +34,86 @@ function RootLayoutNav() {
   return (
     <Stack
       screenOptions={{
-        headerShown: false, // Default to hide headers globally
+        headerShown: false,
+        animation: 'slide_from_right',
+        animationDuration: 200, // Reduce animation duration
+        gestureEnabled: true,
       }}
     >
       <Stack.Screen
         name="splash"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: false, // Disable gesture on splash
         }} 
       />
       <Stack.Screen
         name="(pre-auth)"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: true,
         }}
-        redirect={isAuthenticated}  // Redirect if user is already logged in
+        redirect={isAuthenticated}
       />
       <Stack.Screen
         name="(tabs)"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: true,
         }}
-        redirect={!isAuthenticated}  // Redirect if user is not logged in
+        redirect={!isAuthenticated}
       />
       <Stack.Screen
         name="(admin)"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: true,
         }}
-        redirect={!isAuthenticated}  // Redirect if user is not logged in
+        redirect={!isAuthenticated}
       />
       {/* Individual auth screens */}
       <Stack.Screen
         name="auth/forgot-password"
         options={{
           headerShown: true,
-          headerTitle: "Forgot Password"
+          headerTitle: "Forgot Password",
+          gestureEnabled: true,
         }}
       />
       <Stack.Screen
         name="auth/login"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: true,
         }}
       />
       <Stack.Screen
         name="auth/signup"
         options={{
-          headerShown: false
+          headerShown: false,
+          gestureEnabled: true,
         }}
       />
       <Stack.Screen
         name="auth/verification-code"
         options={{
           headerShown: true,
-          headerTitle: "Verification"
+          headerTitle: "Verification",
+          gestureEnabled: true,
         }}
       />
+      
+      {/* Standalone screens */}
+      <Stack.Screen name="quiz-interface" options={{ headerShown: false }} />
+      <Stack.Screen name="quiz-results" options={{ headerShown: false }} />
+      <Stack.Screen name="admin" options={{ headerShown: false }} />
+      <Stack.Screen name="error" options={{ headerShown: false }} />
+      <Stack.Screen name="maintenance" options={{ headerShown: false }} />
+      <Stack.Screen name="feedback" options={{ headerShown: false }} />
+      <Stack.Screen name="privacy" options={{ headerShown: false }} />
+      <Stack.Screen name="terms" options={{ headerShown: false }} />
+      <Stack.Screen name="thank-you" options={{ headerShown: false }} />
+      <Stack.Screen name="updates" options={{ headerShown: false }} />
     </Stack>
   );
 }

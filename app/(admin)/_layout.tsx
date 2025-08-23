@@ -1,7 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs, usePathname, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { DrawerLayoutAndroid, Platform, SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  View
+} from 'react-native';
+import { colors } from '../../components/ui/theme';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
 
@@ -32,127 +38,64 @@ const airbnbColors = {
   error: '#C13515',
 };
 
-// Navigation items for our tabs and drawer
-const navigationItems = [
-  { label: 'Dashboard', icon: 'grid-outline', activeIcon: 'grid', route: '/(admin)/(dashboard)/index' },
-  { label: 'Courses', icon: 'book-outline', activeIcon: 'book', route: '/(admin)/(courses)/index' },
-  { label: 'Users', icon: 'people-outline', activeIcon: 'people', route: '/(admin)/(users)/index' },
-  { label: 'Schools', icon: 'school-outline', activeIcon: 'school', route: '/(admin)/(schools)/index' },
-  { label: 'Quizzes', icon: 'help-circle-outline', activeIcon: 'help-circle', route: '/(admin)/(quiz)/quiz-list' },
-];
-
-// Additional items only for drawer menu
-const drawerOnlyItems = [
-  { label: 'Settings', icon: 'settings-outline', route: '/(admin)/settings' },
-];
-
 export default function AdminLayout() {
-  const { user, isLoading, logout } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
-  const [isNavigating, setIsNavigating] = useState(false);
-  const drawer = useRef<DrawerLayoutAndroid>(null);
 
-  // Custom function to check admin status - using useCallback to handle dependency properly
-  const checkAdminStatus = useCallback(async () => {
-    setCheckingAdmin(true);
+  // Check admin role with proper error handling
+  const checkAdminRole = useCallback(async () => {
+    if (!user || !isAuthenticated) {
+      setIsAdmin(false);
+      setCheckingAdmin(false);
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      if (!user) {
-        router.replace('/auth/login');
-        return;
-      }
-      const userInfo = await appwriteService.getUserAccount();
-      const isUserAdmin = userInfo?.isAdmin === true;
-      setIsAdmin(isUserAdmin);
-      if (!isUserAdmin) {
-        router.replace('/');
+      setCheckingAdmin(true);
+      const userData = await appwriteService.getUserProfile(user.$id);
+      const hasAdminRole = userData?.role === 'Admin' || userData?.isAdmin === true;
+      
+      setIsAdmin(hasAdminRole);
+      
+      if (!hasAdminRole) {
+        // Non-admin users should be redirected
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 100);
       }
     } catch (error) {
-      console.error('Error checking admin status:', error);
-      router.replace('/auth/login');
+      console.error('Error checking admin role:', error);
+      setIsAdmin(false);
+      // Redirect on error
+      setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 100);
     } finally {
       setCheckingAdmin(false);
+      setIsLoading(false);
     }
-  }, [user, router]);
+  }, [user, isAuthenticated, router]);
 
   useEffect(() => {
-    if (!isLoading) {
-      checkAdminStatus();
+    if (!isAuthenticated) {
+      setIsAdmin(false);
+      setIsLoading(false);
+      setCheckingAdmin(false);
+      router.replace('/(pre-auth)');
+      return;
     }
-  }, [isLoading, checkAdminStatus]);
 
-  const handleNavigation = (route: string) => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    
-    // Close drawer first
-    if (drawer.current) {
-      drawer.current.closeDrawer();
-    }
-    
-    setTimeout(() => {
-      router.push(route as any);
-      setIsNavigating(false);
-    }, 250);
-  };
-
-  const handleLogout = () => {
-    if (isNavigating) return;
-    setIsNavigating(true);
-    
-    if (drawer.current) {
-      drawer.current.closeDrawer();
-    }
-    
-    setTimeout(() => {
-      logout();
-      setIsNavigating(false);
-    }, 250);
-  };
-
-  const renderDrawer = () => (
-    <SafeAreaView style={styles.drawerContainer}>
-      <Text style={styles.drawerTitle}>Admin Menu</Text>
-      
-      {navigationItems.map((item) => (
-        <TouchableOpacity
-          key={item.label}
-          style={styles.drawerItem}
-          onPress={() => handleNavigation(item.route)}
-          disabled={isNavigating}
-        >
-          <Ionicons name={item.icon as any} size={22} color={airbnbColors.primary} style={styles.drawerIcon} />
-          <Text style={styles.drawerLabel}>{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-      
-      {drawerOnlyItems.map((item) => (
-        <TouchableOpacity
-          key={item.label}
-          style={styles.drawerItem}
-          onPress={() => handleNavigation(item.route)}
-          disabled={isNavigating}
-        >
-          <Ionicons name={item.icon as any} size={22} color={airbnbColors.primary} style={styles.drawerIcon} />
-          <Text style={styles.drawerLabel}>{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-      
-      <TouchableOpacity
-        style={[styles.drawerItem, { marginTop: 24 }]}
-        onPress={handleLogout}
-        disabled={isNavigating}
-      >
-        <Ionicons name="log-out-outline" size={22} color={airbnbColors.error} style={styles.drawerIcon} />
-        <Text style={[styles.drawerLabel, { color: airbnbColors.error }]}>Logout</Text>
-      </TouchableOpacity>
-    </SafeAreaView>
-  );
+    checkAdminRole();
+  }, [isAuthenticated, checkAdminRole, router]);
 
   if (isLoading || checkingAdmin) {
     return (
       <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={airbnbColors.primary} />
         <Text style={styles.loadingText}>Loading admin panel...</Text>
       </View>
     );
@@ -166,48 +109,7 @@ export default function AdminLayout() {
     );
   }
 
-  // Using Stack instead of Tabs for the main navigation structure
-  return (
-    <>
-      {Platform.OS === 'android' ? (
-        <DrawerLayoutAndroid
-          ref={drawer}
-          drawerWidth={260}
-          drawerPosition="left"
-          renderNavigationView={renderDrawer}
-          onDrawerOpen={() => {}}
-          onDrawerClose={() => {}}
-        >
-          <AdminTabs />
-        </DrawerLayoutAndroid>
-      ) : (
-        <AdminTabs />
-      )}
-    </>
-  );
-}
-
-// Separate component for tabs to ensure clean implementation
-function AdminTabs() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [activeTab, setActiveTab] = useState('');
-  
-  // Update active tab whenever pathname changes
-  useEffect(() => {
-    if (pathname.includes('/(admin)/index') || pathname.includes('/(admin)/(dashboard)')) {
-      setActiveTab('index');
-    } else if (pathname.includes('/(admin)/(courses)')) {
-      setActiveTab('(courses)');
-    } else if (pathname.includes('/(admin)/(users)')) {
-      setActiveTab('(users)');
-    } else if (pathname.includes('/(admin)/(schools)')) {
-      setActiveTab('(schools)');
-    } else if (pathname.includes('/(admin)/(quiz)')) {
-      setActiveTab('(quiz)');
-    }
-  }, [pathname]);
-  
+  // Using Tabs instead of Stack to show bottom navigation
   return (
     <Tabs
       screenOptions={{
@@ -337,15 +239,15 @@ function TabBarIcon({ name, color, focused }: { name: any; color: string; focuse
 
 const styles = StyleSheet.create({
   loadingContainer: {
-    flex: 1, 
-    justifyContent: 'center', 
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: airbnbColors.offWhite
+    backgroundColor: colors.neutral.white,
   },
   loadingText: {
-    fontSize: 18,
-    color: airbnbColors.primary,
-    fontWeight: '600'
+    marginTop: 16,
+    fontSize: 16,
+    color: colors.neutral.darkGray,
   },
   tabBar: {
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
@@ -416,31 +318,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: airbnbColors.primaryLight,
     transform: [{ scale: 1.0 }],
-  },
-  drawerContainer: {
-    flex: 1,
-    backgroundColor: airbnbColors.white,
-    paddingTop: 40,
-    paddingHorizontal: 16,
-  },
-  drawerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    color: airbnbColors.primary,
-  },
-  drawerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: airbnbColors.lightGray,
-  },
-  drawerIcon: {
-    marginRight: 16,
-  },
-  drawerLabel: {
-    fontSize: 16,
-    color: airbnbColors.charcoal,
   },
 });

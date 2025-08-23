@@ -1,5 +1,5 @@
 import { usePathname, useRouter, useSegments } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../../../components/ui/theme';
 import { useAuth } from '../../../services/AuthContext';
@@ -12,55 +12,86 @@ export default function CoursesIndex() {
   const { user } = useAuth();
   const [message, setMessage] = useState('Loading course library...');
   const [error, setError] = useState<string | null>(null);
+  const hasNavigated = useRef(false); // Prevent multiple navigations
   
   useEffect(() => {
     async function checkUserRole() {
+      if (hasNavigated.current) return; // Prevent multiple executions
+      
       try {
-        // First check if user is authenticated
         if (!user) {
-          console.log('No user found, redirecting to login');
-          router.replace('/(pre-auth)/login');
+          setMessage('Please log in to access courses');
           return;
         }
+
+        setMessage('Checking access permissions...');
         
-        console.log('Checking role for user:', user.$id);
-        
-        // Check if we're coming from a tab click when already in courses section
-        const isRevisitingCoursesTab = pathname === '/(tabs)/(courses)' && 
-          segments.length === 2; // Just the tabs and courses segments
-        
-        setMessage('Checking your access level...');
-        
-        // Check if user has admin role
-        const isAdmin = await appwriteService.isUserAdmin(user.$id);
-        console.log('Is user admin?', isAdmin);
+        // Get user profile to check role
+        const userProfile = await appwriteService.getUserProfile(user.$id);
+        const isAdmin = userProfile?.role === 'Admin' || userProfile?.isAdmin === true;
         
         if (isAdmin) {
-          setMessage('Loading admin course library...');
-          // If admin, go to admin course library
-          setTimeout(() => {
-            router.replace('/(admin)/(courses)/course-library');
-          }, 100);
+          setMessage('Redirecting to course management...');
+          hasNavigated.current = true;
+          
+          // Use requestAnimationFrame for smooth navigation
+          requestAnimationFrame(() => {
+            try {
+              router.replace('/(admin)/(courses)/course-library');
+            } catch (navigationError) {
+              console.warn('Course admin navigation error:', navigationError);
+              setError('Navigation failed. Please try again.');
+              hasNavigated.current = false;
+            }
+          });
         } else {
-          setMessage('Loading course catalog...');
-          // If regular user, go to user course catalog
-          setTimeout(() => {
-            router.replace('/(tabs)/(courses)/catalog');
-          }, 100);
+          setMessage('Redirecting to course catalog...');
+          hasNavigated.current = true;
+          
+          requestAnimationFrame(() => {
+            try {
+              router.replace('/(tabs)/(courses)/catalog');
+            } catch (navigationError) {
+              console.warn('Course catalog navigation error:', navigationError);
+              setError('Navigation failed. Please try again.');
+              hasNavigated.current = false;
+            }
+          });
         }
       } catch (error) {
         console.error('Error checking user role:', error);
-        setError('Error loading courses. Please try again.');
-        setMessage('Something went wrong. Redirecting to course catalog...');
-        // Default to user course catalog on error
-        setTimeout(() => {
-          router.replace('/(tabs)/(courses)/catalog');
-        }, 1000);
+        setError('Failed to check permissions');
+        setMessage('Redirecting to course catalog...');
+        
+        // Fallback to catalog on error
+        if (!hasNavigated.current) {
+          hasNavigated.current = true;
+          setTimeout(() => {
+            try {
+              router.replace('/(tabs)/(courses)/catalog');
+            } catch (navigationError) {
+              console.warn('Fallback navigation error:', navigationError);
+              hasNavigated.current = false;
+            }
+          }, 1000);
+        }
       }
     }
     
-    checkUserRole();
+    // Small delay to prevent immediate navigation conflicts
+    const timer = setTimeout(() => {
+      checkUserRole();
+    }, 100);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [router, user, pathname, segments]);
+
+  // Reset navigation flag when user changes
+  useEffect(() => {
+    hasNavigated.current = false;
+  }, [user]);
   
   // Show loading indicator while redirecting
   return (
@@ -84,13 +115,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.neutral.background,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
   loadingText: {
     marginTop: 10,
     color: colors.neutral.darkGray,
+    textAlign: 'center',
   },
   errorText: {
     marginTop: 10,
     color: 'red',
+    textAlign: 'center',
   }
 });

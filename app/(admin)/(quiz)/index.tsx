@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -8,7 +7,7 @@ import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 
 const { width } = Dimensions.get('window');
 
-// Airbnb color palette
+// Airbnb color palette - keeping original colors
 const airbnbColors = {
   primary: '#FF5A5F',
   primaryDark: '#FF3347',
@@ -44,7 +43,7 @@ interface FeatureCardProps {
   featured?: boolean;
 }
 
-const QuizFeatureCard = ({ title, description, icon, route, color = colors.primary.main, gradient, featured = false }: FeatureCardProps) => {
+const QuizFeatureCard = ({ title, description, icon, route, color = airbnbColors.primary, gradient, featured = false }: FeatureCardProps) => {
   const router = useRouter();
   
   const cardContent = (
@@ -54,7 +53,7 @@ const QuizFeatureCard = ({ title, description, icon, route, color = colors.prima
           <Ionicons name={icon} size={28} color={color} />
         </View>
         {featured && (
-          <View style={styles.featuredBadge}>
+          <View style={[styles.featuredBadge, { backgroundColor: color }]}>
             <Text style={styles.featuredText}>Popular</Text>
           </View>
         )}
@@ -70,23 +69,9 @@ const QuizFeatureCard = ({ title, description, icon, route, color = colors.prima
     </View>
   );
 
-  if (gradient && featured) {
-    return (
-      <TouchableOpacity 
-        style={[styles.cardWrapper, featured && styles.featuredWrapper]}
-        onPress={() => router.push(route as any)}
-        activeOpacity={0.95}
-      >
-        <LinearGradient colors={gradient} style={styles.gradientCard}>
-          {cardContent}
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  }
-  
   return (
     <TouchableOpacity 
-      style={styles.cardWrapper} 
+      style={[styles.cardWrapper, featured && styles.featuredWrapper]}
       onPress={() => router.push(route as any)}
       activeOpacity={0.95}
     >
@@ -105,7 +90,6 @@ export default function QuizIndexPage() {
       icon: "create-outline",
       route: "/(admin)/(quiz)/quiz-creator",
       color: airbnbColors.primary,
-      gradient: [airbnbColors.primary, airbnbColors.primaryDark],
       featured: true
     },
     {
@@ -114,7 +98,6 @@ export default function QuizIndexPage() {
       icon: "library-outline",
       route: "/(admin)/(quiz)/quiz-list",
       color: airbnbColors.secondary,
-      gradient: [airbnbColors.secondary, airbnbColors.secondaryDark],
       featured: true
     },
     {
@@ -123,7 +106,6 @@ export default function QuizIndexPage() {
       icon: "timer-outline",
       route: "/(admin)/(quiz)/quiz-attempts",
       color: airbnbColors.primaryLight,
-      gradient: [airbnbColors.primaryLight, airbnbColors.primary],
       featured: true
     }
   ];
@@ -143,25 +125,29 @@ export default function QuizIndexPage() {
       />
       
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-        {/* Hero Section */}
-        <LinearGradient 
-          colors={[airbnbColors.primary, airbnbColors.primaryDark]} 
-          style={styles.heroSection}
-        >
-          <View style={styles.heroContent}>
-            <Text style={styles.heroTitle}>Quiz Management Hub</Text>
-            <Text style={styles.heroSubtitle}>
-              Create, manage and review language assessment quizzes
-            </Text>
+        {/* Modern Hero Section - White Card Design (no gradient background) */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroCard}>
+            <View style={styles.heroHeader}>
+              <View style={styles.heroIconContainer}>
+                <Ionicons name="help-circle" size={32} color={airbnbColors.primary} />
+              </View>
+              <View style={styles.heroContent}>
+                <Text style={styles.heroTitle}>Quiz Management Hub</Text>
+                <Text style={styles.heroSubtitle}>
+                  Create, manage and review language assessment quizzes
+                </Text>
+              </View>
+            </View>
             <TouchableOpacity 
               style={styles.heroButton}
               onPress={() => router.push('/(admin)/(quiz)/quiz-creator')}
             >
-              <Text style={[styles.heroButtonText, {color: airbnbColors.primary}]}>Create New Quiz</Text>
-              <Ionicons name="add-circle" size={20} color={airbnbColors.primary} />
+              <Ionicons name="add-circle" size={20} color={colors.neutral.white} />
+              <Text style={styles.heroButtonText}>Create New Quiz</Text>
             </TouchableOpacity>
           </View>
-        </LinearGradient>
+        </View>
         
         <View style={styles.contentContainer}>
           {/* Primary Features */}
@@ -179,7 +165,6 @@ export default function QuizIndexPage() {
                   icon={feature.icon}
                   route={feature.route}
                   color={feature.color}
-                  gradient={feature.gradient}
                   featured={feature.featured}
                 />
               ))}
@@ -198,52 +183,73 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: colors.neutral.background,
+    backgroundColor: '#FAFBFC',
   },
   
-  // Hero Section
+  // Modern Hero Section - White card without background gradient
   heroSection: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.xxl,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    paddingVertical: spacing.lg,
+  },
+  heroCard: {
+    backgroundColor: colors.neutral.white,
+    borderRadius: 20,
+    padding: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  heroIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
   heroContent: {
-    alignItems: 'center',
+    flex: 1,
   },
   heroTitle: {
-    fontSize: typography.fontSizes.heading,
-    fontWeight: typography.fontWeights.bold,
-    color: colors.neutral.white,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.neutral.text,
+    marginBottom: 4,
   },
   heroSubtitle: {
-    fontSize: typography.fontSizes.md,
-    color: 'rgba(255, 255, 255, 0.9)',
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-    lineHeight: 24,
-    paddingHorizontal: spacing.md,
+    fontSize: 16,
+    color: colors.neutral.darkGray,
+    lineHeight: 22,
   },
   heroButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.neutral.white,
+    justifyContent: 'center',
+    backgroundColor: airbnbColors.primary,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.xl,
-    borderRadius: 25,
-    shadowColor: colors.neutral.black,
+    borderRadius: 12,
+    shadowColor: airbnbColors.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   heroButtonText: {
-    fontSize: typography.fontSizes.md,
-    fontWeight: typography.fontWeights.semibold,
-    color: colors.primary.main,
-    marginRight: spacing.sm,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.neutral.white,
+    marginLeft: spacing.sm,
   },
 
   // Content Container
@@ -282,7 +288,7 @@ const styles = StyleSheet.create({
 
   // Card Styles
   cardWrapper: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
+    width: '100%',
     marginBottom: spacing.md,
   },
   featuredWrapper: {
@@ -299,15 +305,13 @@ const styles = StyleSheet.create({
     elevation: 3,
     minHeight: 140,
     justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   featuredCard: {
     minHeight: 160,
     borderWidth: 2,
-    borderColor: colors.primary.light + '40',
-  },
-  gradientCard: {
-    borderRadius: 16,
-    padding: 2,
+    borderColor: airbnbColors.primary + '20',
   },
   cardHeader: {
     flexDirection: 'row',
@@ -323,7 +327,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   featuredBadge: {
-    backgroundColor: airbnbColors.primary,
     paddingHorizontal: spacing.sm,
     paddingVertical: 4,
     borderRadius: 12,
@@ -363,6 +366,6 @@ const styles = StyleSheet.create({
   notificationButton: {
     padding: spacing.sm,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 90, 95, 0.1)', // Light red background for Airbnb style
+    backgroundColor: airbnbColors.primary + '15',
   },
 });
