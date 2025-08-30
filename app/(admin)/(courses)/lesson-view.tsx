@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { VideoView, useVideoPlayer } from 'expo-video';
+import { ResizeMode, Video } from 'expo-av';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -94,6 +94,15 @@ interface AirbnbTextProps {
   [key: string]: any;
 }
 
+interface VideoStatus {
+  isLoaded: boolean;
+  isPlaying: boolean;
+  positionMillis: number;
+  durationMillis: number;
+  didJustFinish: boolean;
+  error?: string;
+}
+
 export default function LessonViewScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
@@ -105,51 +114,57 @@ export default function LessonViewScreen() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [isVideoReady, setIsVideoReady] = useState(false);
-  
-  // Create video player instance - always create with null first, then update
-  const player = useVideoPlayer(null, (player) => {
-    if (player) {
-      player.muted = false;
-      player.loop = false;
-    }
+  const [videoStatus, setVideoStatus] = useState<VideoStatus>({
+    isLoaded: false,
+    isPlaying: false,
+    positionMillis: 0,
+    durationMillis: 0,
+    didJustFinish: false,
   });
+  
+  const videoRef = useRef<Video>(null);
 
-  // Update player source when videoUrl changes
-  useEffect(() => {
-    if (player && videoUrl) {
-      try {
-        console.log('Loading video URL:', videoUrl);
-        setVideoError(null);
-        setIsVideoReady(false);
-        
-        // Replace the player source
-        player.replace({ uri: videoUrl });
-        
-        // Add listeners for player events
-        const statusListener = player.addListener('statusChange', (status) => {
-          console.log('Video status changed:', status);
-          if (status.status === 'error') {
-            setVideoError('Failed to load video');
-            setIsVideoReady(false);
-          } else if (status.status === 'readyToPlay') {
-            setIsVideoReady(true);
-            setVideoError(null);
-          }
-        });
+  // Handle video status updates
+  const handleVideoStatusUpdate = (status: any) => {
+    console.log('Video status update:', status);
+    
+    setVideoStatus({
+      isLoaded: status.isLoaded || false,
+      isPlaying: status.isPlaying || false,
+      positionMillis: status.positionMillis || 0,
+      durationMillis: status.durationMillis || 0,
+      didJustFinish: status.didJustFinish || false,
+      error: status.error
+    });
 
-        return () => {
-          statusListener?.remove();
-        };
-      } catch (error) {
-        console.error('Error setting up video player:', error);
-        setVideoError('Failed to initialize video player');
-      }
-    } else if (player && !videoUrl) {
-      // Clear the player if no video URL
-      setIsVideoReady(false);
+    if (status.isLoaded && !isVideoReady) {
+      setIsVideoReady(true);
       setVideoError(null);
+      console.log('Video is ready to play');
     }
-  }, [videoUrl, player]);
+
+    if (status.error) {
+      console.error('Video error:', status.error);
+      setVideoError('Failed to load video. Please check the video URL or try again.');
+      setIsVideoReady(false);
+    }
+  };
+
+  // Toggle play/pause
+  const togglePlayPause = async () => {
+    if (!videoRef.current || !videoStatus.isLoaded) return;
+
+    try {
+      if (videoStatus.isPlaying) {
+        await videoRef.current.pauseAsync();
+      } else {
+        await videoRef.current.playAsync();
+      }
+    } catch (error) {
+      console.error('Error toggling play/pause:', error);
+      setVideoError('Error controlling video playback');
+    }
+  };
 
   const fetchLessonData = useCallback(async (lessonId: string) => {
     try {
@@ -175,17 +190,19 @@ export default function LessonViewScreen() {
           
           // Handle the case where mediaUrls is an array of strings
           if (Array.isArray(lessonData.mediaUrls) && lessonData.mediaUrls.length > 0) {
-            // Get the first URL in the array and remove any mode=admin parameters
+            // Get the first URL in the array
             let url = lessonData.mediaUrls[0];
-            // Remove mode=admin from the URL as it requires special permissions
             if (url && typeof url === 'string') {
-              url = url.replace(/(\?|&)mode=admin/, '');
+              // Only remove mode=admin if it exists, but keep other parameters
+              url = url.replace(/[?&]mode=admin(&|$)/, '$1').replace(/[?&]$/, '');
+              console.log('Cleaned video URL:', url);
               setVideoUrl(url);
             }
           } else if (typeof lessonData.mediaUrls === 'string' && lessonData.mediaUrls.trim()) {
             // If it's a string, clean and use it directly
             let url = lessonData.mediaUrls;
-            url = url.replace(/(\?|&)mode=admin/, '');
+            url = url.replace(/[?&]mode=admin(&|$)/, '$1').replace(/[?&]$/, '');
+            console.log('Cleaned video URL:', url);
             setVideoUrl(url);
           }
         } else if (lessonData.mediaUrl) {
@@ -193,13 +210,13 @@ export default function LessonViewScreen() {
           console.log('Using stored mediaUrl:', lessonData.mediaUrl);
           if (typeof lessonData.mediaUrl === 'string' && lessonData.mediaUrl.trim()) {
             let url = lessonData.mediaUrl;
-            url = url.replace(/(\?|&)mode=admin/, '');
+            url = url.replace(/[?&]mode=admin(&|$)/, '$1').replace(/[?&]$/, '');
+            console.log('Cleaned video URL:', url);
             setVideoUrl(url);
           }
         } else if (lessonData.videoId) {
           // Last resort: generate URL from videoId if available
           try {
-            // Make sure the getFilePreview doesn't include mode=admin
             const videoPreview = appwriteService.getFilePreview(lessonData.videoId);
             console.log('Video URL from videoId:', videoPreview);
             setVideoUrl(videoPreview);
@@ -414,12 +431,20 @@ export default function LessonViewScreen() {
                 />
               ) : (
                 <View style={styles.videoWrapper}>
-                  <VideoView
-                    player={player}
+                  <Video
+                    ref={videoRef}
                     style={styles.videoPlayer}
-                    allowsFullscreen
-                    allowsPictureInPicture
-                    contentFit="contain"
+                    source={{ uri: videoUrl }}
+                    useNativeControls={true}
+                    resizeMode={ResizeMode.CONTAIN}
+                    shouldPlay={false}
+                    isLooping={false}
+                    onPlaybackStatusUpdate={handleVideoStatusUpdate}
+                    onError={(error) => {
+                      console.error('Video component error:', error);
+                      setVideoError('Failed to load video');
+                      setIsVideoReady(false);
+                    }}
                   />
 
                   {/* Loading indicator when video is not ready */}
@@ -444,9 +469,16 @@ export default function LessonViewScreen() {
                         onPress={() => {
                           setVideoError(null);
                           setIsVideoReady(false);
-                          // Retry by forcing a re-replace of the video source
-                          if (player && videoUrl) {
-                            player.replace({ uri: videoUrl });
+                          setVideoStatus({
+                            isLoaded: false,
+                            isPlaying: false,
+                            positionMillis: 0,
+                            durationMillis: 0,
+                            didJustFinish: false,
+                          });
+                          // Force video to reload
+                          if (videoRef.current) {
+                            videoRef.current.loadAsync({ uri: videoUrl }, {}, false);
                           }
                         }}
                       >
@@ -458,15 +490,15 @@ export default function LessonViewScreen() {
                   )}
 
                   {/* Video info overlay */}
-                  {isVideoReady && !videoError && (
-                    <View style={styles.videoInfo}>
-                      <View style={styles.videoInfoBadge}>
-                        <Ionicons name="play" size={12} color={airbnbColors.white} />
-                        <AirbnbText variant="small" color={airbnbColors.white} style={styles.videoInfoText}>
-                          Ready to play
-                        </AirbnbText>
+                  {isVideoReady && !videoError && !videoStatus.isPlaying && (
+                    <TouchableOpacity 
+                      style={styles.videoInfo}
+                      onPress={togglePlayPause}
+                    >
+                      <View style={styles.playButtonOverlay}>
+                        <Ionicons name="play" size={48} color={airbnbColors.white} />
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   )}
                 </View>
               )}
@@ -474,9 +506,11 @@ export default function LessonViewScreen() {
             
             {/* Video details */}
             <View style={styles.videoDetails}>
-              <AirbnbText variant="caption" color={airbnbColors.mediumGray}>
-                Video URL: {videoUrl.length > 50 ? `${videoUrl.substring(0, 50)}...` : videoUrl}
-              </AirbnbText>
+              {isVideoReady && (
+                <AirbnbText variant="caption" color={airbnbColors.success} style={{ marginTop: 4 }}>
+                  ✓ Video loaded successfully
+                </AirbnbText>
+              )}
             </View>
           </View>
         ) : (
@@ -764,9 +798,9 @@ const styles = StyleSheet.create({
   },
   videoInfo: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    padding: airbnbSpacing.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   videoInfoBadge: {
     flexDirection: 'row',
@@ -775,12 +809,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: airbnbSpacing.sm,
     borderRadius: 16,
-  },
-  videoInfoText: {
-    marginLeft: airbnbSpacing.xs,
-    fontSize: airbnbTypography.sizes.sm,
-    fontWeight: airbnbTypography.weights.medium,
-    color: airbnbColors.white,
   },
   videoDetails: {
     backgroundColor: airbnbColors.white,
@@ -896,5 +924,13 @@ const styles = StyleSheet.create({
   compactButtonText: {
     fontSize: airbnbTypography.sizes.md,
     fontWeight: airbnbTypography.weights.medium,
+  },
+  playButtonOverlay: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

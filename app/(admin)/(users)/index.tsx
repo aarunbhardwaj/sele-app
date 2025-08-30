@@ -12,8 +12,9 @@ import {
   View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import Text from '../../../components/ui/Typography';
+import Typography from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
+import { Role, UserProfile } from '../../../lib/types';
 import appwriteService from '../../../services/appwrite';
 
 // Airbnb-inspired color palette (same as profile page)
@@ -36,28 +37,19 @@ const airbnbColors = {
   error: '#C13515',
 };
 
-// Define interfaces
-interface User {
-  $id: string;
-  userId: string;
-  displayName: string;
-  email: string;
-  isAdmin?: boolean;
+// Extended user interface for admin display
+interface AdminUserDisplay extends UserProfile {
+  email?: string;
+  displayName?: string;
+  status?: 'active' | 'suspended' | 'pending';
   roles?: string[];
   profileImage?: string;
-  status?: string; // 'active', 'suspended', 'pending'
-  createdAt?: string;
   lastLoginAt?: string;
-}
-
-interface Role {
-  $id: string;
-  name: string;
 }
 
 export default function UsersIndexPage() {
   const router = useRouter();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<AdminUserDisplay[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +59,8 @@ export default function UsersIndexPage() {
 
   // Memoize filtered users to prevent unnecessary recalculations
   const filteredUsers = useMemo(() => {
+    if (!Array.isArray(users)) return [];
+    
     let filtered = [...users];
     
     // Search filter
@@ -74,7 +68,9 @@ export default function UsersIndexPage() {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(user => 
         user.displayName?.toLowerCase().includes(query) || 
-        user.email?.toLowerCase().includes(query)
+        user.email?.toLowerCase().includes(query) ||
+        user.firstName?.toLowerCase().includes(query) ||
+        user.lastName?.toLowerCase().includes(query)
       );
     }
     
@@ -97,16 +93,6 @@ export default function UsersIndexPage() {
     return Math.ceil(filteredUsers.length / ITEMS_PER_PAGE);
   }, [filteredUsers.length, ITEMS_PER_PAGE]);
 
-  // Load data only once on mount
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [searchQuery, statusFilter]);
-
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -117,8 +103,13 @@ export default function UsersIndexPage() {
         appwriteService.getAllRoles()
       ]);
       
-      setUsers(usersResponse);
-      setRoles(rolesResponse);
+      // Handle users response - extract users array if it's wrapped in an object
+      const usersArray = Array.isArray(usersResponse) ? usersResponse : usersResponse?.users || [];
+      setUsers(usersArray);
+      
+      // Handle roles response - ensure it's an array and cast to proper type
+      const rolesArray = Array.isArray(rolesResponse) ? rolesResponse as unknown as Role[] : [];
+      setRoles(rolesArray);
     } catch (error) {
       console.error('Failed to load data:', error);
       Alert.alert('Error', 'Failed to load users data. Please try again.');
@@ -127,7 +118,17 @@ export default function UsersIndexPage() {
     }
   }, []);
 
-  const getUserRoleName = useCallback((user: User): string => {
+  // Load data only once on mount
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, statusFilter]);
+
+  const getUserRoleName = useCallback((user: AdminUserDisplay): string => {
     if (user.isAdmin) return 'Admin';
     
     const userRoles = roles.filter(role => user.roles?.includes(role.$id));
@@ -140,14 +141,14 @@ export default function UsersIndexPage() {
     }
   }, [roles]);
 
-  const navigateToUserProfile = useCallback((user: User) => {
+  const navigateToUserProfile = useCallback((user: AdminUserDisplay) => {
     try {
       console.log('Navigating to user profile with ID:', user.userId || user.$id);
       router.push({
         pathname: '/(admin)/(users)/user-details',
         params: { 
           id: user.userId || user.$id,
-          displayName: user.displayName || '',
+          displayName: user.displayName || user.firstName || '',
           email: user.email || '',
           status: user.status || 'active',
           isAdmin: user.isAdmin ? 'true' : 'false'
@@ -191,7 +192,7 @@ export default function UsersIndexPage() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={airbnbColors.primary} />
-        <Text style={styles.loadingText}>Loading users...</Text>
+        <Typography style={styles.loadingText}>Loading users...</Typography>
       </View>
     );
   }
@@ -220,15 +221,15 @@ export default function UsersIndexPage() {
           >
             <View style={styles.headerCard}>
               <View style={styles.headerContent}>
-                <Text style={styles.headerTitle}>User Directory</Text>
-                <Text style={styles.headerSubtitle}>
+                <Typography style={styles.headerTitle}>User Directory</Typography>
+                <Typography style={styles.headerSubtitle}>
                   {users.length} total users • {filteredUsers.length} filtered
-                </Text>
+                </Typography>
               </View>
               <View style={styles.statsContainer}>
                 <View style={styles.statBadge}>
                   <Ionicons name="people" size={20} color={airbnbColors.primary} />
-                  <Text style={styles.statText}>{users.length}</Text>
+                  <Typography style={styles.statText}>{users.length}</Typography>
                 </View>
               </View>
             </View>
@@ -239,7 +240,7 @@ export default function UsersIndexPage() {
             entering={FadeInUp.delay(200).duration(600)}
             style={styles.filtersSection}
           >
-            <Text style={styles.sectionTitle}>Search & Filter</Text>
+            <Typography style={styles.sectionTitle}>Search & Filter</Typography>
             <View style={styles.filtersCard}>
               <View style={styles.searchContainer}>
                 <Ionicons name="search" size={20} color={airbnbColors.mediumGray} />
@@ -265,27 +266,27 @@ export default function UsersIndexPage() {
                   style={[styles.filterChip, statusFilter === 'all' && styles.activeFilterChip]}
                   onPress={() => setStatusFilter('all')}
                 >
-                  <Text style={[styles.filterText, statusFilter === 'all' && styles.activeFilterText]}>
+                  <Typography style={StyleSheet.flatten([styles.filterText, statusFilter === 'all' && styles.activeFilterText])}>
                     All Users
-                  </Text>
+                  </Typography>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={[styles.filterChip, statusFilter === 'active' && styles.activeFilterChip]}
                   onPress={() => setStatusFilter('active')}
                 >
-                  <Text style={[styles.filterText, statusFilter === 'active' && styles.activeFilterText]}>
+                  <Typography style={StyleSheet.flatten([styles.filterText, statusFilter === 'active' && styles.activeFilterText])}>
                     Active
-                  </Text>
+                  </Typography>
                 </TouchableOpacity>
                 
                 <TouchableOpacity
                   style={[styles.filterChip, statusFilter === 'suspended' && styles.activeFilterChip]}
                   onPress={() => setStatusFilter('suspended')}
                 >
-                  <Text style={[styles.filterText, statusFilter === 'suspended' && styles.activeFilterText]}>
+                  <Typography style={StyleSheet.flatten([styles.filterText, statusFilter === 'suspended' && styles.activeFilterText])}>
                     Suspended
-                  </Text>
+                  </Typography>
                 </TouchableOpacity>
               </ScrollView>
             </View>
@@ -296,12 +297,12 @@ export default function UsersIndexPage() {
             entering={FadeInUp.delay(300).duration(600)}
             style={styles.usersSection}
           >
-            <Text style={styles.sectionTitle}>Users</Text>
+            <Typography style={styles.sectionTitle}>Users</Typography>
             {paginatedUsers.length === 0 ? (
               <View style={styles.emptyCard}>
                 <Ionicons name="people-outline" size={48} color={airbnbColors.mediumGray} />
-                <Text style={styles.emptyText}>No users found</Text>
-                <Text style={styles.emptySubtext}>Try adjusting your search or filters</Text>
+                <Typography style={styles.emptyText}>No users found</Typography>
+                <Typography style={styles.emptySubtext}>Try adjusting your search or filters</Typography>
               </View>
             ) : (
               <View style={styles.usersCard}>
@@ -325,28 +326,28 @@ export default function UsersIndexPage() {
                             onError={() => console.log('Failed to load user avatar')}
                           />
                         ) : (
-                          <Text style={styles.avatarText}>
+                          <Typography style={styles.avatarText}>
                             {user.displayName ? user.displayName[0].toUpperCase() : 'U'}
-                          </Text>
+                          </Typography>
                         )}
                       </View>
                       <View style={styles.userDetails}>
-                        <Text style={styles.userName} numberOfLines={1}>
+                        <Typography style={styles.userName} numberOfLines={1}>
                           {user.displayName || 'Unnamed User'}
-                        </Text>
-                        <Text style={styles.userEmail} numberOfLines={1}>
+                        </Typography>
+                        <Typography style={styles.userEmail} numberOfLines={1}>
                           {user.email}
-                        </Text>
+                        </Typography>
                         <View style={styles.userBadges}>
                           <View style={[styles.statusBadge, { backgroundColor: getStatusColor(user.status || 'active') + '20' }]}>
-                            <Text style={[styles.statusText, { color: getStatusColor(user.status || 'active') }]}>
+                            <Typography style={StyleSheet.flatten([styles.statusText, { color: getStatusColor(user.status || 'active') }])}>
                               {user.status || 'Active'}
-                            </Text>
+                            </Typography>
                           </View>
                           <View style={[styles.roleBadge, { backgroundColor: getRoleColor(getUserRoleName(user)) + '20' }]}>
-                            <Text style={[styles.roleText, { color: getRoleColor(getUserRoleName(user)) }]}>
+                            <Typography style={StyleSheet.flatten([styles.roleText, { color: getRoleColor(getUserRoleName(user)) }])}>
                               {getUserRoleName(user)}
-                            </Text>
+                            </Typography>
                           </View>
                         </View>
                       </View>
@@ -372,12 +373,12 @@ export default function UsersIndexPage() {
                   activeOpacity={0.7}
                 >
                   <Ionicons name="chevron-back" size={18} color={page === 1 ? airbnbColors.mediumGray : airbnbColors.primary} />
-                  <Text style={[styles.paginationText, page === 1 && styles.disabledText]}>Previous</Text>
+                  <Typography style={StyleSheet.flatten([styles.paginationText, page === 1 && styles.disabledText])}>Previous</Typography>
                 </TouchableOpacity>
                 
-                <Text style={styles.pageInfo}>
+                <Typography style={styles.pageInfo}>
                   Page {page} of {totalPages}
-                </Text>
+                </Typography>
                 
                 <TouchableOpacity
                   style={[styles.paginationButton, page === totalPages && styles.disabledButton]}
@@ -385,7 +386,7 @@ export default function UsersIndexPage() {
                   disabled={page === totalPages}
                   activeOpacity={0.7}
                 >
-                  <Text style={[styles.paginationText, page === totalPages && styles.disabledText]}>Next</Text>
+                  <Typography style={StyleSheet.flatten([styles.paginationText, page === totalPages && styles.disabledText])}>Next</Typography>
                   <Ionicons name="chevron-forward" size={18} color={page === totalPages ? airbnbColors.mediumGray : airbnbColors.primary} />
                 </TouchableOpacity>
               </View>
@@ -393,6 +394,15 @@ export default function UsersIndexPage() {
           )}
         </View>
       </ScrollView>
+      
+      {/* Floating Action Button */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => router.push('/(admin)/(users)/create-user')}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="person-add" size={24} color="white" />
+      </TouchableOpacity>
     </View>
   );
 }
@@ -655,8 +665,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     shadowColor: airbnbColors.black,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
@@ -687,5 +697,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: airbnbColors.charcoal,
+  },
+  
+  // Floating Action Button
+  fab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: airbnbColors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
 });

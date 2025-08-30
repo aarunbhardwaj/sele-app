@@ -72,7 +72,7 @@ const storageService = {
       }
       
       // Get the correct bucket ID - using the actual env value, not the constant
-      const bucketId = process.env.APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
+      const bucketId = process.env.EXPO_PUBLIC_APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
       console.log('Using storage bucket ID:', bucketId);
       
       // Construct the Appwrite API URL for file uploads with the correct bucket ID
@@ -101,9 +101,9 @@ const storageService = {
       const result = await response.json();
       console.log('File uploaded successfully:', result.$id);
       
-      // Add the direct URL to the result
-      const projectId = process.env.APPWRITE_PROJECT_ID || client.config.project;
-      const fileUrl = `${endpoint.replace('cloud.appwrite.io', 'fra.cloud.appwrite.io')}/storage/buckets/${bucketId}/files/${result.$id}/view?project=${projectId}&mode=admin`;
+      // Add the direct URL to the result without mode=admin for public access
+      const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || client.config.project;
+      const fileUrl = `${endpoint.replace('cloud.appwrite.io', 'fra.cloud.appwrite.io')}/storage/buckets/${bucketId}/files/${result.$id}/view?project=${projectId}`;
       result.url = fileUrl;
       
       return result;
@@ -116,14 +116,14 @@ const storageService = {
   getFilePreview: (fileId) => {
     try {
       // Get the correct bucket ID - using the environment variable
-      const bucketId = process.env.APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
-      const projectId = process.env.APPWRITE_PROJECT_ID || client.config.project;
+      const bucketId = process.env.EXPO_PUBLIC_APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
+      const projectId = process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID || client.config.project;
       
       // Get the endpoint from client config, but ensure we use the regional endpoint if present
       const endpoint = client.config.endpoint.replace('cloud.appwrite.io', 'fra.cloud.appwrite.io');
       
-      // Construct the URL manually to ensure it has all required parameters
-      const fileUrl = `${endpoint}/storage/buckets/${bucketId}/files/${fileId}/view?project=${projectId}&mode=admin`;
+      // Construct the URL without mode=admin for public access
+      const fileUrl = `${endpoint}/storage/buckets/${bucketId}/files/${fileId}/view?project=${projectId}`;
       
       console.log('File preview URL:', fileUrl);
       return fileUrl;
@@ -136,7 +136,7 @@ const storageService = {
   deleteFile: async (fileId) => {
     try {
       // Get the correct bucket ID - using the environment variable
-      const bucketId = process.env.APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
+      const bucketId = process.env.EXPO_PUBLIC_APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
       
       await storage.deleteFile(bucketId, fileId);
       return true;

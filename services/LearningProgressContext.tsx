@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { withErrorHandling } from '../lib/errors';
+import { showSuccess, showError } from '../lib/toast';
 
-// Basic domain types (can be expanded later)
+// Enhanced domain types with more detailed progress tracking
 export interface LessonProgress {
   lessonId: string;
   courseId?: string;
@@ -9,15 +11,25 @@ export interface LessonProgress {
   startedAt?: string;
   completedAt?: string;
   percent?: number; // 0-100
+  timeSpent?: number; // seconds
   lastInteractionAt?: string;
+  watchTime?: number; // for video lessons, in seconds
+  attempts?: number;
+  bookmarked?: boolean;
+  notes?: string;
 }
 
 export interface VocabularyStat {
   term: string;
+  definition: string;
   familiarity: number; // 0-1
   correct: number;
   incorrect: number;
   lastReviewedAt?: string;
+  nextReviewDate?: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
+  context?: string; // sentence or phrase where it was learned
+  masteryLevel?: number; // 0-100
 }
 
 export interface ExerciseResult {
@@ -26,22 +38,105 @@ export interface ExerciseResult {
   attempts: number;
   successes: number;
   lastAttemptAt?: string;
+  bestScore?: number;
+  averageScore?: number;
+  timeSpent?: number;
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  unlockedAt: string;
+  category: 'progress' | 'streak' | 'quiz' | 'course' | 'social';
+}
+
+export interface StudySession {
+  date: string;
+  duration: number; // minutes
+  lessonsCompleted: number;
+  exercisesCompleted: number;
+  vocabularyReviewed: number;
+  score?: number;
+}
+
+// Additional types
+export interface VocabularyTermOption {
+  term: string;
+  definition: string;
+  familiarity: number;
+  masteryDate?: string;
+}
+
+export interface WeeklyStats {
+  [day: string]: number;
 }
 
 interface LearningProgressState {
   lessons: Record<string, LessonProgress>;
   vocabulary: Record<string, VocabularyStat>;
   exercises: Record<string, ExerciseResult>;
+  achievements: Achievement[];
+  studySessions: StudySession[];
+  
   // Derived metrics
   overallCompletion: number;
   streakDays: number;
-  // Mutators
+  currentStreak: number;
+  longestStreak: number;
+  totalStudyTime: number; // minutes
+  averageSessionTime: number; // minutes
+  weeklyProgress: number;
+  monthlyProgress: number;
+  
+  // Vocabulary specific metrics
+  vocabularyMastered: number;
+  vocabularyReviewDue: number;
+  
+  // Lesson mutators
   markLessonStarted: (lessonId: string, courseId?: string) => void;
   updateLessonProgress: (lessonId: string, percent: number) => void;
   markLessonCompleted: (lessonId: string) => void;
-  recordVocabularyResult: (term: string, correct: boolean) => void;
-  recordExerciseAttempt: (id: string, type: string, success: boolean) => void;
+  addLessonWatchTime: (lessonId: string, seconds: number) => void;
+  bookmarkLesson: (lessonId: string) => void;
+  addLessonNote: (lessonId: string, note: string) => void;
+  
+  // Vocabulary mutators
+  recordVocabularyResult: (term: string, correct: boolean, definition?: string) => void;
+  addVocabularyTerm: (term: string, definition: string, context?: string) => void;
+  updateVocabularyMastery: (term: string, masteryLevel: number) => void;
+  markVocabularyForReview: (term: string, difficulty: 'easy' | 'medium' | 'hard') => void;
+  
+  // Exercise mutators
+  recordExerciseAttempt: (id: string, type: string, success: boolean, score?: number, timeSpent?: number) => void;
+  
+  // Achievement system
+  checkAndUnlockAchievements: () => Achievement[];
+  
+  // Study session tracking
+  startStudySession: () => void;
+  endStudySession: () => void;
+  
+  // Analytics and insights
+  getWeeklyStats: () => { [key: string]: number };
+  getVocabularyInsights: () => {
+    needsReview: VocabularyStat[];
+    recentlyMastered: VocabularyTermOption[];
+    strugglingWith: VocabularyStat[];
+  };
+  getLearningInsights: () => {
+    completionRate: number;
+    averageScore: number;
+    strongAreas: string[];
+    improvementAreas: string[];
+  };
+  
+  // Data management
   resetAll: () => void;
+  exportData: () => Promise<string>;
+  importData: (data: string) => Promise<void>;
+  
   hydrated: boolean;
 }
 
@@ -51,8 +146,13 @@ export const LearningProgressProvider: React.FC<{ children: React.ReactNode }> =
   const [lessons, setLessons] = useState<Record<string, LessonProgress>>({});
   const [vocabulary, setVocabulary] = useState<Record<string, VocabularyStat>>({});
   const [exercises, setExercises] = useState<Record<string, ExerciseResult>>({});
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [studySessions, setStudySessions] = useState<StudySession[]>([]);
   const [streakDays, setStreakDays] = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
   const [hydrated, setHydrated] = useState(false);
+  const [currentSessionStart, setCurrentSessionStart] = useState<Date | null>(null);
 
   // Keys
   const STORAGE_KEY = 'learning_progress_v1';
@@ -186,16 +286,44 @@ export const LearningProgressProvider: React.FC<{ children: React.ReactNode }> =
     });
   };
 
-  const recordVocabularyResult = (term: string, correct: boolean) => {
+  const recordVocabularyResult = (term: string, correct: boolean, definition?: string) => {
     setVocabulary(prev => {
-      const stat = prev[term] ?? { term, familiarity: 0, correct: 0, incorrect: 0 };
+      const stat = prev[term] ?? { 
+        term, 
+        definition: definition || '', 
+        familiarity: 0, 
+        correct: 0, 
+        incorrect: 0,
+        masteryLevel: 0
+      };
       const correctCount = stat.correct + (correct ? 1 : 0);
       const incorrectCount = stat.incorrect + (correct ? 0 : 1);
       const total = correctCount + incorrectCount;
       const familiarity = total ? correctCount / total : 0;
+      const masteryLevel = Math.min(100, familiarity * 100);
+      
+      // Calculate next review date based on performance
+      const nextReviewDate = new Date();
+      if (correct && familiarity > 0.8) {
+        nextReviewDate.setDate(nextReviewDate.getDate() + 7); // Review in a week
+      } else if (correct) {
+        nextReviewDate.setDate(nextReviewDate.getDate() + 3); // Review in 3 days
+      } else {
+        nextReviewDate.setDate(nextReviewDate.getDate() + 1); // Review tomorrow
+      }
+      
       return {
         ...prev,
-        [term]: { ...stat, correct: correctCount, incorrect: incorrectCount, familiarity, lastReviewedAt: new Date().toISOString() }
+        [term]: { 
+          ...stat, 
+          definition: definition || stat.definition,
+          correct: correctCount, 
+          incorrect: incorrectCount, 
+          familiarity,
+          masteryLevel,
+          lastReviewedAt: new Date().toISOString(),
+          nextReviewDate: nextReviewDate.toISOString()
+        }
       };
     });
   };

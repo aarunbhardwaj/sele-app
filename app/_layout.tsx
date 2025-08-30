@@ -1,20 +1,35 @@
 import { Stack } from "expo-router";
+import React from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from "../services/AuthContext";
 import { LearningProgressProvider } from "../services/LearningProgressContext";
+import ErrorBoundary from '../components/ui/ErrorBoundary';
+import { ErrorHandler } from '../lib/errors';
+import { showError } from '../lib/toast';
 import './globals.css'; // Import global styles
 
 // Root layout component that uses our AuthProvider
 export default function RootLayout() {
+  // Set up global error handling
+  React.useEffect(() => {
+    const unsubscribe = ErrorHandler.getInstance().onError((error) => {
+      showError(ErrorHandler.getUserFriendlyMessage(error));
+    });
+
+    return unsubscribe;
+  }, []);
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        <LearningProgressProvider>
-          <RootLayoutNav />
-        </LearningProgressProvider>
-      </AuthProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <AuthProvider>
+          <LearningProgressProvider>
+            <RootLayoutNav />
+          </LearningProgressProvider>
+        </AuthProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 }
 

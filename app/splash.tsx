@@ -1,13 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { 
-  Dimensions, 
-  Image, 
-  Platform, 
-  StatusBar, 
-  StyleSheet, 
-  View 
+import {
+  Dimensions,
+  Image,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  View
 } from 'react-native';
 import Animated, {
   Easing,
@@ -20,7 +21,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../services/AuthContext';
