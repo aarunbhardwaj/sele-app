@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { ResizeMode, Video } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -103,12 +103,54 @@ export default function LessonViewScreen() {
   const [loading, setLoading] = useState(true);
   const [courseTitle, setCourseTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isBuffering, setIsBuffering] = useState(false);
-  const [videoLoaded, setVideoLoaded] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
-  const videoRef = useRef<Video>(null);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   
+  // Create video player instance - always create with null first, then update
+  const player = useVideoPlayer(null, (player) => {
+    if (player) {
+      player.muted = false;
+      player.loop = false;
+    }
+  });
+
+  // Update player source when videoUrl changes
+  useEffect(() => {
+    if (player && videoUrl) {
+      try {
+        console.log('Loading video URL:', videoUrl);
+        setVideoError(null);
+        setIsVideoReady(false);
+        
+        // Replace the player source
+        player.replace({ uri: videoUrl });
+        
+        // Add listeners for player events
+        const statusListener = player.addListener('statusChange', (status) => {
+          console.log('Video status changed:', status);
+          if (status.status === 'error') {
+            setVideoError('Failed to load video');
+            setIsVideoReady(false);
+          } else if (status.status === 'readyToPlay') {
+            setIsVideoReady(true);
+            setVideoError(null);
+          }
+        });
+
+        return () => {
+          statusListener?.remove();
+        };
+      } catch (error) {
+        console.error('Error setting up video player:', error);
+        setVideoError('Failed to initialize video player');
+      }
+    } else if (player && !videoUrl) {
+      // Clear the player if no video URL
+      setIsVideoReady(false);
+      setVideoError(null);
+    }
+  }, [videoUrl, player]);
+
   const fetchLessonData = useCallback(async (lessonId: string) => {
     try {
       setLoading(true);
@@ -178,16 +220,6 @@ export default function LessonViewScreen() {
     }
   }, [router]);
   
-  // Load video when videoUrl changes
-  useEffect(() => {
-    if (videoRef.current && videoUrl) {
-      // Reset video states when URL changes
-      setVideoLoaded(false);
-      setVideoError(null);
-      setIsPlaying(false);
-    }
-  }, [videoUrl]);
-  
   useEffect(() => {
     if (lessonId) {
       fetchLessonData(lessonId);
@@ -198,56 +230,6 @@ export default function LessonViewScreen() {
     }
   }, [lessonId, router, fetchLessonData]);
   
-  const handlePlayPause = async () => {
-    if (!videoRef.current) return;
-    
-    try {
-      // Try to load the video first if it's not already loaded
-      if (!videoLoaded) {
-        console.log("Attempting to load video before playing...");
-        try {
-          await videoRef.current.loadAsync({ uri: videoUrl as string }, {}, false);
-          setVideoLoaded(true);
-          console.log("Video loaded successfully");
-        } catch (loadError) {
-          console.error("Failed to load video:", loadError);
-          setVideoError("Failed to load video");
-          return;
-        }
-      }
-      
-      const status = await videoRef.current.getStatusAsync();
-      if (status.isLoaded) {
-        if (status.isPlaying) {
-          await videoRef.current.pauseAsync();
-          setIsPlaying(false);
-        } else {
-          await videoRef.current.playAsync();
-          setIsPlaying(true);
-        }
-      } else {
-        console.log('Video is not loaded yet');
-        
-        // Try to load and play in one step
-        try {
-          await videoRef.current.loadAsync(
-            { uri: videoUrl as string },
-            { shouldPlay: true },
-            false
-          );
-          setIsPlaying(true);
-          setVideoLoaded(true);
-        } catch (error) {
-          console.error('Error loading video:', error);
-          setVideoError("Failed to load video: " + ((error as Error)?.message || "Unknown error"));
-        }
-      }
-    } catch (error) {
-      console.error('Error toggling play/pause:', error);
-      setVideoError("Playback error: " + ((error as Error)?.message || "Unknown error"));
-    }
-  };
-  
   // Create Airbnb-style Text component
   const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
     const getTextStyle = (): TextStyle => {
@@ -257,7 +239,7 @@ export default function LessonViewScreen() {
         case 'title':
           return { fontSize: airbnbTypography.sizes.xxxl, fontWeight: airbnbTypography.weights.semibold };
         case 'subtitle':
-          return { fontSize: airbnbTypography.sizes.xl, fontWeight: airbnbTypography.weights.medium };
+          return { fontSize: airbnbTypography.sizes.xl, fontWeight: airbnbTypography.weights.regular };
         case 'body':
           return { fontSize: airbnbTypography.sizes.lg, fontWeight: airbnbTypography.weights.regular };
         case 'caption':
@@ -432,77 +414,69 @@ export default function LessonViewScreen() {
                 />
               ) : (
                 <View style={styles.videoWrapper}>
-                  <Video
-                    ref={videoRef}
-                    source={{ uri: videoUrl }}
+                  <VideoView
+                    player={player}
                     style={styles.videoPlayer}
-                    resizeMode={ResizeMode.CONTAIN}
-                    useNativeControls={true}
-                    shouldPlay={false}
-                    isLooping={false}
-                    isMuted={false}
-                    positionMillis={0}
-                    posterSource={require('../../../assets/images/app-logo.png')}
-                    posterStyle={{ resizeMode: 'cover' }}
-                    onReadyForDisplay={() => setVideoLoaded(true)}
-                    onError={(error) => setVideoError(`Error playing video: ${error}`)}
-                    onLoad={() => {
-                      setVideoLoaded(true);
-                      setVideoError(null);
-                    }}
-                    onPlaybackStatusUpdate={(status) => {
-                      if ('isLoaded' in status && status.isLoaded) {
-                        setIsBuffering(status.isBuffering);
-                        setIsPlaying(status.isPlaying);
-                      }
-                    }}
+                    allowsFullscreen
+                    allowsPictureInPicture
+                    contentFit="contain"
                   />
 
-                  {isBuffering && (
-                    <View style={styles.videoOverlay}>
+                  {/* Loading indicator when video is not ready */}
+                  {!isVideoReady && !videoError && (
+                    <View style={styles.videoLoading}>
                       <ActivityIndicator size="large" color={airbnbColors.white} />
+                      <AirbnbText variant="body" color={airbnbColors.white} style={styles.loadingMessage}>
+                        Loading video...
+                      </AirbnbText>
                     </View>
                   )}
 
-                  {!isPlaying && !videoError && videoLoaded && (
-                    <TouchableOpacity
-                      style={styles.playButtonOverlay}
-                      onPress={handlePlayPause}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.playButton}>
-                        <Ionicons name="play" size={32} color={airbnbColors.white} />
-                      </View>
-                    </TouchableOpacity>
-                  )}
-
+                  {/* Video error overlay */}
                   {videoError && (
                     <View style={styles.videoError}>
                       <Ionicons name="alert-circle" size={48} color={airbnbColors.error} />
-                      <AirbnbText variant="body" color={airbnbColors.error} style={styles.errorMessage}>
+                      <AirbnbText variant="body" color={airbnbColors.white} style={styles.errorMessage}>
                         {videoError}
                       </AirbnbText>
                       <TouchableOpacity
                         style={styles.retryButton}
                         onPress={() => {
                           setVideoError(null);
-                          if (videoRef.current) {
-                            videoRef.current.loadAsync(
-                              { uri: videoUrl as string },
-                              { shouldPlay: false },
-                              false
-                            ).catch(() => setVideoError("Failed to load video"));
+                          setIsVideoReady(false);
+                          // Retry by forcing a re-replace of the video source
+                          if (player && videoUrl) {
+                            player.replace({ uri: videoUrl });
                           }
                         }}
                       >
                         <AirbnbText variant="caption" color={airbnbColors.white}>
-                          Retry
+                          Retry Video
                         </AirbnbText>
                       </TouchableOpacity>
                     </View>
                   )}
+
+                  {/* Video info overlay */}
+                  {isVideoReady && !videoError && (
+                    <View style={styles.videoInfo}>
+                      <View style={styles.videoInfoBadge}>
+                        <Ionicons name="play" size={12} color={airbnbColors.white} />
+                        <AirbnbText variant="small" color={airbnbColors.white} style={styles.videoInfoText}>
+                          Ready to play
+                        </AirbnbText>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
+            </View>
+            
+            {/* Video details */}
+            <View style={styles.videoDetails}>
+              <AirbnbText variant="caption" color={airbnbColors.mediumGray}>
+                Video URL: {videoUrl.length > 50 ? `${videoUrl.substring(0, 50)}...` : videoUrl}
+              </AirbnbText>
             </View>
           </View>
         ) : (
@@ -758,35 +732,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  videoOverlay: {
+  videoLoading: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    padding: airbnbSpacing.lg,
   },
-  playButtonOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: airbnbColors.primary,
-    ...Platform.select({
-      ios: {
-        shadowColor: airbnbColors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+  loadingMessage: {
+    marginTop: airbnbSpacing.sm,
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.white,
   },
   videoError: {
     ...StyleSheet.absoluteFillObject,
@@ -805,6 +761,34 @@ const styles = StyleSheet.create({
     paddingVertical: airbnbSpacing.sm,
     paddingHorizontal: airbnbSpacing.lg,
     borderRadius: 8,
+  },
+  videoInfo: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    padding: airbnbSpacing.lg,
+  },
+  videoInfoBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: airbnbColors.success,
+    paddingVertical: 4,
+    paddingHorizontal: airbnbSpacing.sm,
+    borderRadius: 16,
+  },
+  videoInfoText: {
+    marginLeft: airbnbSpacing.xs,
+    fontSize: airbnbTypography.sizes.sm,
+    fontWeight: airbnbTypography.weights.medium,
+    color: airbnbColors.white,
+  },
+  videoDetails: {
+    backgroundColor: airbnbColors.white,
+    padding: airbnbSpacing.md,
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    borderTopWidth: 1,
+    borderTopColor: airbnbColors.lightGray,
   },
   noVideoSection: {
     marginHorizontal: airbnbSpacing.lg,
