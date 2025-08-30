@@ -1,21 +1,73 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  ScrollView, 
-  View, 
-  StyleSheet, 
-  TouchableOpacity, 
-  TextInput, 
-  Alert,
-  ActivityIndicator 
-} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import Text from '../../../components/ui/Typography';
-import Card from '../../../components/ui/Card';
-import authService from '../../../services/appwrite/auth-service';
-import { UserProfile, Role } from '../../../lib/types';
-import { showSuccess, showError } from '../../../lib/toast';
+import React, { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Animated,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { withErrorHandling } from '../../../lib/errors';
+import { showError, showSuccess } from '../../../lib/toast';
+import { Role } from '../../../lib/types';
+import authService from '../../../services/appwrite/auth-service';
+
+// Airbnb Colors
+const airbnbColors = {
+  primary: '#FF5A5F',
+  primaryDark: '#E1474C',
+  secondary: '#00A699',
+  tertiary: '#FC642D',
+  dark: '#484848',
+  mediumGray: '#767676',
+  lightGray: '#EBEBEB',
+  superLightGray: '#F7F7F7',
+  white: '#FFFFFF',
+  black: '#222222',
+  success: '#008A05',
+  warning: '#FFB400',
+  error: '#C13515',
+  background: '#FDFDFD',
+  border: '#DDDDDD',
+};
+
+// Airbnb Typography
+const airbnbTypography = {
+  fontFamily: Platform.OS === 'ios' ? 'Circular' : 'CircularStd',
+  sizes: {
+    xs: 10,
+    sm: 12,
+    md: 14,
+    lg: 16,
+    xl: 18,
+    xxl: 20,
+    xxxl: 24,
+    huge: 32,
+  },
+  weights: {
+    light: '300' as const,
+    regular: '400' as const,
+    medium: '500' as const,
+    semibold: '600' as const,
+    bold: '700' as const,
+  },
+};
+
+// Airbnb Spacing
+const airbnbSpacing = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 24,
+  xl: 32,
+  xxl: 48,
+};
 
 interface FormData {
   firstName: string;
@@ -29,7 +81,17 @@ interface FormData {
   experienceLevel: 'beginner' | 'intermediate' | 'advanced';
 }
 
+interface AirbnbTextProps {
+  children: React.ReactNode;
+  style?: any;
+  variant?: 'hero' | 'title' | 'subtitle' | 'body' | 'caption' | 'small';
+  color?: string;
+  numberOfLines?: number;
+  [key: string]: any;
+}
+
 export default function CreateUserScreen() {
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [formData, setFormData] = useState<FormData>({
@@ -43,6 +105,44 @@ export default function CreateUserScreen() {
     isAdmin: false,
     experienceLevel: 'beginner',
   });
+
+  // Create Airbnb-style Text component
+  const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
+    const getTextStyle = () => {
+      switch (variant) {
+        case 'hero':
+          return { fontSize: airbnbTypography.sizes.huge, fontWeight: airbnbTypography.weights.bold };
+        case 'title':
+          return { fontSize: airbnbTypography.sizes.xxxl, fontWeight: airbnbTypography.weights.semibold };
+        case 'subtitle':
+          return { fontSize: airbnbTypography.sizes.xl, fontWeight: airbnbTypography.weights.regular };
+        case 'body':
+          return { fontSize: airbnbTypography.sizes.lg, fontWeight: airbnbTypography.weights.regular };
+        case 'caption':
+          return { fontSize: airbnbTypography.sizes.md, fontWeight: airbnbTypography.weights.regular };
+        case 'small':
+          return { fontSize: airbnbTypography.sizes.sm, fontWeight: airbnbTypography.weights.regular };
+        default:
+          return { fontSize: airbnbTypography.sizes.lg, fontWeight: airbnbTypography.weights.regular };
+      }
+    };
+
+    return (
+      <Animated.Text
+        style={[
+          {
+            color,
+            fontFamily: airbnbTypography.fontFamily,
+            ...getTextStyle(),
+          },
+          style,
+        ]}
+        {...props}
+      >
+        {children}
+      </Animated.Text>
+    );
+  };
 
   useEffect(() => {
     loadRoles();
@@ -141,383 +241,540 @@ export default function CreateUserScreen() {
   );
 
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Fixed Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color="#007bff" />
+          <Ionicons name="chevron-back" size={24} color={airbnbColors.dark} />
         </TouchableOpacity>
-        <Text variant="h1" style={styles.title}>Create New User</Text>
-        <Text variant="body2" style={styles.subtitle}>
-          Add a new user to the system with role and permissions
-        </Text>
+        <AirbnbText variant="subtitle" style={styles.headerTitle}>Create User</AirbnbText>
+        <View style={styles.headerRight} />
       </View>
 
-      <Card variant="elevated" style={styles.formCard}>
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 100 }
+        ]}
+      >
+        {/* Hero Section */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroContent}>
+            <AirbnbText variant="hero" style={styles.heroTitle}>
+              Create New User
+            </AirbnbText>
+            <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.heroSubtitle}>
+              Add a new user to your platform with role and permissions
+            </AirbnbText>
+          </View>
+          <View style={styles.heroIcon}>
+            <Ionicons name="person-add" size={32} color={airbnbColors.primary} />
+          </View>
+        </View>
+
         {/* Personal Information */}
         <View style={styles.section}>
-          <Text variant="h4" style={styles.sectionTitle}>Personal Information</Text>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="person" size={20} color={airbnbColors.primary} />
+            <AirbnbText variant="title" style={styles.sectionTitle}>Personal Information</AirbnbText>
+          </View>
           
-          <View style={styles.inputRow}>
-            <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-              <Text variant="h6" style={styles.label}>First Name *</Text>
-              <TextInput
-                style={styles.input}
-                value={formData.firstName}
-                onChangeText={(text) => handleInputChange('firstName', text)}
-                placeholder="Enter first name"
-                autoCapitalize="words"
-              />
+          <View style={styles.formCard}>
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: airbnbSpacing.sm }]}>
+                <AirbnbText variant="subtitle" style={styles.label}>First Name *</AirbnbText>
+                <TextInput
+                  style={styles.input}
+                  value={formData.firstName}
+                  onChangeText={(text) => handleInputChange('firstName', text)}
+                  placeholder="Enter first name"
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1, marginLeft: airbnbSpacing.sm }]}>
+                <AirbnbText variant="subtitle" style={styles.label}>Last Name *</AirbnbText>
+                <TextInput
+                  style={styles.input}
+                  value={formData.lastName}
+                  onChangeText={(text) => handleInputChange('lastName', text)}
+                  placeholder="Enter last name"
+                  placeholderTextColor={airbnbColors.mediumGray}
+                  autoCapitalize="words"
+                />
+              </View>
             </View>
 
-            <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-              <Text variant="h6" style={styles.label}>Last Name *</Text>
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Display Name</AirbnbText>
               <TextInput
                 style={styles.input}
-                value={formData.lastName}
-                onChangeText={(text) => handleInputChange('lastName', text)}
-                placeholder="Enter last name"
-                autoCapitalize="words"
+                value={formData.displayName}
+                onChangeText={(text) => handleInputChange('displayName', text)}
+                placeholder="Auto-generated from name"
+                placeholderTextColor={airbnbColors.mediumGray}
+              />
+              <AirbnbText variant="small" color={airbnbColors.mediumGray} style={styles.helperText}>
+                This name will be visible to other users
+              </AirbnbText>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Email Address *</AirbnbText>
+              <TextInput
+                style={styles.input}
+                value={formData.email}
+                onChangeText={(text) => handleInputChange('email', text)}
+                placeholder="Enter email address"
+                placeholderTextColor={airbnbColors.mediumGray}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
             </View>
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text variant="h6" style={styles.label}>Display Name</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.displayName}
-              onChangeText={(text) => handleInputChange('displayName', text)}
-              placeholder="Auto-generated from name"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text variant="h6" style={styles.label}>Email Address *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.email}
-              onChangeText={(text) => handleInputChange('email', text)}
-              placeholder="Enter email address"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
           </View>
         </View>
 
         {/* Password Section */}
         <View style={styles.section}>
-          <Text variant="h4" style={styles.sectionTitle}>Password</Text>
-          
-          <View style={styles.inputGroup}>
-            <Text variant="h6" style={styles.label}>Password *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.password}
-              onChangeText={(text) => handleInputChange('password', text)}
-              placeholder="Enter password (min 8 characters)"
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+          <View style={styles.sectionHeader}>
+            <Ionicons name="lock-closed" size={20} color={airbnbColors.primary} />
+            <AirbnbText variant="title" style={styles.sectionTitle}>Password</AirbnbText>
           </View>
+          
+          <View style={styles.formCard}>
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Password *</AirbnbText>
+              <TextInput
+                style={styles.input}
+                value={formData.password}
+                onChangeText={(text) => handleInputChange('password', text)}
+                placeholder="Enter password (min 8 characters)"
+                placeholderTextColor={airbnbColors.mediumGray}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text variant="h6" style={styles.label}>Confirm Password *</Text>
-            <TextInput
-              style={styles.input}
-              value={formData.confirmPassword}
-              onChangeText={(text) => handleInputChange('confirmPassword', text)}
-              placeholder="Confirm password"
-              secureTextEntry
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Confirm Password *</AirbnbText>
+              <TextInput
+                style={styles.input}
+                value={formData.confirmPassword}
+                onChangeText={(text) => handleInputChange('confirmPassword', text)}
+                placeholder="Confirm password"
+                placeholderTextColor={airbnbColors.mediumGray}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
           </View>
         </View>
 
         {/* Role & Permissions */}
         <View style={styles.section}>
-          <Text variant="h4" style={styles.sectionTitle}>Role & Permissions</Text>
-          
-          <View style={styles.roleSelection}>
-            {roles.map((role) => (
-              <TouchableOpacity
-                key={role.$id}
-                style={[
-                  styles.roleOption,
-                  formData.role === role.$id && styles.roleOptionActive
-                ]}
-                onPress={() => {
-                  handleInputChange('role', role.$id);
-                  handleInputChange('isAdmin', role.name === 'Administrator');
-                }}
-              >
-                <View style={styles.roleContent}>
-                  <Text variant="h5" style={[
-                    styles.roleName,
-                    formData.role === role.$id && styles.roleNameActive
-                  ]}>
-                    {role.name}
-                  </Text>
-                  <Text variant="body2" style={[
-                    styles.roleDescription,
-                    formData.role === role.$id && styles.roleDescriptionActive
-                  ]}>
-                    {role.description}
-                  </Text>
-                </View>
-                <View style={[
-                  styles.radioButton,
-                  formData.role === role.$id && styles.radioButtonActive
-                ]}>
-                  {formData.role === role.$id && (
-                    <Ionicons name="checkmark" size={16} color="white" />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.sectionHeader}>
+            <Ionicons name="shield-checkmark" size={20} color={airbnbColors.primary} />
+            <AirbnbText variant="title" style={styles.sectionTitle}>Role & Permissions</AirbnbText>
           </View>
-
-          <View style={styles.inputGroup}>
-            <Text variant="h6" style={styles.label}>Experience Level</Text>
-            <View style={styles.segmentedControl}>
-              {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+          
+          <View style={styles.formCard}>
+            <View style={styles.roleSelection}>
+              {roles.map((role) => (
                 <TouchableOpacity
-                  key={level}
+                  key={role.$id}
                   style={[
-                    styles.segmentButton,
-                    formData.experienceLevel === level && styles.segmentButtonActive
+                    styles.roleOption,
+                    formData.role === role.$id && styles.roleOptionActive
                   ]}
-                  onPress={() => handleInputChange('experienceLevel', level)}
+                  onPress={() => {
+                    handleInputChange('role', role.$id);
+                    handleInputChange('isAdmin', role.name === 'Administrator');
+                  }}
                 >
-                  <Text 
-                    variant="body2" 
-                    style={[
-                      styles.segmentText,
-                      formData.experienceLevel === level && styles.segmentTextActive
-                    ]}
-                  >
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                  </Text>
+                  <View style={styles.roleContent}>
+                    <AirbnbText variant="subtitle" style={[
+                      styles.roleName,
+                      formData.role === role.$id && styles.roleNameActive
+                    ]}>
+                      {role.name}
+                    </AirbnbText>
+                    <AirbnbText variant="body" style={[
+                      styles.roleDescription,
+                      formData.role === role.$id && styles.roleDescriptionActive
+                    ]}>
+                      {role.description}
+                    </AirbnbText>
+                  </View>
+                  <View style={[
+                    styles.radioButton,
+                    formData.role === role.$id && styles.radioButtonActive
+                  ]}>
+                    {formData.role === role.$id && (
+                      <Ionicons name="checkmark" size={16} color={airbnbColors.white} />
+                    )}
+                  </View>
                 </TouchableOpacity>
               ))}
             </View>
+
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Experience Level</AirbnbText>
+              <View style={styles.segmentedControl}>
+                {(['beginner', 'intermediate', 'advanced'] as const).map((level) => (
+                  <TouchableOpacity
+                    key={level}
+                    style={[
+                      styles.segmentButton,
+                      formData.experienceLevel === level && styles.segmentButtonActive
+                    ]}
+                    onPress={() => handleInputChange('experienceLevel', level)}
+                  >
+                    <AirbnbText 
+                      variant="caption" 
+                      style={[
+                        styles.segmentText,
+                        formData.experienceLevel === level && styles.segmentTextActive
+                      ]}
+                    >
+                      {level.charAt(0).toUpperCase() + level.slice(1)}
+                    </AirbnbText>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
           </View>
         </View>
-      </Card>
 
-      {/* Action Buttons */}
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity 
-          style={styles.cancelButton} 
-          onPress={() => router.back()}
-        >
-          <Text variant="h6" style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
+        {/* Action Buttons */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={() => router.back()}
+            disabled={loading}
+          >
+            <AirbnbText variant="body" color={airbnbColors.dark} style={styles.buttonText}>
+              Cancel
+            </AirbnbText>
+          </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.createButton, loading && styles.createButtonDisabled]}
-          onPress={handleCreateUser}
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <ActivityIndicator size="small" color="white" />
-              <Text variant="h6" style={styles.createButtonText}>Creating...</Text>
-            </>
-          ) : (
-            <>
-              <Text variant="h6" style={styles.createButtonText}>Create User</Text>
-              <Ionicons name="person-add" size={20} color="white" />
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.primaryButton]}
+            onPress={handleCreateUser}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator size="small" color={airbnbColors.white} />
+            ) : (
+              <>
+                <Ionicons name="person-add" size={20} color={airbnbColors.white} style={styles.buttonIcon} />
+                <AirbnbText variant="body" color={airbnbColors.white} style={styles.buttonText}>
+                  Create User
+                </AirbnbText>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
 
-      <View style={styles.footer}>
-        <Text variant="caption" style={styles.footerText}>
-          New users will receive an email with their login credentials and setup instructions.
-        </Text>
-      </View>
-    </ScrollView>
+        {/* Footer */}
+        <View style={styles.footer}>
+          <AirbnbText variant="small" color={airbnbColors.mediumGray} style={styles.footerText}>
+            New users will receive an email with their login credentials and setup instructions.
+          </AirbnbText>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: airbnbColors.background,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: airbnbColors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
   },
   header: {
-    padding: 20,
-    paddingBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: airbnbSpacing.md,
+    paddingHorizontal: airbnbSpacing.lg,
+    backgroundColor: airbnbColors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: airbnbColors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   backButton: {
+    padding: airbnbSpacing.sm,
+    borderRadius: 20,
+    backgroundColor: airbnbColors.superLightGray,
+  },
+  headerTitle: {
+    fontSize: airbnbTypography.sizes.xl,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
+    textAlign: 'center',
+    flex: 1,
+  },
+  headerRight: {
     width: 40,
-    height: 40,
+  },
+  heroSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: airbnbSpacing.lg,
+    marginHorizontal: airbnbSpacing.lg,
+    marginTop: airbnbSpacing.md,
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  heroContent: {
+    flex: 1,
+  },
+  heroTitle: {
+    fontSize: airbnbTypography.sizes.huge,
+    fontWeight: airbnbTypography.weights.bold,
+    color: airbnbColors.dark,
+    marginBottom: airbnbSpacing.sm,
+    lineHeight: 38,
+  },
+  heroSubtitle: {
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.mediumGray,
+    lineHeight: 24,
+  },
+  heroIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: airbnbColors.primary + '15',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  title: {
-    color: '#212529',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#6c757d',
-    lineHeight: 20,
-  },
-  formCard: {
-    margin: 16,
-    marginTop: 8,
-    padding: 20,
+    marginLeft: airbnbSpacing.lg,
   },
   section: {
-    marginBottom: 32,
+    marginHorizontal: airbnbSpacing.lg,
+    marginTop: airbnbSpacing.lg,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: airbnbSpacing.md,
   },
   sectionTitle: {
-    color: '#212529',
-    marginBottom: 16,
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
+    fontSize: airbnbTypography.sizes.xl,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
+    marginLeft: airbnbSpacing.sm,
+  },
+  formCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: airbnbSpacing.lg,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
   },
   inputGroup: {
-    marginBottom: 16,
+    marginBottom: airbnbSpacing.md,
   },
   inputRow: {
     flexDirection: 'row',
-    marginBottom: 8,
+    marginBottom: airbnbSpacing.sm,
   },
   label: {
-    color: '#495057',
-    marginBottom: 8,
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
+    marginBottom: airbnbSpacing.sm,
   },
   input: {
+    backgroundColor: airbnbColors.white,
     borderWidth: 1,
-    borderColor: '#ced4da',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: 'white',
-    color: '#495057',
+    borderColor: airbnbColors.border,
+    borderRadius: 12,
+    paddingHorizontal: airbnbSpacing.md,
+    paddingVertical: airbnbSpacing.md,
+    fontSize: airbnbTypography.sizes.lg,
+    color: airbnbColors.dark,
+    fontFamily: airbnbTypography.fontFamily,
+  },
+  helperText: {
+    marginTop: airbnbSpacing.xs,
+    fontSize: airbnbTypography.sizes.sm,
+    color: airbnbColors.mediumGray,
   },
   roleSelection: {
-    gap: 12,
-    marginBottom: 20,
+    marginBottom: airbnbSpacing.lg,
   },
   roleOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    padding: airbnbSpacing.md,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#e9ecef',
-    backgroundColor: 'white',
+    borderColor: airbnbColors.border,
+    backgroundColor: airbnbColors.white,
+    marginBottom: airbnbSpacing.sm,
   },
   roleOptionActive: {
-    borderColor: '#007bff',
-    backgroundColor: '#e3f2fd',
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.primary + '10',
   },
   roleContent: {
     flex: 1,
   },
   roleName: {
-    color: '#495057',
-    marginBottom: 4,
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
+    color: airbnbColors.dark,
+    marginBottom: airbnbSpacing.xs,
   },
   roleNameActive: {
-    color: '#007bff',
+    color: airbnbColors.primary,
   },
   roleDescription: {
-    color: '#6c757d',
-    lineHeight: 18,
+    fontSize: airbnbTypography.sizes.md,
+    color: airbnbColors.mediumGray,
+    lineHeight: 20,
   },
   roleDescriptionActive: {
-    color: '#495057',
+    color: airbnbColors.dark,
   },
   radioButton: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 2,
-    borderColor: '#ced4da',
+    borderColor: airbnbColors.border,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: airbnbColors.white,
   },
   radioButtonActive: {
-    borderColor: '#007bff',
-    backgroundColor: '#007bff',
+    borderColor: airbnbColors.primary,
+    backgroundColor: airbnbColors.primary,
   },
   segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#e9ecef',
+    backgroundColor: airbnbColors.superLightGray,
     borderRadius: 8,
     padding: 2,
   },
   segmentButton: {
     flex: 1,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: airbnbSpacing.sm,
+    paddingHorizontal: airbnbSpacing.md,
     borderRadius: 6,
     alignItems: 'center',
   },
   segmentButtonActive: {
-    backgroundColor: '#007bff',
+    backgroundColor: airbnbColors.primary,
   },
   segmentText: {
-    color: '#6c757d',
-    fontWeight: '500',
+    fontSize: airbnbTypography.sizes.md,
+    fontWeight: airbnbTypography.weights.medium,
+    color: airbnbColors.mediumGray,
   },
   segmentTextActive: {
-    color: 'white',
+    color: airbnbColors.white,
   },
-  buttonContainer: {
+  actionsSection: {
     flexDirection: 'row',
-    padding: 16,
-    gap: 12,
+    marginHorizontal: airbnbSpacing.lg,
+    marginTop: airbnbSpacing.xl,
+    gap: airbnbSpacing.md,
   },
-  cancelButton: {
+  actionButton: {
     flex: 1,
-    backgroundColor: '#6c757d',
-    paddingVertical: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButtonText: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  createButton: {
-    flex: 2,
-    backgroundColor: '#28a745',
     flexDirection: 'row',
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 16,
-    borderRadius: 8,
-    gap: 8,
+    justifyContent: 'center',
+    paddingVertical: airbnbSpacing.md,
+    paddingHorizontal: airbnbSpacing.lg,
+    borderRadius: 12,
+    minHeight: 52,
+    ...Platform.select({
+      ios: {
+        shadowColor: airbnbColors.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
   },
-  createButtonDisabled: {
-    backgroundColor: '#adb5bd',
+  primaryButton: {
+    backgroundColor: airbnbColors.primary,
   },
-  createButtonText: {
-    color: 'white',
-    fontWeight: '600',
+  secondaryButton: {
+    backgroundColor: airbnbColors.white,
+    borderWidth: 1,
+    borderColor: airbnbColors.border,
+  },
+  buttonIcon: {
+    marginRight: airbnbSpacing.sm,
+  },
+  buttonText: {
+    fontSize: airbnbTypography.sizes.lg,
+    fontWeight: airbnbTypography.weights.semibold,
   },
   footer: {
-    padding: 20,
-    paddingTop: 0,
+    marginHorizontal: airbnbSpacing.lg,
+    marginTop: airbnbSpacing.lg,
+    marginBottom: airbnbSpacing.md,
     alignItems: 'center',
   },
   footerText: {
-    color: '#adb5bd',
+    fontSize: airbnbTypography.sizes.sm,
+    color: airbnbColors.mediumGray,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 20,
   },
 });
