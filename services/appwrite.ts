@@ -1,12 +1,13 @@
 // Main appwrite service that re-exports the modularized services
 import {
-  authService,
-  courseService,
-  progressService,
-  quizService,
-  roleService,
-  schoolService,
-  storageService
+    authService,
+    classService,
+    courseService,
+    progressService,
+    quizService,
+    roleService,
+    schoolService,
+    storageService
 } from './appwrite/index';
 
 // Create a consolidated service object that maintains the same API
@@ -139,6 +140,23 @@ const appwriteService = {
   deleteSchool: schoolService.deleteSchool,
   getSchoolsByStatus: schoolService.getSchoolsByStatus,
   searchSchools: schoolService.searchSchools,
+
+  // Class Management Methods
+  getAllClasses: classService.getClassesBySchool,
+  getClassById: classService.getClass,
+  createClass: classService.createClass,
+  updateClass: classService.updateClass,
+  deleteClass: classService.deleteClass,
+  getClassesBySchool: classService.getClassesBySchool,
+  getClassesByInstructor: classService.getClassesByInstructor,
+  getAvailableClassesForEnrollment: classService.getAvailableClassesForEnrollment,
+  enrollStudent: classService.enrollStudent,
+  unenrollStudent: classService.unenrollStudent,
+  assignInstructorToClass: classService.assignInstructor,
+  getStudentClasses: classService.getStudentClasses,
+  getClassesBySubjectAndGrade: classService.getClassesBySubjectAndGrade,
+  getClassStats: classService.getClassStats,
+  searchClasses: classService.searchClasses,
 };
 
 export default appwriteService;

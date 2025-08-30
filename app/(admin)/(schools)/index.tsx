@@ -2,16 +2,16 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  Dimensions,
-  FlatList,
-  RefreshControl,
-  SafeAreaView,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    ActivityIndicator,
+    Alert,
+    Dimensions,
+    FlatList,
+    RefreshControl,
+    SafeAreaView,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import { colors, spacing } from '../../../components/ui/theme';
 import Text from '../../../components/ui/Typography';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
+import { classService } from '../../../services/appwrite/classService';
 
 // Airbnb color palette - keeping original colors
 const airbnbColors = {
@@ -51,6 +52,7 @@ interface School {
   contactPhone: string;
   status: 'active' | 'inactive' | 'pending';
   enrollmentCount?: number;
+  classCount?: number;
   logo?: string;
   createdAt: string;
   updatedAt: string;
@@ -96,7 +98,26 @@ export default function SchoolsScreen() {
         queries.length > 0 ? queries : undefined
       );
 
-      setSchools(response.documents);
+      // Load class counts for each school
+      const schoolsWithClassCounts = await Promise.all(
+        response.documents.map(async (school) => {
+          try {
+            const classes = await classService.getClassesBySchool(school.$id);
+            return {
+              ...school,
+              classCount: classes.length
+            };
+          } catch (error) {
+            console.error(`Failed to load class count for school ${school.$id}:`, error);
+            return {
+              ...school,
+              classCount: 0
+            };
+          }
+        })
+      );
+
+      setSchools(schoolsWithClassCounts);
       setTotalSchools(response.total);
       setTotalPages(Math.ceil(response.total / itemsPerPage));
       setCurrentPage(page);
@@ -287,6 +308,12 @@ export default function SchoolsScreen() {
               <Ionicons name="people-outline" size={16} color={colors.neutral.gray} />
               <Text style={styles.metaText}>
                 {school.enrollmentCount || 0} Students
+              </Text>
+            </View>
+            <View style={styles.metaItem}>
+              <Ionicons name="library-outline" size={16} color={colors.neutral.gray} />
+              <Text style={styles.metaText}>
+                {school.classCount || 0} Classes
               </Text>
             </View>
             <View style={styles.metaItem}>

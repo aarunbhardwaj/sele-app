@@ -1,5 +1,6 @@
 // Export all services from a single file for easy imports
 export { default as authService } from './auth-service';
+export { classService } from './classService';
 export { account, default as client, databases, storage } from './client';
 export { default as courseService } from './course-service';
 export { default as progressService } from './progress-service';

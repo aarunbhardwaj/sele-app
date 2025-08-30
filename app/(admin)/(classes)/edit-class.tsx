@@ -76,12 +76,13 @@ interface AirbnbTextProps {
   [key: string]: any;
 }
 
-export default function CreateClassScreen() {
+export default function EditClassScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const schoolId = params.schoolId as string;
+  const classId = params.id as string;
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   
   // Class form state
   const [className, setClassName] = useState('');
@@ -93,23 +94,44 @@ export default function CreateClassScreen() {
   const [maxStudents, setMaxStudents] = useState('30');
   const [duration, setDuration] = useState('60');
   const [academicYear, setAcademicYear] = useState('2024-2025');
-  const [isActive, setIsActive] = useState(true);
+  const [status, setStatus] = useState<'active' | 'inactive' | 'full' | 'archived'>('active');
+  const [enrollmentStatus, setEnrollmentStatus] = useState<'open' | 'closed' | 'waitlist-only'>('open');
 
-  // Check if we have a schoolId parameter
+  // Load class data
   useEffect(() => {
-    if (!schoolId) {
-      Alert.alert(
-        'Missing School Information',
-        'A school must be selected to create a class. Please select a school first.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
-      );
+    if (classId) {
+      loadClassData();
+    } else {
+      Alert.alert('Error', 'Class ID is missing');
+      router.back();
     }
-  }, [schoolId, router]);
+  }, [classId]);
+
+  const loadClassData = async () => {
+    try {
+      setInitialLoading(true);
+      const classData = await classService.getClass(classId);
+      
+      // Populate form with class data
+      setClassName(classData.title || '');
+      setDescription(classData.description || '');
+      setSubject(classData.subject || '');
+      setGrade(classData.grade || '');
+      setSection(classData.section || '');
+      setSchedule(classData.schedule || '');
+      setMaxStudents((classData.maxStudents || 30).toString());
+      setDuration((classData.duration || 60).toString());
+      setAcademicYear(classData.academicYear || '2024-2025');
+      setStatus(classData.status || 'active');
+      setEnrollmentStatus(classData.enrollmentStatus || 'open');
+    } catch (error) {
+      console.error('Failed to load class data:', error);
+      Alert.alert('Error', 'Failed to load class details. Please try again.');
+      router.back();
+    } finally {
+      setInitialLoading(false);
+    }
+  };
 
   // Create Airbnb-style Text component
   const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
@@ -168,15 +190,7 @@ export default function CreateClassScreen() {
     return true;
   };
 
-  const generateClassCode = () => {
-    const subjectPrefix = subject.substring(0, 3).toUpperCase();
-    const gradePrefix = grade.replace(/\s+/g, '');
-    const sectionSuffix = section ? `-${section}` : '';
-    const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
-    return `${subjectPrefix}${gradePrefix}${sectionSuffix}-${randomSuffix}`;
-  };
-
-  const handleCreateClass = async () => {
+  const handleUpdateClass = async () => {
     if (!validateForm()) {
       return;
     }
@@ -184,72 +198,60 @@ export default function CreateClassScreen() {
     setLoading(true);
     
     try {
-      const classCode = generateClassCode();
-      
-      const classData = {
+      const updates = {
         title: className.trim(),
-        description: description.trim() || `${subject} class for Grade ${grade}`,
-        code: classCode,
-        schoolId: schoolId,
-        courseId: '', // Will be auto-assigned later
+        description: description.trim(),
         subject: subject.trim(),
         grade: grade.trim(),
-        section: section.trim() || '',
+        section: section.trim(),
         academicYear: academicYear,
         maxStudents: parseInt(maxStudents) || 30,
         duration: parseInt(duration) || 60,
-        status: 'active' as const,
-        enrollmentStatus: 'open' as const,
-        type: 'in-person' as const,
-        isActive: isActive,
-        isPublic: true,
-        allowWaitlist: true,
-        currentEnrollment: 0,
-        enrolledStudents: [],
-        waitingList: [],
-        schedule: schedule.trim() || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        status: status,
+        enrollmentStatus: enrollmentStatus,
+        schedule: schedule.trim(),
       };
 
-      const createdClass = await classService.createClass(classData);
+      await classService.updateClass(classId, updates);
       
       Alert.alert(
         'Success', 
-        `Class "${className}" has been created successfully with code: ${classCode}`,
+        'Class updated successfully!',
         [
           {
-            text: 'View Class',
-            onPress: () => router.replace(`/(admin)/(classes)/class-details?id=${createdClass.$id}`)
-          },
-          {
-            text: 'Create Another',
-            onPress: () => {
-              // Reset form
-              setClassName('');
-              setDescription('');
-              setSubject('');
-              setGrade('');
-              setSection('');
-              setSchedule('');
-              setMaxStudents('30');
-              setDuration('60');
-            }
-          },
-          {
-            text: 'Go Back',
-            style: 'cancel',
+            text: 'OK',
             onPress: () => router.back()
           }
         ]
       );
     } catch (error) {
-      console.error('Failed to create class:', error);
-      Alert.alert('Error', 'Failed to create class. Please try again.');
+      console.error('Failed to update class:', error);
+      Alert.alert('Error', 'Failed to update class. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
+  if (initialLoading) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <Ionicons name="chevron-back" size={24} color={airbnbColors.dark} />
+          </TouchableOpacity>
+          <AirbnbText variant="subtitle" style={styles.headerTitle}>Edit Class</AirbnbText>
+          <View style={styles.headerRight} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={airbnbColors.primary} />
+          <AirbnbText style={styles.loadingText}>Loading class details...</AirbnbText>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -261,7 +263,7 @@ export default function CreateClassScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={airbnbColors.dark} />
         </TouchableOpacity>
-        <AirbnbText variant="subtitle" style={styles.headerTitle}>Create Class</AirbnbText>
+        <AirbnbText variant="subtitle" style={styles.headerTitle}>Edit Class</AirbnbText>
         <View style={styles.headerRight} />
       </View>
 
@@ -277,14 +279,14 @@ export default function CreateClassScreen() {
         <View style={styles.heroSection}>
           <View style={styles.heroContent}>
             <AirbnbText variant="hero" style={styles.heroTitle}>
-              Create New Class
+              Edit Class
             </AirbnbText>
             <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.heroSubtitle}>
-              Set up a new class for your students with schedule and details
+              Update class information and settings
             </AirbnbText>
           </View>
           <View style={styles.heroIcon}>
-            <Ionicons name="school" size={32} color={airbnbColors.primary} />
+            <Ionicons name="create" size={32} color={airbnbColors.primary} />
           </View>
         </View>
 
@@ -361,15 +363,12 @@ export default function CreateClassScreen() {
                 style={[styles.input, styles.textArea]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Enter class description (optional)"
+                placeholder="Enter class description"
                 placeholderTextColor={airbnbColors.mediumGray}
                 multiline
                 numberOfLines={3}
                 textAlignVertical="top"
               />
-              <AirbnbText variant="small" color={airbnbColors.mediumGray} style={styles.helperText}>
-                Describe what students will learn in this class
-              </AirbnbText>
             </View>
           </View>
         </View>
@@ -391,9 +390,6 @@ export default function CreateClassScreen() {
                 placeholder="e.g. Mon-Fri 9:00 AM - 10:00 AM"
                 placeholderTextColor={airbnbColors.mediumGray}
               />
-              <AirbnbText variant="small" color={airbnbColors.mediumGray} style={styles.helperText}>
-                When will this class meet? (Optional - can be set later)
-              </AirbnbText>
             </View>
 
             <View style={styles.inputRow}>
@@ -421,69 +417,53 @@ export default function CreateClassScreen() {
                 />
               </View>
             </View>
-          </View>
-        </View>
 
-        {/* Preview Card */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="eye" size={20} color={airbnbColors.secondary} />
-            <AirbnbText variant="title" style={styles.sectionTitle}>Preview</AirbnbText>
-          </View>
-          
-          <View style={styles.previewCard}>
-            <AirbnbText variant="subtitle" style={styles.previewTitle}>
-              {className || 'Class Name'} {section && `(Section ${section})`}
-            </AirbnbText>
-            <AirbnbText variant="small" color={airbnbColors.mediumGray} style={styles.previewCode}>
-              Code: {subject && grade ? generateClassCode() : 'Will be generated'}
-            </AirbnbText>
-            <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.previewDescription}>
-              {description || `${subject || 'Subject'} class for Grade ${grade || 'X'}`}
-            </AirbnbText>
-            <View style={styles.previewMeta}>
-              <AirbnbText variant="small" color={airbnbColors.mediumGray}>
-                Subject: {subject || 'Not specified'} • Grade: {grade || 'Not specified'} • Max Students: {maxStudents}
-              </AirbnbText>
+            {/* Status Settings */}
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Class Status</AirbnbText>
+              <View style={styles.statusOptions}>
+                {(['active', 'inactive', 'archived'] as const).map((statusOption) => (
+                  <TouchableOpacity
+                    key={statusOption}
+                    style={[
+                      styles.statusOption,
+                      status === statusOption && styles.selectedStatusOption
+                    ]}
+                    onPress={() => setStatus(statusOption)}
+                  >
+                    <AirbnbText
+                      variant="body"
+                      color={status === statusOption ? airbnbColors.white : airbnbColors.dark}
+                      style={styles.statusText}
+                    >
+                      {statusOption.charAt(0).toUpperCase() + statusOption.slice(1)}
+                    </AirbnbText>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </View>
-        </View>
 
-        {/* Coming Soon Features */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="construct" size={20} color={airbnbColors.warning} />
-            <AirbnbText variant="title" style={styles.sectionTitle}>Coming Soon</AirbnbText>
-          </View>
-          
-          <View style={styles.comingSoonCard}>
-            <View style={styles.featureList}>
-              <View style={styles.featureItem}>
-                <Ionicons name="calendar" size={16} color={airbnbColors.mediumGray} />
-                <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.featureText}>
-                  Advanced scheduling with recurring events
-                </AirbnbText>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <Ionicons name="people" size={16} color={airbnbColors.mediumGray} />
-                <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.featureText}>
-                  Student enrollment management
-                </AirbnbText>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <Ionicons name="videocam" size={16} color={airbnbColors.mediumGray} />
-                <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.featureText}>
-                  Virtual classroom integration
-                </AirbnbText>
-              </View>
-              
-              <View style={styles.featureItem}>
-                <Ionicons name="analytics" size={16} color={airbnbColors.mediumGray} />
-                <AirbnbText variant="body" color={airbnbColors.mediumGray} style={styles.featureText}>
-                  Attendance tracking and reports
-                </AirbnbText>
+            <View style={styles.inputGroup}>
+              <AirbnbText variant="subtitle" style={styles.label}>Enrollment Status</AirbnbText>
+              <View style={styles.statusOptions}>
+                {(['open', 'closed', 'waitlist-only'] as const).map((enrollmentOption) => (
+                  <TouchableOpacity
+                    key={enrollmentOption}
+                    style={[
+                      styles.statusOption,
+                      enrollmentStatus === enrollmentOption && styles.selectedStatusOption
+                    ]}
+                    onPress={() => setEnrollmentStatus(enrollmentOption)}
+                  >
+                    <AirbnbText
+                      variant="body"
+                      color={enrollmentStatus === enrollmentOption ? airbnbColors.white : airbnbColors.dark}
+                      style={styles.statusText}
+                    >
+                      {enrollmentOption.replace('-', ' ')}
+                    </AirbnbText>
+                  </TouchableOpacity>
+                ))}
               </View>
             </View>
           </View>
@@ -503,16 +483,16 @@ export default function CreateClassScreen() {
 
           <TouchableOpacity
             style={[styles.actionButton, styles.primaryButton]}
-            onPress={handleCreateClass}
-            disabled={loading || !schoolId}
+            onPress={handleUpdateClass}
+            disabled={loading}
           >
             {loading ? (
               <ActivityIndicator size="small" color={airbnbColors.white} />
             ) : (
               <>
-                <Ionicons name="add" size={20} color={airbnbColors.white} style={styles.buttonIcon} />
+                <Ionicons name="checkmark" size={20} color={airbnbColors.white} style={styles.buttonIcon} />
                 <AirbnbText variant="body" color={airbnbColors.white} style={styles.buttonText}>
-                  Create Class
+                  Update Class
                 </AirbnbText>
               </>
             )}
@@ -544,17 +524,6 @@ const styles = StyleSheet.create({
     backgroundColor: airbnbColors.white,
     borderBottomWidth: 1,
     borderBottomColor: airbnbColors.border,
-    ...Platform.select({
-      ios: {
-        shadowColor: airbnbColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
   },
   backButton: {
     padding: airbnbSpacing.sm,
@@ -562,14 +531,20 @@ const styles = StyleSheet.create({
     backgroundColor: airbnbColors.superLightGray,
   },
   headerTitle: {
-    fontSize: airbnbTypography.sizes.xl,
-    fontWeight: airbnbTypography.weights.semibold,
-    color: airbnbColors.dark,
-    textAlign: 'center',
     flex: 1,
+    textAlign: 'center',
   },
   headerRight: {
     width: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: airbnbSpacing.md,
+    color: airbnbColors.mediumGray,
   },
   heroSection: {
     flexDirection: 'row',
@@ -580,31 +555,14 @@ const styles = StyleSheet.create({
     marginTop: airbnbSpacing.md,
     backgroundColor: airbnbColors.white,
     borderRadius: 16,
-    ...Platform.select({
-      ios: {
-        shadowColor: airbnbColors.black,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
   },
   heroContent: {
     flex: 1,
   },
   heroTitle: {
-    fontSize: airbnbTypography.sizes.huge,
-    fontWeight: airbnbTypography.weights.bold,
-    color: airbnbColors.dark,
     marginBottom: airbnbSpacing.sm,
-    lineHeight: 38,
   },
   heroSubtitle: {
-    fontSize: airbnbTypography.sizes.lg,
-    color: airbnbColors.mediumGray,
     lineHeight: 24,
   },
   heroIcon: {
@@ -626,33 +584,12 @@ const styles = StyleSheet.create({
     marginBottom: airbnbSpacing.md,
   },
   sectionTitle: {
-    fontSize: airbnbTypography.sizes.xl,
-    fontWeight: airbnbTypography.weights.semibold,
-    color: airbnbColors.dark,
     marginLeft: airbnbSpacing.sm,
   },
   formCard: {
     backgroundColor: airbnbColors.white,
     borderRadius: 16,
     padding: airbnbSpacing.lg,
-    ...Platform.select({
-      ios: {
-        shadowColor: airbnbColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 3,
-      },
-    }),
-  },
-  comingSoonCard: {
-    backgroundColor: airbnbColors.superLightGray,
-    borderRadius: 16,
-    padding: airbnbSpacing.lg,
-    borderWidth: 1,
-    borderColor: airbnbColors.border,
   },
   inputGroup: {
     marginBottom: airbnbSpacing.md,
@@ -662,9 +599,6 @@ const styles = StyleSheet.create({
     marginBottom: airbnbSpacing.sm,
   },
   label: {
-    fontSize: airbnbTypography.sizes.lg,
-    fontWeight: airbnbTypography.weights.semibold,
-    color: airbnbColors.dark,
     marginBottom: airbnbSpacing.sm,
   },
   input: {
@@ -676,29 +610,31 @@ const styles = StyleSheet.create({
     paddingVertical: airbnbSpacing.md,
     fontSize: airbnbTypography.sizes.lg,
     color: airbnbColors.dark,
-    fontFamily: airbnbTypography.fontFamily,
   },
   textArea: {
-    height: 100,
+    height: 80,
     paddingTop: airbnbSpacing.md,
     textAlignVertical: 'top',
   },
-  helperText: {
-    marginTop: airbnbSpacing.xs,
-    fontSize: airbnbTypography.sizes.sm,
-    color: airbnbColors.mediumGray,
-  },
-  featureList: {
-    gap: airbnbSpacing.md,
-  },
-  featureItem: {
+  statusOptions: {
     flexDirection: 'row',
+    gap: airbnbSpacing.sm,
+  },
+  statusOption: {
+    flex: 1,
+    paddingVertical: airbnbSpacing.sm,
+    paddingHorizontal: airbnbSpacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: airbnbColors.border,
     alignItems: 'center',
   },
-  featureText: {
-    marginLeft: airbnbSpacing.sm,
-    fontSize: airbnbTypography.sizes.md,
-    color: airbnbColors.mediumGray,
+  selectedStatusOption: {
+    backgroundColor: airbnbColors.primary,
+    borderColor: airbnbColors.primary,
+  },
+  statusText: {
+    textAlign: 'center',
   },
   actionsSection: {
     flexDirection: 'row',
@@ -716,17 +652,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: airbnbSpacing.lg,
     borderRadius: 12,
     minHeight: 52,
-    ...Platform.select({
-      ios: {
-        shadowColor: airbnbColors.black,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
   },
   primaryButton: {
     backgroundColor: airbnbColors.primary,
@@ -740,39 +665,6 @@ const styles = StyleSheet.create({
     marginRight: airbnbSpacing.sm,
   },
   buttonText: {
-    fontSize: airbnbTypography.sizes.lg,
     fontWeight: airbnbTypography.weights.semibold,
-  },
-  // Preview Card
-  previewCard: {
-    backgroundColor: airbnbColors.white,
-    borderRadius: 16,
-    padding: airbnbSpacing.lg,
-    borderWidth: 1,
-    borderColor: airbnbColors.secondary + '30',
-    backgroundColor: airbnbColors.secondary + '05',
-  },
-  previewTitle: {
-    fontSize: airbnbTypography.sizes.xl,
-    fontWeight: airbnbTypography.weights.semibold,
-    color: airbnbColors.dark,
-    marginBottom: 4,
-  },
-  previewCode: {
-    fontSize: airbnbTypography.sizes.sm,
-    fontFamily: 'monospace',
-    color: airbnbColors.secondary,
-    marginBottom: airbnbSpacing.sm,
-  },
-  previewDescription: {
-    fontSize: airbnbTypography.sizes.md,
-    color: airbnbColors.mediumGray,
-    marginBottom: airbnbSpacing.sm,
-    lineHeight: 20,
-  },
-  previewMeta: {
-    paddingTop: airbnbSpacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: airbnbColors.border,
   },
 });

@@ -259,40 +259,59 @@ export interface UserActivity extends BaseDocument {
 
 // Class and Scheduling interfaces
 export interface Class extends BaseDocument {
+  // Basic class information
   title: string;
   description?: string;
-  courseId?: string;
-  instructorId: string;
-  instructorName?: string;
-  scheduledAt: string;
-  duration: number; // in minutes
-  maxStudents?: number;
-  enrolledStudents: string[];
-  waitingList?: string[];
-  status: 'scheduled' | 'in-progress' | 'completed' | 'cancelled';
-  meetingUrl?: string;
-  recordingUrl?: string;
-  materials?: ClassMaterial[];
-  type: 'live' | 'recorded' | 'hybrid';
-}
-
-export interface ClassMaterial {
-  id: string;
-  type: 'slides' | 'document' | 'video' | 'link';
-  title: string;
-  url: string;
-  description?: string;
-}
-
-export interface ClassBooking extends BaseDocument {
-  classId: string;
-  userId: string;
-  status: 'booked' | 'attended' | 'missed' | 'cancelled';
-  bookedAt: string;
-  cancelledAt?: string;
-  attendanceCheckedAt?: string;
-  feedback?: string;
-  rating?: number;
+  code: string; // Unique class code like "MATH-101-A"
+  
+  // Core relationships for signup workflow
+  schoolId: string; // Which school this class belongs to
+  courseId: string; // Auto-assigned course for this class
+  instructorId?: string; // Admin assigns instructor later
+  instructorName?: string; // Cached instructor name
+  
+  // Class categorization
+  subject: string; // Math, Science, English, etc.
+  grade: string; // Grade 1, Grade 2, etc.
+  section?: string; // A, B, C sections
+  level?: string; // beginner, intermediate, advanced
+  academicYear: string; // 2024-2025
+  semester?: string; // Fall, Spring, Summer
+  
+  // Enrollment management
+  maxStudents?: number; // Maximum capacity
+  currentEnrollment?: number; // Current number of enrolled students
+  enrolledStudents?: string[]; // Array of student IDs
+  waitingList?: string[]; // Array of student IDs on waiting list
+  allowWaitlist?: boolean; // Whether to allow waitlist when full
+  
+  // Scheduling information
+  schedule?: string; // JSON schedule object
+  meetingDays?: string; // "Monday,Wednesday,Friday"
+  startTime?: string; // "09:00"
+  endTime?: string; // "10:30"
+  duration?: number; // Class duration in minutes
+  timezone?: string; // America/New_York
+  room?: string; // Physical or virtual room
+  
+  // Class status and settings
+  status: 'active' | 'inactive' | 'full' | 'archived';
+  enrollmentStatus: 'open' | 'closed' | 'waitlist-only';
+  type?: 'in-person' | 'online' | 'hybrid';
+  isPublic?: boolean; // Whether visible in public class listing
+  requiresApproval?: boolean; // Whether enrollment needs approval
+  isActive: boolean; // Whether class is currently active
+  
+  // Virtual class settings
+  meetingUrl?: string; // Zoom/Teams meeting URL
+  meetingId?: string; // Meeting ID
+  meetingPassword?: string; // Meeting password
+  
+  // Dates
+  startDate?: string; // Class start date
+  endDate?: string; // Class end date
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Analytics and Reporting interfaces
