@@ -3,14 +3,14 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, {
-  FadeIn,
-  FadeInDown,
-  FadeInUp,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming
+    FadeIn,
+    FadeInDown,
+    FadeInUp,
+    useAnimatedStyle,
+    useSharedValue,
+    withRepeat,
+    withSequence,
+    withTiming
 } from 'react-native-reanimated';
 import PreAuthHeader from '../../components/ui/Header';
 import Text from '../../components/ui/Typography';
@@ -497,29 +497,39 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   inputWrapper: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: airbnbColors.gray,
-    borderRadius: 8,
-    backgroundColor: airbnbColors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 16,
     height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   inputWrapperFocused: {
     borderColor: airbnbColors.charcoal,
     borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   inputWrapperError: {
     borderColor: airbnbColors.error,
-    borderWidth: 1,
+    borderWidth: 2,
   },
   textInput: {
     flex: 1,
     fontSize: 16,
     color: airbnbColors.charcoal,
     paddingVertical: 0,
-    height: '100%',
+    // Remove any default borders or outlines
+    borderWidth: 0,
+    outlineWidth: 0,
   },
   eyeButton: {
     padding: 8,

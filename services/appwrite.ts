@@ -36,6 +36,8 @@ const appwriteService = {
       return null;
     }
   }),
+  syncAuthUsersWithProfiles: authService.syncAuthUsersWithProfiles,
+  getEnhancedUserData: authService.getEnhancedUserData,
   updateUser: authService.updateUser || (async (userId, userData) => {
     try {
       // Update user in the users collection

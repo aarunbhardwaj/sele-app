@@ -119,15 +119,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const signup = async (email: string, password: string, name: string) => {
     try {
       setIsLoading(true);
+      
+      // Create account and automatically create profile
       await appwriteService.createAccount(email, password, name);
       const currentUser = await appwriteService.getCurrentUser();
       
-      // Simply redirect to tabs after signup - no admin assignment
-      router.replace('/(tabs)');
-      
-      setUser(currentUser);
-      setIsAuthenticated(true);
-      return true;
+      if (currentUser) {
+        // Ensure user profile exists
+        let userProfile = await appwriteService.getUserProfile(currentUser.$id);
+        
+        if (!userProfile) {
+          console.log('Profile not found, creating one...');
+          userProfile = await appwriteService.createUserProfile(currentUser.$id, {
+            displayName: name,
+            firstName: name.split(' ')[0] || '',
+            lastName: name.split(' ').slice(1).join(' ') || '',
+            englishLevel: 'beginner',
+            dailyGoalMinutes: 15,
+            isAdmin: false,
+            role: 'student',
+            status: 'active'
+          });
+        }
+        
+        setUser(currentUser);
+        setIsAuthenticated(true);
+        
+        // Navigate to appropriate screen
+        router.replace('/(tabs)');
+        return true;
+      } else {
+        throw new Error('Failed to retrieve user after signup');
+      }
     } catch (error: any) {
       console.error('Signup failed:', error);
       

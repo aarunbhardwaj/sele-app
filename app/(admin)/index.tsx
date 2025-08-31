@@ -219,6 +219,14 @@ export default function AdminControlCenter() {
               />
               
               <AdminFeatureCard
+                title="Staff Roster"
+                description="Assign instructors to schools and manage daily schedules"
+                icon="calendar"
+                route="/(admin)/(users)/roster"
+                color="#9333EA"
+              />
+              
+              <AdminFeatureCard
                 title="Course Management"
                 description="Create, edit, and organize courses"
                 icon="book"

@@ -1,7 +1,7 @@
 import { ID, Query } from 'appwrite';
-import { account, DATABASE_ID, databases, USERS_COLLECTION_ID, ROLES_COLLECTION_ID } from './client';
-import { User, UserProfile, Role } from '../../lib/types';
-import { withErrorHandling, AuthenticationError, AuthorizationError } from '../../lib/errors';
+import { AuthenticationError, AuthorizationError, withErrorHandling } from '../../lib/errors';
+import { Role, User, UserProfile } from '../../lib/types';
+import { account, DATABASE_ID, databases, USERS_COLLECTION_ID } from './client';
 
 const authService = {
   // Create a new account with enhanced error handling
@@ -18,13 +18,24 @@ const authService = {
         // Account creation successful, now log in
         await authService.login(email, password);
         
-        // Create initial user profile
-        await authService.createUserProfile(response.$id, {
-          displayName: name,
-          englishLevel: 'beginner',
-          dailyGoalMinutes: 15,
-          isAdmin: false,
-        });
+        // Create initial user profile with better error handling
+        try {
+          await authService.createUserProfile(response.$id, {
+            displayName: name,
+            firstName: name.split(' ')[0] || '',
+            lastName: name.split(' ').slice(1).join(' ') || '',
+            englishLevel: 'beginner',
+            dailyGoalMinutes: 15,
+            isAdmin: false,
+            role: 'student',
+            status: 'active'
+          });
+          console.log('User profile created successfully for:', response.$id);
+        } catch (profileError) {
+          console.error('Failed to create user profile:', profileError);
+          // Don't throw here - user account was created successfully
+          // Profile creation can be retried later
+        }
         
         return response;
       } else {
@@ -122,34 +133,22 @@ const authService = {
         ID.unique(),
         {
           userId: userId,
-          firstName: userData.firstName || '',
-          lastName: userData.lastName || '',
           displayName: userData.displayName || '',
-          profilePicture: userData.profilePicture || '',
-          bio: userData.bio || '',
-          languagePreference: userData.languagePreference || 'en',
-          experienceLevel: userData.experienceLevel || 'beginner',
+          email: userData.email || '',
+          profileImage: userData.profileImage || '',
+          nativeLanguage: userData.nativeLanguage || 'English',
+          englishLevel: userData.englishLevel || 'beginner',
+          learningGoal: userData.learningGoal || 'Improve my English skills',
           dailyGoalMinutes: userData.dailyGoalMinutes || 15,
           isAdmin: userData.isAdmin || false,
-          schoolId: userData.schoolId || null,
-          role: userData.role || 'student',
+          roles: userData.roles || '',
+          isInstructor: userData.isInstructor || false,
           joinedDate: new Date().toISOString(),
           lastActive: new Date().toISOString(),
-          preferences: {
-            notifications: {
-              email: true,
-              push: true,
-              reminders: true
-            },
-            privacy: {
-              profileVisibility: 'public',
-              showProgress: true
-            },
-            learning: {
-              dailyGoal: userData.dailyGoalMinutes || 15,
-              difficultyPreference: 'adaptive'
-            }
-          }
+          updatedAt: new Date().toISOString(),
+          phone: userData.phone || null,
+          location: userData.location || '',
+          bio: userData.bio || ''
         }
       );
     }, 'AuthService.createUserProfile');
@@ -281,6 +280,89 @@ const authService = {
         );
       }
     }, 'AuthService.deleteUserAccount');
+  },
+
+  // Sync auth users with missing profiles (admin utility)
+  syncAuthUsersWithProfiles: async () => {
+    return withErrorHandling(async () => {
+      console.log('Starting comprehensive user profile sync...');
+      let createdProfiles = 0;
+      
+      try {
+        // Get all existing profiles first
+        const existingProfilesResponse = await databases.listDocuments(
+          DATABASE_ID,
+          USERS_COLLECTION_ID,
+          [Query.limit(100)] // Adjust limit as needed
+        );
+        
+        const existingUserIds = existingProfilesResponse.documents.map(
+          (profile: any) => profile.userId
+        );
+        
+        console.log(`Found ${existingUserIds.length} existing profiles`);
+        
+        // Get current user to ensure they have a profile
+        const currentUser = await account.get();
+        if (currentUser && !existingUserIds.includes(currentUser.$id)) {
+          console.log('Creating missing profile for current user:', currentUser.$id);
+          await authService.createUserProfile(currentUser.$id, {
+            displayName: currentUser.name || 'User',
+            firstName: currentUser.name?.split(' ')[0] || '',
+            lastName: currentUser.name?.split(' ').slice(1).join(' ') || '',
+            englishLevel: 'beginner',
+            dailyGoalMinutes: 15,
+            isAdmin: false,
+            role: 'student',
+            status: 'active'
+          });
+          createdProfiles++;
+        }
+        
+        return { 
+          created: createdProfiles, 
+          message: `Profile sync completed. Created ${createdProfiles} profiles.`,
+          existingProfiles: existingUserIds.length 
+        };
+        
+      } catch (error) {
+        console.error('Error during profile sync:', error);
+        return { 
+          created: createdProfiles, 
+          message: `Sync completed with errors. Created ${createdProfiles} profiles.`,
+          error: error.message 
+        };
+      }
+    }, 'AuthService.syncAuthUsersWithProfiles');
+  },
+
+  // Get enhanced user data combining auth and profile
+  getEnhancedUserData: async (userId: string) => {
+    return withErrorHandling(async () => {
+      const profile = await authService.getUserProfile(userId);
+      
+      if (!profile) {
+        // If no profile exists, try to create one for the current user
+        const currentUser = await account.get();
+        if (currentUser && currentUser.$id === userId) {
+          console.log('Creating missing profile for current user during data fetch');
+          const newProfile = await authService.createUserProfile(userId, {
+            displayName: currentUser.name || 'User',
+            firstName: currentUser.name?.split(' ')[0] || '',
+            lastName: currentUser.name?.split(' ').slice(1).join(' ') || '',
+            englishLevel: 'beginner',
+            dailyGoalMinutes: 15,
+            isAdmin: false,
+            role: 'student',
+            status: 'active'
+          });
+          return newProfile;
+        }
+        return null;
+      }
+      
+      return profile;
+    }, 'AuthService.getEnhancedUserData', null);
   },
 };
 

@@ -29,6 +29,11 @@ export interface UserProfile extends BaseDocument {
   schoolId?: string;
   role?: string;
   preferences?: UserPreferences;
+  // Added fields used by admin users screen and auth service helpers
+  displayName?: string; // shown name
+  phone?: string; // contact phone
+  status?: 'active' | 'inactive' | 'suspended'; // account status for moderation
+  lastActive?: string; // timestamp of last activity
 }
 
 export interface UserPreferences {
