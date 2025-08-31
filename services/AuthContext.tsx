@@ -13,6 +13,8 @@ type AuthContextType = {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
+  isInstructor: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (email: string, password: string, name: string) => Promise<boolean>;
   logout: () => Promise<void>;
@@ -27,6 +29,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isInstructor, setIsInstructor] = useState(false);
   const router = useRouter();
 
   // Check if user is already logged in
@@ -43,14 +47,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (currentUser) {
         setUser(currentUser);
         setIsAuthenticated(true);
+        try {
+          const profile = await appwriteService.getUserProfile(currentUser.$id);
+          setIsAdmin(!!profile?.isAdmin);
+          setIsInstructor(!!(profile?.role === 'instructor' || profile?.isInstructor));
+        } catch(_) { // ignore profile fetch errors
+          setIsAdmin(false);
+          setIsInstructor(false);
+        }
       } else {
         setUser(null);
         setIsAuthenticated(false);
+        setIsAdmin(false);
+        setIsInstructor(false);
       }
     } catch (error) {
       console.error('Failed to get current user:', error);
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
+      setIsInstructor(false);
     } finally {
       setIsLoading(false);
     }
@@ -83,12 +99,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           
           // Store admin status in global state
           const isAdmin = userProfile && userProfile.isAdmin === true;
+          const isInstructor = !!(userProfile && (userProfile.role === 'instructor' || userProfile.isInstructor === true));
+          setIsAdmin(!!isAdmin);
+          setIsInstructor(!!isInstructor);
           
           // Use setTimeout to avoid React state update issues
           setTimeout(() => {
             if (isAdmin) {
               console.log('Detected admin user - redirecting to admin area');
               router.replace('/(admin)');
+            } else if (isInstructor) {
+              console.log('Detected instructor user - redirecting to instructor dashboard');
+              router.replace('/(instructor)');
             } else {
               console.log('Standard user - redirecting to app');
               router.replace('/(tabs)');
@@ -130,20 +152,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         
         if (!userProfile) {
           console.log('Profile not found, creating one...');
-          userProfile = await appwriteService.createUserProfile(currentUser.$id, {
+          const created = await appwriteService.createUserProfile(currentUser.$id, {
             displayName: name,
             firstName: name.split(' ')[0] || '',
             lastName: name.split(' ').slice(1).join(' ') || '',
-            englishLevel: 'beginner',
-            dailyGoalMinutes: 15,
+            experienceLevel: 'beginner',
             isAdmin: false,
             role: 'student',
             status: 'active'
           });
+          userProfile = (created as any) || null;
         }
         
         setUser(currentUser);
         setIsAuthenticated(true);
+        setIsAdmin(false);
+        setIsInstructor(false);
         
         // Navigate to appropriate screen
         router.replace('/(tabs)');
@@ -185,6 +209,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Clear authentication state first
       setUser(null);
       setIsAuthenticated(false);
+      setIsAdmin(false);
+      setIsInstructor(false);
       
       // Use setTimeout to avoid React state update issues during navigation
       setTimeout(() => {
@@ -220,6 +246,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     user,
     isLoading,
     isAuthenticated,
+    isAdmin,
+    isInstructor,
     login,
     signup,
     logout,

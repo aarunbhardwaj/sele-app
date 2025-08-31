@@ -2,11 +2,11 @@ import { Stack } from "expo-router";
 import React from "react";
 import { Text, View } from "react-native";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider, useAuth } from "../services/AuthContext";
-import { LearningProgressProvider } from "../services/LearningProgressContext";
-import ErrorBoundary from '../components/ui/ErrorBoundary';
+import { ErrorBoundary } from '../components/ui/ErrorBoundary';
 import { ErrorHandler } from '../lib/errors';
 import { showError } from '../lib/toast';
+import { AuthProvider, useAuth } from "../services/AuthContext";
+import { LearningProgressProvider } from "../services/LearningProgressContext";
 import './globals.css'; // Import global styles
 
 // Root layout component that uses our AuthProvider
@@ -80,6 +80,14 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="(admin)"
+        options={{
+          headerShown: false,
+          gestureEnabled: true,
+        }}
+        redirect={!isAuthenticated}
+      />
+      <Stack.Screen
+        name="(instructor)"
         options={{
           headerShown: false,
           gestureEnabled: true,

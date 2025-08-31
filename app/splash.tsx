@@ -77,7 +77,7 @@ const loadingTexts = [
 ];
 
 export default function SplashScreen() {
-  const { isLoading, isAuthenticated } = useAuth();
+  const { isLoading, isAuthenticated, isAdmin, isInstructor, user } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const hasNavigated = useRef(false);
@@ -214,7 +214,17 @@ export default function SplashScreen() {
         setTimeout(() => {
           try {
             if (isAuthenticated) {
-              router.replace('/(tabs)');
+              // Role-based redirect for authenticated users
+              if (isAdmin) {
+                console.log('Splash: Redirecting admin to admin dashboard');
+                router.replace('/(admin)');
+              } else if (isInstructor) {
+                console.log('Splash: Redirecting instructor to instructor dashboard');
+                router.replace('/(instructor)');
+              } else {
+                console.log('Splash: Redirecting student to main app');
+                router.replace('/(tabs)');
+              }
             } else {
               router.replace('/(pre-auth)');
             }
@@ -235,12 +245,12 @@ export default function SplashScreen() {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, isAuthenticated, router]);
+  }, [isLoading, isAuthenticated, isAdmin, isInstructor, router]);
 
   // Reset navigation flag when auth state changes
   useEffect(() => {
     hasNavigated.current = false;
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAdmin, isInstructor]);
 
   return (
     <View style={styles.container}>

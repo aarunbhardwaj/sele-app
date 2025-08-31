@@ -25,7 +25,9 @@ export interface UserProfile extends BaseDocument {
   languagePreference?: string;
   learningGoals?: string[];
   experienceLevel?: 'beginner' | 'intermediate' | 'advanced';
+  englishLevel?: string; // added to align with profile creation
   isAdmin?: boolean;
+  isInstructor?: boolean; // added to detect instructor role
   schoolId?: string;
   role?: string;
   preferences?: UserPreferences;

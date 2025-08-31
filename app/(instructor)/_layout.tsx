@@ -2,27 +2,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View
+    ActivityIndicator,
+    StyleSheet,
+    Text,
+    View
 } from 'react-native';
-import { colors } from '../../components/ui/theme';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
 
-// Airbnb-inspired color palette (matching the main tabs)
-const airbnbColors = {
-  // Primary Airbnb colors
-  primary: '#FF5A5F',        // Airbnb's signature coral/red
-  primaryDark: '#E8484D',    // Darker variant
-  primaryLight: '#FFE8E9',   // Light coral background
+// Instructor-specific color palette
+const instructorColors = {
+  primary: '#00A699',        // Teal - more professional for instructors
+  primaryDark: '#008B7D',    
+  primaryLight: '#E0F7F5',   
   
-  // Secondary colors
-  secondary: '#00A699',      // Teal for accents
-  secondaryLight: '#E0F7F5', // Light teal background
+  secondary: '#FF5A5F',      // Coral accent
+  secondaryLight: '#FFE8E9', 
   
-  // Neutral palette (very Airbnb-esque)
   white: '#FFFFFF',
   offWhite: '#FAFAFA',
   lightGray: '#F7F7F7',
@@ -32,20 +28,19 @@ const airbnbColors = {
   charcoal: '#484848',
   black: '#222222',
   
-  // Status colors
   success: '#00A699',
   warning: '#FC642D',
   error: '#C13515',
 };
 
-export default function AdminLayout() {
-  const { user, isAuthenticated, isAdmin, isInstructor } = useAuth();
+export default function InstructorLayout() {
+  const { user, isAuthenticated, isInstructor } = useAuth();
   const router = useRouter();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
-  // Check admin/instructor access with proper error handling
+  // Check instructor access
   const checkAccess = useCallback(async () => {
     if (!user || !isAuthenticated) {
       setHasAccess(false);
@@ -57,20 +52,19 @@ export default function AdminLayout() {
     try {
       setCheckingAccess(true);
       const userData = await appwriteService.getUserProfile(user.$id);
-      const hasAdminRole = userData?.role === 'Admin' || userData?.isAdmin === true;
+      const hasInstructorRole = userData?.role === 'instructor' || userData?.isInstructor === true;
       
-      setHasAccess(hasAdminRole);
+      setHasAccess(hasInstructorRole);
       
-      if (!hasAdminRole) {
-        // Only admins should access admin area - redirect others
+      if (!hasInstructorRole) {
+        // Non-instructor users should be redirected
         setTimeout(() => {
           router.replace('/(tabs)');
         }, 100);
       }
     } catch (error) {
-      console.error('Error checking access:', error);
+      console.error('Error checking instructor access:', error);
       setHasAccess(false);
-      // Redirect on error
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 100);
@@ -95,8 +89,8 @@ export default function AdminLayout() {
   if (isLoading || checkingAccess) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={airbnbColors.primary} />
-        <Text style={styles.loadingText}>Loading admin panel...</Text>
+        <ActivityIndicator size="large" color={instructorColors.primary} />
+        <Text style={styles.loadingText}>Loading instructor dashboard...</Text>
       </View>
     );
   }
@@ -109,28 +103,26 @@ export default function AdminLayout() {
     );
   }
 
-  // Using Tabs instead of Stack to show bottom navigation
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: styles.tabBar,
-        tabBarActiveTintColor: airbnbColors.primary,
-        tabBarInactiveTintColor: airbnbColors.mediumGray,
+        tabBarActiveTintColor: instructorColors.primary,
+        tabBarInactiveTintColor: instructorColors.mediumGray,
         tabBarShowLabel: true,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
       }}
     >
-      {/* Main visible tabs - these will show in the bottom tab bar */}
       <Tabs.Screen 
         name="index" 
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
-              name={focused ? 'grid' : 'grid-outline'} 
-              color={focused ? airbnbColors.primary : airbnbColors.mediumGray} 
+              name={focused ? 'speedometer' : 'speedometer-outline'} 
+              color={focused ? instructorColors.primary : instructorColors.mediumGray} 
               focused={focused} 
             />
           ),
@@ -140,11 +132,11 @@ export default function AdminLayout() {
       <Tabs.Screen 
         name="(courses)" 
         options={{
-          title: 'Courses',
-          tabBarIcon: ({ color, focused }) => (
+          title: 'My Courses',
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'book' : 'book-outline'} 
-              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              color={focused ? instructorColors.primary : instructorColors.mediumGray}
               focused={focused} 
             />
           ),
@@ -152,65 +144,31 @@ export default function AdminLayout() {
       />
       
       <Tabs.Screen 
-        name="(users)" 
+        name="(students)" 
         options={{
-          title: 'Users',
-          tabBarIcon: ({ color, focused }) => (
+          title: 'Students',
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'people' : 'people-outline'} 
-              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
+              color={focused ? instructorColors.primary : instructorColors.mediumGray}
               focused={focused} 
             />
           ),
         }}
       />
       
-      <Tabs.Screen 
-        name="(schools)" 
-        options={{
-          title: 'Schools',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon 
-              name={focused ? 'school' : 'school-outline'} 
-              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
-              focused={focused} 
-            />
-          ),
-        }}
-      />
-      
-      <Tabs.Screen 
-        name="(quiz)" 
-        options={{
-          title: 'Quizzes',
-          tabBarIcon: ({ color, focused }) => (
-            <TabBarIcon 
-              name={focused ? 'help-circle' : 'help-circle-outline'} 
-              color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
-              focused={focused} 
-            />
-          ),
-        }}
-      />
-      
-      {/* Hidden screens - these won't appear in the tab bar but are still navigable */}
-      <Tabs.Screen 
-        name="(dashboard)" 
-        options={{ 
-          href: null // This completely hides it from the tab bar
-        }} 
-      />
-      <Tabs.Screen 
-        name="(analytics)" 
-        options={{ 
-          href: null // This completely hides it from the tab bar
-        }} 
-      />
       <Tabs.Screen 
         name="(classes)" 
-        options={{ 
-          href: null // This completely hides it from the tab bar
-        }} 
+        options={{
+          title: 'Classes',
+          tabBarIcon: ({ focused }) => (
+            <TabBarIcon 
+              name={focused ? 'calendar' : 'calendar-outline'} 
+              color={focused ? instructorColors.primary : instructorColors.mediumGray}
+              focused={focused} 
+            />
+          ),
+        }}
       />
     </Tabs>
   );
@@ -230,7 +188,7 @@ function TabBarIcon({ name, color, focused }: { name: any; color: string; focuse
         <Ionicons 
           name={name} 
           size={focused ? 24 : 22} 
-          color={focused ? airbnbColors.white : color} 
+          color={focused ? instructorColors.white : color} 
         />
       </View>
     </View>
@@ -242,38 +200,36 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral.white,
+    backgroundColor: instructorColors.white,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: colors.neutral.darkGray,
+    color: instructorColors.darkGray,
   },
   tabBar: {
     backgroundColor: 'rgba(255, 255, 255, 0.98)',
     borderTopWidth: 0,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    height: 85, // Increased for better spacing
-    paddingHorizontal: 16, // Increased for better spacing
+    height: 85,
+    paddingHorizontal: 16,
     paddingTop: 10,
-    paddingBottom: 22, // Increased bottom padding
+    paddingBottom: 22,
     position: 'absolute',
-    // Enhanced shadow for better separation from background
-    shadowColor: airbnbColors.black,
+    shadowColor: instructorColors.black,
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 20,
-    // Stronger border for definition
     borderWidth: 0.5,
-    borderColor: airbnbColors.lightGray,
+    borderColor: instructorColors.lightGray,
     borderBottomWidth: 0,
   },
   tabBarLabel: {
     fontSize: 10,
     fontWeight: '600',
-    marginTop: 6, // Increased for better spacing
+    marginTop: 6,
     marginBottom: 0,
     letterSpacing: 0.1,
     textAlign: 'center',
@@ -284,23 +240,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6, // Increased for better touch area
-    paddingHorizontal: 4, // Increased for better spacing
-    minHeight: 60, // Increased minimum height
-    maxWidth: '20%', // Ensure equal distribution across 5 tabs
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    minHeight: 60,
+    maxWidth: '25%',
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: 2, // Small margin for better spacing
+    marginBottom: 2,
   },
   iconContainerActive: {
-    transform: [{ scale: 1.08 }], // Slightly increased for better visual feedback
+    transform: [{ scale: 1.08 }],
   },
   iconWrapper: {
-    width: 36, // Increased for better touch area
-    height: 36, // Increased for better touch area
+    width: 36,
+    height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
@@ -309,14 +265,14 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   iconWrapperActive: {
-    backgroundColor: airbnbColors.primary,
-    shadowColor: airbnbColors.primary,
+    backgroundColor: instructorColors.primary,
+    shadowColor: instructorColors.primary,
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.35,
     shadowRadius: 6,
     elevation: 6,
     borderWidth: 1,
-    borderColor: airbnbColors.primaryLight,
+    borderColor: instructorColors.primaryLight,
     transform: [{ scale: 1.0 }],
   },
 });

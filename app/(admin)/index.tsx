@@ -3,7 +3,7 @@ import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
-import Text from '../../components/ui/Typography';
+import { Text } from '../../components/ui/Typography';
 import PreAuthHeader from '../../components/ui2/pre-auth-header';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
@@ -56,7 +56,7 @@ const AdminFeatureCard = ({
         const fixedRoute = route.endsWith('/index') 
           ? route.substring(0, route.length - 6) 
           : route;
-        router.push(fixedRoute);
+        router.push(fixedRoute as any);
       }}
     >
       <View style={styles.featureCardContent}>
@@ -80,16 +80,22 @@ const AdminFeatureCard = ({
 
 // Main Component
 export default function AdminControlCenter() {
-  const { user, logout } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
+  // Removed unused router instance; each feature card handles its own routing
   const [loading, setLoading] = useState(true);
   
-  // Stats data state
-  const [stats, setStats] = useState([
-    { number: 2, label: 'Roles', icon: 'key' },
-    { number: 5, label: 'Users', icon: 'people' },
-    { number: 12, label: 'Courses', icon: 'book' }
-  ]);
+  // Replace simplistic stats with rich dashboard data
+  const [dashboardData, setDashboardData] = useState({
+    totalUsers: 0,
+    students: 0,
+    instructors: 0,
+    admins: 0,
+    activeUsers: 0,
+    totalCourses: 0,
+    totalQuizzes: 0,
+    totalSchools: 0,
+    totalRoles: 0,
+  });
 
   useEffect(() => {
     loadDashboardData();
@@ -98,30 +104,50 @@ export default function AdminControlCenter() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Get users
-      const users = await appwriteService.getAllUsers();
-      const totalUsers = users.length;
-      
-      // Get courses
-      const courses = await appwriteService.getAllCourses();
-      const totalCourses = courses.length;
-      
-      // Get roles (if possible)
-      let totalRoles = 2; // Default value
-      try {
-        const roles = await appwriteService.getAllRoles();
-        totalRoles = roles.length;
-      } catch (error) {
-        console.log("Couldn't load roles, using default value");
-      }
-
-      // Update the stat cards with real data
-      setStats([
-        { number: totalRoles, label: 'Roles', icon: 'key' },
-        { number: totalUsers, label: 'Users', icon: 'people' },
-        { number: totalCourses, label: 'Courses', icon: 'book' }
+      // Load core datasets concurrently where possible
+      const [usersResp, coursesResp, quizzesResp, schoolsResp, rolesResp] = await Promise.all([
+        appwriteService.getAllUsers().catch(e => { console.log('Users load error', e); return null; }),
+        appwriteService.getAllCourses().catch(e => { console.log('Courses load error', e); return []; }),
+        appwriteService.getAllQuizzes?.().catch(e => { console.log('Quizzes load error', e); return []; }),
+        appwriteService.getAllSchools?.().catch(e => { console.log('Schools load error', e); return []; }),
+        appwriteService.getAllRoles?.().catch(e => { console.log('Roles load error', e); return []; }),
       ]);
+
+      // Normalize users response to a plain array
+      const rawUsers: any[] = Array.isArray(usersResp?.users)
+        ? usersResp.users
+        : Array.isArray(usersResp)
+          ? usersResp
+          : [];
+
+      const totalUsers = rawUsers.length;
+
+      // New role counting logic: only three roles (admin, instructor, student)
+      const admins = rawUsers.filter(u => u?.isAdmin === true).length;
+      const instructors = rawUsers.filter(u => !u?.isAdmin && (u?.isInstructor === true || u?.role === 'instructor')).length;
+      const students = Math.max(0, totalUsers - admins - instructors);
+
+      const activeUsers = rawUsers.filter(u => (u?.status || 'active') === 'active').length;
+
+      // Normalize counts for other collections (support Appwrite DocumentList or arrays)
+      const getCount = (res: any): number => {
+        if (!res) return 0;
+        if (Array.isArray(res)) return res.length;
+        if (Array.isArray(res?.documents)) return res.documents.length;
+        return 0;
+      };
+
+      setDashboardData({
+        totalUsers,
+        students,
+        instructors,
+        admins,
+        activeUsers,
+        totalCourses: getCount(coursesResp),
+        totalQuizzes: getCount(quizzesResp),
+        totalSchools: getCount(schoolsResp),
+        totalRoles: getCount(rolesResp),
+      });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
@@ -129,13 +155,7 @@ export default function AdminControlCenter() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await logout();
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
-  };
+  // (Optional) logout handler kept for future use
 
   // Display loading indicator
   if (loading) {
@@ -147,14 +167,37 @@ export default function AdminControlCenter() {
     );
   }
 
+  // Prepare stats list for rendering (ordered)
+  const statsList = [
+    { number: dashboardData.totalUsers, label: 'Users', icon: 'people' as const },
+    { number: dashboardData.activeUsers, label: 'Active', icon: 'flash' as const },
+    { number: dashboardData.students, label: 'Students', icon: 'school' as const },
+    { number: dashboardData.instructors, label: 'Instructors', icon: 'easel' as const },
+    { number: dashboardData.admins, label: 'Admins', icon: 'shield-checkmark' as const },
+    { number: dashboardData.totalRoles, label: 'Roles', icon: 'key' as const },
+    { number: dashboardData.totalSchools, label: 'Schools', icon: 'business' as const },
+  ];
+
+  // Roles distribution for visualization (exclude zero counts automatically)
+  const distributionRaw = [
+    { label: 'Students', value: dashboardData.students, color: airbnbColors.primary },
+    { label: 'Instructors', value: dashboardData.instructors, color: airbnbColors.secondary },
+    { label: 'Admins', value: dashboardData.admins, color: airbnbColors.warning },
+  ];
+  const totalDist = distributionRaw.reduce((a, b) => a + b.value, 0) || 1;
+  const rolesDistribution = distributionRaw
+    .filter(d => d.value > 0)
+    .map(d => ({ ...d, pct: Math.round((d.value / totalDist) * 100) }));
+
   return (
     <View style={styles.container}>
       <PreAuthHeader 
         title="Admin Control Center"
         showNotifications={true}
-        showRefresh={false}
+        showRefresh={true}
         showLogout={true}
         onNotificationPress={() => console.log('Admin notifications')}
+        onRefreshPress={loadDashboardData}
       />
       
       <ScrollView 
@@ -172,7 +215,7 @@ export default function AdminControlCenter() {
               <View style={styles.welcomeContent}>
                 <Text style={styles.welcomeTitle}>Welcome back!</Text>
                 <Text style={styles.welcomeSubtitle}>
-                  Hello, {user?.name || 'Admin'}. Here's what's happening with your platform today.
+                  Hello, {user?.name || 'Admin'}. Here&apos;s what&apos;s happening with your platform today.
                 </Text>
               </View>
               <View style={styles.adminBadgeContainer}>
@@ -184,22 +227,45 @@ export default function AdminControlCenter() {
             </View>
           </Animated.View>
 
-          {/* Stats Section */}
+          {/* Core Platform Stats */}
           <Animated.View 
             entering={FadeInUp.delay(200).duration(600)}
             style={styles.statsSection}
           >
-            <Text style={styles.sectionTitle}>Overview</Text>
-            <View style={styles.statsGrid}>
-              {stats.map((stat, index) => (
-                <View key={index} style={styles.statCard}>
-                  <View style={[styles.statIconContainer, { backgroundColor: airbnbColors.primary + '15' }]}>
-                    <Ionicons name={stat.icon} size={20} color={airbnbColors.primary} />
+            <Text style={styles.sectionTitle}>Key Metrics</Text>
+            <View style={styles.statsGridEnhanced}>
+              {statsList.map((stat, index) => (
+                <View key={index} style={styles.statCardEnhanced}>
+                  <View style={[styles.statIconContainer, { backgroundColor: airbnbColors.primary + '15' }]}> 
+                    <Ionicons name={stat.icon} size={18} color={airbnbColors.primary} />
                   </View>
                   <Text style={styles.statNumber}>{stat.number}</Text>
                   <Text style={styles.statLabel}>{stat.label}</Text>
                 </View>
               ))}
+            </View>
+          </Animated.View>
+
+          {/* Roles Overview Distribution */}
+          <Animated.View 
+            entering={FadeInUp.delay(250).duration(600)}
+            style={styles.sectionContainer}
+          >
+            <Text style={styles.sectionTitle}>Roles Overview</Text>
+            <View style={styles.rolesCard}>
+              {rolesDistribution.map((r, idx) => (
+                <View key={idx} style={styles.roleRow}>
+                  <View style={[styles.roleColorDot, { backgroundColor: r.color }]} />
+                  <Text style={styles.roleLabel}>{r.label}</Text>
+                  <View style={styles.roleBarTrack}>
+                    <View style={[styles.roleBarFill, { backgroundColor: r.color, width: (r.pct + '%') as any }]} />
+                  </View>
+                  <Text style={styles.rolePct}>{r.pct}%</Text>
+                </View>
+              ))}
+              {rolesDistribution.length === 0 && (
+                <Text style={styles.emptyText}>No role data available</Text>
+              )}
             </View>
           </Animated.View>
 
@@ -216,114 +282,26 @@ export default function AdminControlCenter() {
                 icon="people"
                 route="/(admin)/(users)/index"
                 color={airbnbColors.secondary}
+                badge={dashboardData.totalUsers}
               />
               
               <AdminFeatureCard
-                title="Staff Roster"
-                description="Assign instructors to schools and manage daily schedules"
-                icon="calendar"
-                route="/(admin)/(users)/roster"
-                color="#9333EA"
-              />
-              
-              <AdminFeatureCard
-                title="Course Management"
-                description="Create, edit, and organize courses"
-                icon="book"
-                route="/(admin)/(courses)/index"
+                title="Roles Management"
+                description="Create & assign platform roles"
+                icon="key"
+                route="/(admin)/(users)/roles"
                 color={airbnbColors.warning}
+                badge={dashboardData.totalRoles}
               />
-              
+
               <AdminFeatureCard
-                title="School Management"
-                description="Manage school partnerships and settings"
+                title="Schools Management"
+                description="Manage school partners"
                 icon="school"
                 route="/(admin)/(schools)/index"
                 color={airbnbColors.success}
+                badge={dashboardData.totalSchools}
               />
-            </View>
-          </Animated.View>
-
-          {/* Content & Assessment Section */}
-          <Animated.View 
-            entering={FadeInUp.delay(400).duration(600)}
-            style={styles.sectionContainer}
-          >
-            <Text style={styles.sectionTitle}>Content & Assessment</Text>
-            <View style={styles.menuCard}>
-              <AdminFeatureCard
-                title="Quiz Management"
-                description="Create and manage language assessments"
-                icon="help-circle"
-                route="/(admin)/(quiz)/index"
-                color="#EC4899"
-              />
-              
-              <AdminFeatureCard
-                title="Class Management"
-                description="Schedule and monitor live classes"
-                icon="videocam"
-                route="/(admin)/(classes)/index"
-                color="#8B5CF6"
-              />
-            </View>
-          </Animated.View>
-
-          {/* Analytics Section */}
-          <Animated.View 
-            entering={FadeInUp.delay(500).duration(600)}
-            style={styles.sectionContainer}
-          >
-            <Text style={styles.sectionTitle}>Analytics & Insights</Text>
-            <View style={styles.menuCard}>
-              <AdminFeatureCard
-                title="System Analytics"
-                description="View comprehensive platform insights"
-                icon="analytics"
-                route="/(admin)/(analytics)/index"
-                color="#0EA5E9"
-              />
-              
-              <AdminFeatureCard
-                title="Dashboard Analytics"
-                description="Real-time metrics and performance data"
-                icon="bar-chart"
-                route="/(admin)/(dashboard)/index"
-                color="#10B981"
-              />
-            </View>
-          </Animated.View>
-
-          {/* Recent Activity */}
-          <Animated.View 
-            entering={FadeInUp.delay(600).duration(600)}
-            style={styles.sectionContainer}
-          >
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <View style={styles.activityCard}>
-              <View style={styles.activityItem}>
-                <View style={[styles.activityDot, { backgroundColor: airbnbColors.success }]} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>New user registered</Text>
-                  <Text style={styles.activityTime}>Today, 2:30 PM</Text>
-                </View>
-              </View>
-              
-              <View style={styles.activityItem}>
-                <View style={[styles.activityDot, { backgroundColor: airbnbColors.warning }]} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>Course "React Basics" published</Text>
-                  <Text style={styles.activityTime}>Yesterday, 10:15 AM</Text>
-                </View>
-              </View>
-
-              <View style={styles.activityItem}>
-                <View style={[styles.activityDot, { backgroundColor: airbnbColors.primary }]} />
-                <View style={styles.activityContent}>
-                  <Text style={styles.activityText}>New quiz created</Text>
-                  <Text style={styles.activityTime}>2 days ago, 4:45 PM</Text>
-                </View>
-              </View>
             </View>
           </Animated.View>
         </View>
@@ -421,6 +399,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
   },
+  statsGridEnhanced: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
   statCard: {
     flex: 1,
     backgroundColor: airbnbColors.white,
@@ -432,6 +415,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 4,
     elevation: 1,
+  },
+  statCardEnhanced: {
+    width: '47%',
+    backgroundColor: airbnbColors.white,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 8,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+    alignItems: 'flex-start',
   },
   statIconContainer: {
     width: 36,
@@ -452,6 +448,60 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: airbnbColors.darkGray,
     textAlign: 'center',
+  },
+
+  // Roles distribution styles
+  rolesCard: {
+    backgroundColor: airbnbColors.white,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: airbnbColors.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  roleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  roleColorDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8,
+  },
+  roleLabel: {
+    width: 90,
+    fontSize: 14,
+    fontWeight: '500',
+    color: airbnbColors.charcoal,
+  },
+  roleBarTrack: {
+    flex: 1,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: airbnbColors.lightGray,
+    overflow: 'hidden',
+    marginHorizontal: 8,
+  },
+  roleBarFill: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  rolePct: {
+    width: 42,
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'right',
+    color: airbnbColors.darkGray,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: airbnbColors.darkGray,
+    textAlign: 'center',
+    marginTop: 8,
   },
 
   // Menu Sections
@@ -527,45 +577,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   cardDescription: {
-    fontSize: 14,
-    color: airbnbColors.darkGray,
-  },
-
-  // Activity Section
-  activityCard: {
-    backgroundColor: airbnbColors.white,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: airbnbColors.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  activityItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: airbnbColors.lightGray,
-  },
-  activityDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 16,
-    marginTop: 4,
-  },
-  activityContent: {
-    flex: 1,
-  },
-  activityText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: airbnbColors.charcoal,
-    marginBottom: 2,
-  },
-  activityTime: {
     fontSize: 14,
     color: airbnbColors.darkGray,
   },
