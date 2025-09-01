@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Alert, Image, Platform, SafeAreaView, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, Platform, StatusBar, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/AuthContext';
 import Text from '../ui/Typography';
 
@@ -71,6 +72,7 @@ export default function PreAuthHeader({
 }: PreAuthHeaderProps) {
   const router = useRouter();
   const { logout } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const handleNotificationPress = () => {
     if (onNotificationPress) {
@@ -191,61 +193,63 @@ export default function PreAuthHeader({
   };
   
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <>
       <StatusBar 
         barStyle="dark-content" 
         backgroundColor={airbnbColors.white} 
         translucent={false}
       />
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          {/* Left section with back button, custom icon, or logo */}
-          <View style={styles.leftSection}>
-            {showBackButton || leftIcon ? (
-              <TouchableOpacity 
-                onPress={handleBackPress} 
-                style={styles.backButton}
-                accessible={true}
-                accessibilityLabel="Go back"
-                accessibilityRole="button"
-              >
-                <View style={styles.backButtonContainer}>
-                  {leftIcon || <Ionicons name="arrow-back" size={20} color={airbnbColors.charcoal} />}
-                </View>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/images/app-logo.png')}
-                  style={styles.logoImage}
-                  resizeMode="contain"
+      <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <View style={styles.headerContent}>
+            {/* Left section with back button, custom icon, or logo */}
+            <View style={styles.leftSection}>
+              {showBackButton || leftIcon ? (
+                <TouchableOpacity 
+                  onPress={handleBackPress} 
+                  style={styles.backButton}
                   accessible={true}
-                  accessibilityLabel="App logo"
-                />
-              </View>
-            )}
-          </View>
-          
-          {/* Center section with title */}
-          <View style={styles.centerSection}>
-            {title && (
-              <View style={styles.titleContainer}>
-                <Text style={styles.headerTitle}>{title}</Text>
-                {subtitle && (
-                  <Text style={styles.headerSubtitle}>{subtitle}</Text>
-                )}
-              </View>
-            )}
-            {children}
-          </View>
-          
-          {/* Right section with actions */}
-          <View style={styles.rightSection}>
-            {renderRightActions()}
+                  accessibilityLabel="Go back"
+                  accessibilityRole="button"
+                >
+                  <View style={styles.backButtonContainer}>
+                    {leftIcon || <Ionicons name="arrow-back" size={20} color={airbnbColors.charcoal} />}
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                <View style={styles.logoContainer}>
+                  <Image
+                    source={require('../../assets/images/app-logo.png')}
+                    style={styles.logoImage}
+                    resizeMode="contain"
+                    accessible={true}
+                    accessibilityLabel="App logo"
+                  />
+                </View>
+              )}
+            </View>
+            
+            {/* Center section with title */}
+            <View style={styles.centerSection}>
+              {title && (
+                <View style={styles.titleContainer}>
+                  <Text style={styles.headerTitle}>{title}</Text>
+                  {subtitle && (
+                    <Text style={styles.headerSubtitle}>{subtitle}</Text>
+                  )}
+                </View>
+              )}
+              {children}
+            </View>
+            
+            {/* Right section with actions */}
+            <View style={styles.rightSection}>
+              {renderRightActions()}
+            </View>
           </View>
         </View>
       </View>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -267,6 +271,7 @@ const styles = StyleSheet.create({
     // Clean bottom border
     borderBottomWidth: 1,
     borderBottomColor: airbnbColors.lightGray,
+    zIndex: 1000,
   },
   headerContent: {
     flexDirection: 'row',

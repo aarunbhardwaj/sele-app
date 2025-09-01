@@ -1,7 +1,7 @@
 import { Stack } from 'expo-router';
 import React from 'react';
 
-export default function StudentsLayout() {
+export default function ClassesLayout() {
   return (
     <Stack
       screenOptions={{
@@ -9,6 +9,7 @@ export default function StudentsLayout() {
       }}
     >
       <Stack.Screen name="index" />
+      <Stack.Screen name="[id]" />
     </Stack>
   );
 }
