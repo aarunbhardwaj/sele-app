@@ -1,10 +1,10 @@
 import { ID } from 'appwrite';
 import * as FileSystem from 'expo-file-system';
-import client, { account, storage, STORAGE_BUCKET_ID } from './client';
+import { account, client, storage, STORAGE_BUCKET_ID } from './client';
 
 const storageService = {
   // Media storage methods
-  uploadMedia: async (fileData) => {
+  uploadMedia: async (fileData: { uri: string; name?: string; type?: string; size?: number }) => {
     try {
       console.log('File object received for upload:', {
         name: fileData.name,
@@ -51,24 +51,24 @@ const storageService = {
       };
       
       // Append the file to form data with the 'file' key that Appwrite expects
-      formData.append('file', filePart);
+      formData.append('file', filePart as any as Blob);
       
       // Get the project ID and endpoint from the Appwrite client
       const { endpoint, project } = client.config;
       
       // Prepare headers with authentication
-      const headers = {
+      const headers: Record<string, string> = {
         'X-Appwrite-Project': project,
       };
       
       // Add session token if available
       if (session) {
-        headers['X-Appwrite-Session'] = session.$id;
+        headers['X-Appwrite-Session'] = session.$id as string;
       }
       
       // Add the session cookie if we're in a browser environment
-      if (client.headers['X-Fallback-Cookies']) {
-        headers['X-Fallback-Cookies'] = client.headers['X-Fallback-Cookies'];
+      if ((client as any).headers && (client as any).headers['X-Fallback-Cookies']) {
+        headers['X-Fallback-Cookies'] = (client as any).headers['X-Fallback-Cookies'];
       }
       
       // Get the correct bucket ID - using the actual env value, not the constant
@@ -113,7 +113,7 @@ const storageService = {
     }
   },
   
-  getFilePreview: (fileId) => {
+  getFilePreview: (fileId: string) => {
     try {
       // Get the correct bucket ID - using the environment variable
       const bucketId = process.env.EXPO_PUBLIC_APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;
@@ -133,7 +133,7 @@ const storageService = {
     }
   },
   
-  deleteFile: async (fileId) => {
+  deleteFile: async (fileId: string) => {
     try {
       // Get the correct bucket ID - using the environment variable
       const bucketId = process.env.EXPO_PUBLIC_APPWRITE_STORAGE_BUCKET_ID || STORAGE_BUCKET_ID;

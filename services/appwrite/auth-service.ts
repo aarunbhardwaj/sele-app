@@ -1,7 +1,7 @@
-import { ID, Query } from 'appwrite';
+import { ID, Permission, Query, Role } from 'appwrite';
 import { AuthenticationError, AuthorizationError, withErrorHandling } from '../../lib/errors';
-import { Role, User, UserProfile } from '../../lib/types';
-import { account, DATABASE_ID, databases, USERS_COLLECTION_ID } from './client';
+import { User, UserProfile, Role as UserRole } from '../../lib/types';
+import { account, databaseId, databases, usersCollectionId } from './client';
 
 const authService = {
   // Create a new account with enhanced error handling
@@ -25,7 +25,7 @@ const authService = {
             firstName: name.split(' ')[0] || '',
             lastName: name.split(' ').slice(1).join(' ') || '',
             englishLevel: 'beginner',
-            dailyGoalMinutes: 15,
+            experienceLevel: 'beginner',
             isAdmin: false,
             role: 'student',
             status: 'active'
@@ -61,9 +61,33 @@ const authService = {
 
   // Get current user with proper error handling
   getCurrentUser: async (): Promise<User | null> => {
-    return withErrorHandling(async () => {
-      return await account.get();
-    }, 'AuthService.getCurrentUser', null);
+    try {
+      const result = await withErrorHandling(async () => {
+        try {
+          // First check if there's an active session
+          const session = await account.getSession('current');
+          if (!session) {
+            return null;
+          }
+          
+          // Only try to get user if session exists
+          return await account.get();
+        } catch (error: any) {
+          // Handle specific guest/no session errors
+          if (error.code === 401 || error.message?.includes('guests') || error.message?.includes('missing scopes')) {
+            console.log('User is not authenticated (guest state)');
+            return null;
+          }
+          
+          // Re-throw other errors
+          throw error;
+        }
+      }, 'AuthService.getCurrentUser', null);
+      
+      return result || null;
+    } catch {
+      return null;
+    }
   },
 
   // Get user account with role and permissions
@@ -84,14 +108,24 @@ const authService = {
         roles: userRoles,
         isAdmin: userProfile?.isAdmin || false
       };
-    }, 'AuthService.getUserAccount');
+    }, 'AuthService.getUserAccount', null as any);
   },
 
   // Check if user is authenticated
   isLoggedIn: async (): Promise<boolean> => {
     return withErrorHandling(async () => {
-      const session = await account.getSession('current');
-      return !!session;
+      try {
+        const session = await account.getSession('current');
+        return !!session;
+      } catch (error: any) {
+        // Handle specific guest/no session errors
+        if (error.code === 401 || error.message?.includes('guests') || error.message?.includes('missing scopes')) {
+          console.log('No active session found (guest state)');
+          return false;
+        }
+        // Re-throw other unexpected errors
+        throw error;
+      }
     }, 'AuthService.isLoggedIn', false);
   },
 
@@ -113,13 +147,12 @@ const authService = {
   },
 
   // Complete password recovery
-  completePasswordRecovery: async (userId: string, secret: string, password: string, confirmPassword: string) => {
+  completePasswordRecovery: async (userId: string, secret: string, password: string) => {
     return withErrorHandling(async () => {
       return await account.updateRecovery(
         userId,
         secret,
-        password,
-        confirmPassword
+        password
       );
     }, 'AuthService.completePasswordRecovery');
   },
@@ -127,44 +160,78 @@ const authService = {
   // Create user profile with comprehensive data
   createUserProfile: async (userId: string, userData: Partial<UserProfile>) => {
     return withErrorHandling(async () => {
+      console.log('[AuthService.createUserProfile] Creating profile for', userId, 'DB:', databaseId, 'COL:', usersCollectionId);
+      // Use the userId as the document ID for a direct 1-to-1 mapping
       return await databases.createDocument(
-        DATABASE_ID,
-        USERS_COLLECTION_ID,
-        ID.unique(),
+        databaseId,
+        usersCollectionId,
+        ID.custom(userId), // Use custom ID matching the user's auth ID
         {
-          userId: userId,
+          userId: userId, // Keep userId in the document for consistency
           displayName: userData.displayName || '',
-          email: userData.email || '',
-          profileImage: userData.profileImage || '',
-          nativeLanguage: userData.nativeLanguage || 'English',
+          firstName: userData.firstName || '',
+          lastName: userData.lastName || '',
+          profilePicture: userData.profilePicture || '',
+          languagePreference: userData.languagePreference || 'English',
           englishLevel: userData.englishLevel || 'beginner',
-          learningGoal: userData.learningGoal || 'Improve my English skills',
-          dailyGoalMinutes: userData.dailyGoalMinutes || 15,
+          learningGoals: userData.learningGoals || ['Improve my English skills'],
+          experienceLevel: userData.experienceLevel || 'beginner',
           isAdmin: userData.isAdmin || false,
-          roles: userData.roles || '',
+          role: userData.role || 'student',
           isInstructor: userData.isInstructor || false,
-          joinedDate: new Date().toISOString(),
+          status: userData.status || 'active',
           lastActive: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
           phone: userData.phone || null,
-          location: userData.location || '',
-          bio: userData.bio || ''
-        }
+          bio: userData.bio || '',
+          preferences: userData.preferences || {
+            notifications: { email: true, push: true, reminders: true },
+            privacy: { profileVisibility: 'public', showProgress: true },
+            learning: { dailyGoal: 15, difficultyPreference: 'adaptive' }
+          }
+        },
+        [
+          // Allow the owner to manage their profile
+          Permission.read(Role.user(userId)),
+          Permission.update(Role.user(userId)),
+          Permission.delete(Role.user(userId)),
+          // Allow all authenticated users to read basic profiles (optional)
+          Permission.read(Role.users())
+        ]
       );
     }, 'AuthService.createUserProfile');
   },
   
   // Get user profile with fallback
   getUserProfile: async (userId: string): Promise<UserProfile | null> => {
-    return withErrorHandling(async () => {
-      const response = await databases.listDocuments(
-        DATABASE_ID,
-        USERS_COLLECTION_ID,
-        [Query.equal('userId', userId)]
-      );
-      
-      return response.documents[0] as UserProfile || null;
+    const result = await withErrorHandling(async () => {
+      console.log('[AuthService.getUserProfile] Fetching profile for', userId, 'using getDocument.');
+      try {
+        // First, try fetching directly using userId as the document ID.
+        const document = await databases.getDocument(
+          databaseId,
+          usersCollectionId,
+          userId 
+        );
+        return (document as unknown as UserProfile) || null;
+      } catch (error: any) {
+        // If not found (404), it might be an old profile with a unique() ID.
+        // Fallback to listing documents.
+        if (error.code === 404) {
+          console.log('[AuthService.getUserProfile] Document with ID', userId, 'not found. Falling back to listDocuments.');
+          const response = await databases.listDocuments(
+            databaseId,
+            usersCollectionId,
+            [Query.equal('userId', userId), Query.limit(1)]
+          );
+          if (response.documents.length > 0) {
+            return (response.documents[0] as unknown as UserProfile) || null;
+          }
+        }
+        // For other errors (like 502), re-throw to be handled by retry logic.
+        throw error;
+      }
     }, 'AuthService.getUserProfile', null);
+    return result as UserProfile | null; 
   },
   
   // Update user profile
@@ -175,9 +242,10 @@ const authService = {
         lastActive: new Date().toISOString(),
       };
       
+      // The documentId might be a userId or a unique ID. getDocument will handle both.
       return await databases.updateDocument(
-        DATABASE_ID,
-        USERS_COLLECTION_ID,
+        databaseId,
+        usersCollectionId,
         documentId,
         updateData
       );
@@ -189,6 +257,7 @@ const authService = {
     return withErrorHandling(async () => {
       const profile = await authService.getUserProfile(userId);
       if (profile) {
+        // Use profile.$id, which is the actual document ID
         return await authService.updateUserProfile(profile.$id, {
           lastActive: new Date().toISOString()
         });
@@ -197,8 +266,8 @@ const authService = {
   },
 
   // Get user roles
-  getUserRoles: async (userId: string): Promise<Role[]> => {
-    return withErrorHandling(async () => {
+  getUserRoles: async (userId: string): Promise<UserRole[]> => {
+    const roles = await withErrorHandling(async () => {
       // This would be implemented based on your role assignment system
       // For now, returning a basic role structure
       const profile = await authService.getUserProfile(userId);
@@ -220,23 +289,26 @@ const authService = {
           isSystem: true
         }];
       }
-    }, 'AuthService.getUserRoles', []);
+    }, 'AuthService.getUserRoles', [] as UserRole[]);
+    return roles as UserRole[];
   },
 
   // Check if user has permission
   hasPermission: async (userId: string, permission: string): Promise<boolean> => {
-    return withErrorHandling(async () => {
+    const result = await withErrorHandling(async () => {
       const roles = await authService.getUserRoles(userId);
       return roles.some(role => role.permissions.includes(permission));
     }, 'AuthService.hasPermission', false);
+    return !!result;
   },
 
   // Check if user is admin
   isAdmin: async (userId: string): Promise<boolean> => {
-    return withErrorHandling(async () => {
+    const result = await withErrorHandling(async () => {
       const profile = await authService.getUserProfile(userId);
       return profile?.isAdmin || false;
     }, 'AuthService.isAdmin', false);
+    return !!result;
   },
 
   // Get all users with pagination and filtering
@@ -249,13 +321,13 @@ const authService = {
       }
       
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        USERS_COLLECTION_ID,
+        databaseId,
+        usersCollectionId,
         queries
       );
       
       return {
-        users: response.documents as UserProfile[],
+        users: response.documents as unknown as UserProfile[],
         total: response.total
       };
     }, 'AuthService.getAllUsers');
@@ -274,8 +346,8 @@ const authService = {
       const profile = await authService.getUserProfile(userId);
       if (profile) {
         return await databases.deleteDocument(
-          DATABASE_ID,
-          USERS_COLLECTION_ID,
+          databaseId,
+          usersCollectionId,
           profile.$id
         );
       }
@@ -291,8 +363,8 @@ const authService = {
       try {
         // Get all existing profiles first
         const existingProfilesResponse = await databases.listDocuments(
-          DATABASE_ID,
-          USERS_COLLECTION_ID,
+          databaseId,
+          usersCollectionId,
           [Query.limit(100)] // Adjust limit as needed
         );
         
@@ -311,7 +383,7 @@ const authService = {
             firstName: currentUser.name?.split(' ')[0] || '',
             lastName: currentUser.name?.split(' ').slice(1).join(' ') || '',
             englishLevel: 'beginner',
-            dailyGoalMinutes: 15,
+            experienceLevel: 'beginner',
             isAdmin: false,
             role: 'student',
             status: 'active'
@@ -327,10 +399,11 @@ const authService = {
         
       } catch (error) {
         console.error('Error during profile sync:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
         return { 
           created: createdProfiles, 
           message: `Sync completed with errors. Created ${createdProfiles} profiles.`,
-          error: error.message 
+          error: errorMessage
         };
       }
     }, 'AuthService.syncAuthUsersWithProfiles');
@@ -351,7 +424,7 @@ const authService = {
             firstName: currentUser.name?.split(' ')[0] || '',
             lastName: currentUser.name?.split(' ').slice(1).join(' ') || '',
             englishLevel: 'beginner',
-            dailyGoalMinutes: 15,
+            experienceLevel: 'beginner',
             isAdmin: false,
             role: 'student',
             status: 'active'

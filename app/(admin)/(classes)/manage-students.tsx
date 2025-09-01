@@ -20,7 +20,6 @@ import { colors, spacing } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import type { Class } from '../../../lib/types';
 import appwriteService from '../../../services/appwrite';
-import { classService } from '../../../services/appwrite/classService';
 
 // Airbnb color palette
 const airbnbColors = {
@@ -54,7 +53,7 @@ export default function ManageStudentsScreen() {
   const loadClassData = useCallback(async () => {
     try {
       setLoading(true);
-      const classInfo = await classService.getClass(classId);
+      const classInfo = await appwriteService.getClass(classId);
       setClassData(classInfo);
       
       // Load enrolled students details
@@ -144,7 +143,7 @@ export default function ManageStudentsScreen() {
 
   const handleEnrollStudent = async (studentId: string) => {
     try {
-      await classService.enrollStudent(classId, studentId);
+      await appwriteService.enrollStudent(classId, studentId);
       Alert.alert('Success', 'Student enrolled successfully');
       loadClassData();
       setShowAddStudent(false);
@@ -166,7 +165,7 @@ export default function ManageStudentsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await classService.unenrollStudent(classId, studentId);
+              await appwriteService.unenrollStudent(classId, studentId);
               Alert.alert('Success', 'Student removed successfully');
               loadClassData();
             } catch (error) {

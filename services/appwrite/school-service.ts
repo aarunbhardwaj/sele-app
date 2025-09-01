@@ -1,5 +1,5 @@
 import { ID, Query } from 'appwrite';
-import { DATABASE_ID, databases, SCHOOLS_COLLECTION_ID } from './client';
+import { getAppwriteClient } from './client';
 
 // Define the School interface
 export interface School {
@@ -27,6 +27,7 @@ const schoolService = {
   // Get all schools with pagination and filtering
   getAllSchools: async (limit?: number, offset?: number, queries?: string[]) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const queryFilters = [];
       
       // Add custom queries if provided
@@ -63,8 +64,8 @@ const schoolService = {
       queryFilters.push(Query.orderDesc('$createdAt'));
       
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         queryFilters
       );
       
@@ -78,9 +79,10 @@ const schoolService = {
   // Get school by ID
   getSchoolById: async (schoolId: string) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.getDocument(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         schoolId
       );
       return response as School;
@@ -93,9 +95,10 @@ const schoolService = {
   // Create new school
   createSchool: async (schoolData: School) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.createDocument(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         ID.unique(),
         {
           ...schoolData,
@@ -115,9 +118,10 @@ const schoolService = {
   // Update school
   updateSchool: async (schoolId: string, schoolData: Partial<School>) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.updateDocument(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         schoolId,
         {
           ...schoolData,
@@ -134,9 +138,10 @@ const schoolService = {
   // Delete school
   deleteSchool: async (schoolId: string) => {
     try {
+      const { databases, config } = getAppwriteClient();
       await databases.deleteDocument(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         schoolId
       );
       return { success: true };
@@ -149,9 +154,10 @@ const schoolService = {
   // Get schools by status
   getSchoolsByStatus: async (status: 'active' | 'inactive' | 'pending') => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         [Query.equal('status', status)]
       );
       return response.documents as School[];
@@ -164,9 +170,10 @@ const schoolService = {
   // Search schools by name
   searchSchools: async (searchTerm: string) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        SCHOOLS_COLLECTION_ID,
+        config.databaseId,
+        config.schoolsCollectionId,
         [Query.search('name', searchTerm)]
       );
       return response.documents as School[];

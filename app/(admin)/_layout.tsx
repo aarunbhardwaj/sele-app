@@ -7,11 +7,10 @@ import {
   Text,
   View
 } from 'react-native';
-import { colors } from '../../components/ui/theme';
 import appwriteService from '../../services/appwrite';
 import { useAuth } from '../../services/AuthContext';
 
-// Airbnb-inspired color palette (matching the main tabs)
+// Consistent Airbnb-inspired color palette (matching instructor and main app)
 const airbnbColors = {
   // Primary Airbnb colors
   primary: '#FF5A5F',        // Airbnb's signature coral/red
@@ -39,13 +38,13 @@ const airbnbColors = {
 };
 
 export default function AdminLayout() {
-  const { user, isAuthenticated, isAdmin, isInstructor } = useAuth();
+  const { user, isAuthenticated, isAdmin } = useAuth();
   const router = useRouter();
   const [hasAccess, setHasAccess] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [checkingAccess, setCheckingAccess] = useState(true);
 
-  // Check admin/instructor access with proper error handling
+  // Check admin access with proper error handling
   const checkAccess = useCallback(async () => {
     if (!user || !isAuthenticated) {
       setHasAccess(false);
@@ -70,7 +69,6 @@ export default function AdminLayout() {
     } catch (error) {
       console.error('Error checking access:', error);
       setHasAccess(false);
-      // Redirect on error
       setTimeout(() => {
         router.replace('/(tabs)');
       }, 100);
@@ -109,7 +107,6 @@ export default function AdminLayout() {
     );
   }
 
-  // Using Tabs instead of Stack to show bottom navigation
   return (
     <Tabs
       screenOptions={{
@@ -122,12 +119,11 @@ export default function AdminLayout() {
         tabBarItemStyle: styles.tabBarItem,
       }}
     >
-      {/* Main visible tabs - these will show in the bottom tab bar */}
       <Tabs.Screen 
         name="index" 
         options={{
           title: 'Dashboard',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'grid' : 'grid-outline'} 
               color={focused ? airbnbColors.primary : airbnbColors.mediumGray} 
@@ -141,7 +137,7 @@ export default function AdminLayout() {
         name="(courses)" 
         options={{
           title: 'Courses',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'book' : 'book-outline'} 
               color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
@@ -155,7 +151,7 @@ export default function AdminLayout() {
         name="(users)" 
         options={{
           title: 'Users',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'people' : 'people-outline'} 
               color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
@@ -169,7 +165,7 @@ export default function AdminLayout() {
         name="(schools)" 
         options={{
           title: 'Schools',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'school' : 'school-outline'} 
               color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
@@ -183,7 +179,7 @@ export default function AdminLayout() {
         name="(quiz)" 
         options={{
           title: 'Quizzes',
-          tabBarIcon: ({ color, focused }) => (
+          tabBarIcon: ({ focused }) => (
             <TabBarIcon 
               name={focused ? 'help-circle' : 'help-circle-outline'} 
               color={focused ? airbnbColors.primary : airbnbColors.mediumGray}
@@ -242,65 +238,53 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.neutral.white,
+    backgroundColor: airbnbColors.white,
   },
   loadingText: {
     marginTop: 16,
     fontSize: 16,
-    color: colors.neutral.darkGray,
+    color: airbnbColors.darkGray,
   },
   tabBar: {
-    backgroundColor: 'rgba(255, 255, 255, 0.98)',
-    borderTopWidth: 0,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: 85, // Increased for better spacing
-    paddingHorizontal: 16, // Increased for better spacing
-    paddingTop: 10,
-    paddingBottom: 22, // Increased bottom padding
-    position: 'absolute',
-    // Enhanced shadow for better separation from background
+    backgroundColor: airbnbColors.white,
+    borderTopWidth: 1,
+    borderTopColor: airbnbColors.lightGray,
+    height: 85,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 22,
     shadowColor: airbnbColors.black,
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 20,
-    // Stronger border for definition
-    borderWidth: 0.5,
-    borderColor: airbnbColors.lightGray,
-    borderBottomWidth: 0,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 8,
   },
   tabBarLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '600',
-    marginTop: 6, // Increased for better spacing
+    marginTop: 4,
     marginBottom: 0,
-    letterSpacing: 0.1,
-    textAlign: 'center',
-    includeFontPadding: false,
-    textAlignVertical: 'center',
   },
   tabBarItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6, // Increased for better touch area
-    paddingHorizontal: 4, // Increased for better spacing
-    minHeight: 60, // Increased minimum height
-    maxWidth: '20%', // Ensure equal distribution across 5 tabs
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+    minHeight: 50,
   },
   iconContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
-    marginBottom: 2, // Small margin for better spacing
+    marginBottom: 2,
   },
   iconContainerActive: {
-    transform: [{ scale: 1.08 }], // Slightly increased for better visual feedback
+    transform: [{ scale: 1.08 }],
   },
   iconWrapper: {
-    width: 36, // Increased for better touch area
-    height: 36, // Increased for better touch area
+    width: 36,
+    height: 36,
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',

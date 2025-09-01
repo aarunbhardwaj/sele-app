@@ -1,14 +1,15 @@
 import { ID, Permission, Query, Role } from 'appwrite';
 import authService from './auth-service';
-import { DATABASE_ID, QUIZZES_COLLECTION_ID, QUIZ_ATTEMPTS_COLLECTION_ID, QUIZ_QUESTIONS_COLLECTION_ID, account, databases } from './client';
+import { getAppwriteClient } from './client';
 
 const quizService = {
   // Quiz methods
   getAllQuizzes: async (filters = []) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        QUIZZES_COLLECTION_ID,
+        config.databaseId,
+        config.quizzesCollectionId,
         filters
       );
       return response.documents;
@@ -20,9 +21,10 @@ const quizService = {
 
   getQuizById: async (quizId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.getDocument(
-        DATABASE_ID,
-        QUIZZES_COLLECTION_ID,
+        config.databaseId,
+        config.quizzesCollectionId,
         quizId
       );
     } catch (error) {
@@ -33,6 +35,7 @@ const quizService = {
 
   createQuiz: async (quizData) => {
     try {
+      const { account } = getAppwriteClient();
       // Get current user
       const currentUser = await account.get();
       
@@ -65,9 +68,10 @@ const quizService = {
       };
       
       // Create the document with permissions
+      const { databases, config } = getAppwriteClient();
       const result = await databases.createDocument(
-        DATABASE_ID,
-        QUIZZES_COLLECTION_ID,
+        config.databaseId,
+        config.quizzesCollectionId,
         ID.unique(),
         quizPayload,
         [
@@ -86,6 +90,7 @@ const quizService = {
 
   updateQuiz: async (quizId, quizData) => {
     try {
+      const { databases, config } = getAppwriteClient();
       // Add updated timestamp
       const updateData = {
         ...quizData,
@@ -93,8 +98,8 @@ const quizService = {
       };
       
       return await databases.updateDocument(
-        DATABASE_ID,
-        QUIZZES_COLLECTION_ID,
+        config.databaseId,
+        config.quizzesCollectionId,
         quizId,
         updateData
       );
@@ -106,18 +111,19 @@ const quizService = {
 
   deleteQuiz: async (quizId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       // First, delete all associated questions
       const associatedQuestions = await databases.listDocuments(
-        DATABASE_ID,
-        QUIZ_QUESTIONS_COLLECTION_ID,
+        config.databaseId,
+        config.quizQuestionsCollectionId,
         [Query.equal('quizId', quizId)]
       );
       
       if (associatedQuestions.documents.length > 0) {
         for (const question of associatedQuestions.documents) {
           await databases.deleteDocument(
-            DATABASE_ID,
-            QUIZ_QUESTIONS_COLLECTION_ID,
+            config.databaseId,
+            config.quizQuestionsCollectionId,
             question.$id
           );
         }
@@ -125,8 +131,8 @@ const quizService = {
       
       // Now delete the quiz
       await databases.deleteDocument(
-        DATABASE_ID,
-        QUIZZES_COLLECTION_ID,
+        config.databaseId,
+        config.quizzesCollectionId,
         quizId
       );
       
@@ -140,9 +146,10 @@ const quizService = {
   // Quiz question methods
   getQuestionsByQuiz: async (quizId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        QUIZ_QUESTIONS_COLLECTION_ID,
+        config.databaseId,
+        config.quizQuestionsCollectionId,
         [
           Query.equal('quizId', quizId),
           Query.orderAsc('order')
@@ -158,6 +165,7 @@ const quizService = {
 
   createQuestion: async (questionData) => {
     try {
+      const { account } = getAppwriteClient();
       // Get current user
       const currentUser = await account.get();
       
@@ -193,9 +201,10 @@ const quizService = {
       console.log('Sending question payload to Appwrite:', JSON.stringify(questionPayload, null, 2));
       
       // Create the document with permissions
+      const { databases, config } = getAppwriteClient();
       const result = await databases.createDocument(
-        DATABASE_ID,
-        QUIZ_QUESTIONS_COLLECTION_ID,
+        config.databaseId,
+        config.quizQuestionsCollectionId,
         ID.unique(),
         questionPayload
       );
@@ -209,6 +218,7 @@ const quizService = {
 
   updateQuestion: async (questionId, questionData) => {
     try {
+      const { databases, config } = getAppwriteClient();
       // Add updated timestamp
       const updateData = {
         ...questionData,
@@ -216,8 +226,8 @@ const quizService = {
       };
       
       return await databases.updateDocument(
-        DATABASE_ID,
-        QUIZ_QUESTIONS_COLLECTION_ID,
+        config.databaseId,
+        config.quizQuestionsCollectionId,
         questionId,
         updateData
       );
@@ -229,9 +239,10 @@ const quizService = {
 
   deleteQuestion: async (questionId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       await databases.deleteDocument(
-        DATABASE_ID,
-        QUIZ_QUESTIONS_COLLECTION_ID,
+        config.databaseId,
+        config.quizQuestionsCollectionId,
         questionId
       );
       
@@ -245,9 +256,10 @@ const quizService = {
   // Quiz attempt methods
   recordQuizAttempt: async (userId, quizId, attemptData) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.createDocument(
-        DATABASE_ID,
-        QUIZ_ATTEMPTS_COLLECTION_ID,
+        config.databaseId,
+        config.quizAttemptsCollectionId,
         ID.unique(),
         {
           userId: userId,
@@ -270,6 +282,7 @@ const quizService = {
 
   getUserQuizAttempts: async (userId, quizId = null) => {
     try {
+      const { databases, config } = getAppwriteClient();
       // If quizId is provided, get attempts for that specific quiz
       const filters = [Query.equal('userId', userId)];
       
@@ -278,8 +291,8 @@ const quizService = {
       }
       
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        QUIZ_ATTEMPTS_COLLECTION_ID,
+        config.databaseId,
+        config.quizAttemptsCollectionId,
         filters
       );
       

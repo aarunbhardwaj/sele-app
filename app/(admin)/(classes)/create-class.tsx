@@ -14,7 +14,7 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { classService } from '../../../services/appwrite/classService';
+import appwriteService from '../../../services/appwrite';
 
 // Airbnb Colors
 const airbnbColors = {
@@ -212,7 +212,7 @@ export default function CreateClassScreen() {
         updatedAt: new Date().toISOString()
       };
 
-      const createdClass = await classService.createClass(classData);
+      const createdClass = await appwriteService.createClass(classData);
       
       Alert.alert(
         'Success', 

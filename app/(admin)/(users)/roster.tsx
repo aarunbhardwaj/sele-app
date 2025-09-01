@@ -3,38 +3,42 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Dimensions,
-    Modal,
-    RefreshControl,
-    SafeAreaView,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  Dimensions,
+  Modal,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import appwriteService from '../../../services/appwrite';
-import { ClassService } from '../../../services/appwrite/classService';
 
-const classService = new ClassService();
-
-// Airbnb color palette
+// Airbnb-inspired color palette (extracted for reuse)
 const airbnbColors = {
   primary: '#FF5A5F',
-  primaryDark: '#FF3347',
-  primaryLight: '#FF8589',
+  primaryDark: '#E8484D',
+  primaryLight: '#FFE8E9',
   secondary: '#00A699',
-  secondaryDark: '#008F85',
-  secondaryLight: '#57C1BA',
-  neutral: colors.neutral,
-  accent: colors.accent,
-  status: colors.status
+  secondaryLight: '#E0F7F5',
+  white: '#FFFFFF',
+  offWhite: '#FAFAFA',
+  lightGray: '#F7F7F7',
+  gray: '#EBEBEB',
+  mediumGray: '#B0B0B0',
+  darkGray: '#717171',
+  charcoal: '#484848',
+  black: '#222222',
+  success: '#00A699',
+  warning: '#FC642D',
+  error: '#C13515',
 };
 
 const { width } = Dimensions.get('window');
@@ -128,7 +132,7 @@ export default function RosterScreen() {
       const instructorsWithAssignments = await Promise.all(
         instructorUsers.map(async (user: any) => {
           try {
-            const assignedClasses = await classService.getClassesByInstructor(user.$id);
+            const assignedClasses = await appwriteService.getClassesByInstructor(user.$id);
             return {
               $id: user.$id,
               userId: user.$id,
@@ -166,7 +170,7 @@ export default function RosterScreen() {
       const schoolsWithDemands = await Promise.all(
         allSchools.documents.map(async (school: any) => {
           try {
-            const schoolClasses = await classService.getClassesBySchool(school.$id);
+            const schoolClasses = await appwriteService.getClassesBySchool(school.$id);
             
             const classesWithDemand = schoolClasses.map(classItem => {
               const enrollmentRate = classItem.maxStudents ? 
@@ -237,6 +241,31 @@ export default function RosterScreen() {
     }
   }, []);
 
+  const loadUsers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const users = await appwriteService.getAllUsers();
+      setAllUsers(users);
+      setFilteredUsers(users);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      Alert.alert('Error', 'Failed to load users. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const loadClassesForEnrollment = useCallback(async () => {
+    try {
+      if (!selectedSchool?.$id) return;
+      
+      const availableClasses = await appwriteService.getAvailableClassesForEnrollment(selectedSchool.$id);
+      setAvailableClasses(availableClasses);
+    } catch (error) {
+      console.error('Failed to load classes:', error);
+    }
+  }, [selectedSchool]);
+
   useEffect(() => {
     loadData();
   }, [loadData]);
@@ -255,10 +284,9 @@ export default function RosterScreen() {
       setLoading(true);
       
       // Assign instructor to class
-      await classService.assignInstructor(
+      await appwriteService.assignInstructorToClass(
         selectedClass.$id, 
-        selectedInstructor.$id,
-        selectedInstructor.name
+        selectedInstructor.$id
       );
 
       Alert.alert('Success', 'Instructor assigned successfully!');
@@ -287,7 +315,7 @@ export default function RosterScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await classService.assignInstructor(classId, '', '');
+              await appwriteService.removeInstructorFromClass(classId, '');
               Alert.alert('Success', 'Assignment removed successfully');
               loadData(true);
             } catch (error) {
@@ -297,6 +325,17 @@ export default function RosterScreen() {
         }
       ]
     );
+  };
+
+  const handleEnrollStudentInClass = async (userId: string, classId: string) => {
+    try {
+      await appwriteService.enrollStudent(classId, userId);
+      Alert.alert('Success', 'Student enrolled successfully');
+      loadUsers(); // Refresh the data
+    } catch (error) {
+      console.error('Failed to enroll student:', error);
+      Alert.alert('Error', 'Failed to enroll student: ' + (error as Error).message);
+    }
   };
 
   const getDemandColor = (level: string) => {

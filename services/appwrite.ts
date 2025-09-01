@@ -10,6 +10,9 @@ import {
     storageService
 } from './appwrite/index';
 
+// Import instructor service
+import instructorService from './appwrite/instructor-service';
+
 // Create a consolidated service object that maintains the same API
 // as the original appwriteService to avoid breaking existing code
 const appwriteService = {
@@ -119,7 +122,7 @@ const appwriteService = {
       // This depends on how your app defines admin roles
       // Common patterns include: checking for a specific role name 
       // or checking for specific permissions in the role
-      return roles.some(role => 
+      return roles.some((role: any) => 
         role.name?.toLowerCase() === 'admin' || 
         role.name?.toLowerCase() === 'administrator'
       );
@@ -159,6 +162,29 @@ const appwriteService = {
   getClassesBySubjectAndGrade: classService.getClassesBySubjectAndGrade,
   getClassStats: classService.getClassStats,
   searchClasses: classService.searchClasses,
+
+  // Instructor Module Methods
+  getInstructorProfile: instructorService.getInstructorProfile,
+  createInstructorProfile: instructorService.createInstructorProfile,
+  updateInstructorProfile: instructorService.updateInstructorProfile,
+  getInstructorAssignments: instructorService.getInstructorAssignments,
+  createClassAssignment: instructorService.createClassAssignment,
+  updateClassAssignment: instructorService.updateClassAssignment,
+  getInstructorSessions: instructorService.getInstructorSessions,
+  createClassSession: instructorService.createClassSession,
+  updateClassSession: instructorService.updateClassSession,
+  startSession: instructorService.startSession,
+  endSession: instructorService.endSession,
+  createStudentRating: instructorService.createStudentRating,
+  getStudentRatings: instructorService.getStudentRatings,
+  updateStudentRating: instructorService.updateStudentRating,
+  createOnlineSession: instructorService.createOnlineSession,
+  getOnlineSession: instructorService.getOnlineSession,
+  updateOnlineSession: instructorService.updateOnlineSession,
+  getInstructorSchedule: instructorService.getInstructorSchedule,
+  createInstructorSchedule: instructorService.createInstructorSchedule,
+  updateInstructorSchedule: instructorService.updateInstructorSchedule,
+  getInstructorAnalytics: instructorService.getInstructorAnalytics,
 };
 
 export default appwriteService;

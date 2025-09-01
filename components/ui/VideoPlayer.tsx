@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Alert, PanGestureHandler, State } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '../../services/AuthContext';
+import { ResizeMode, Video } from 'expo-video';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { withErrorHandling } from '../../lib/errors';
+import { useAuth } from '../../services/AuthContext';
 
 interface VideoPlayerProps {
   uri: string;

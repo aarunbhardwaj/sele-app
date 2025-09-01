@@ -1,14 +1,13 @@
 import { ID, Query } from 'appwrite';
-import { getConfig } from '../../lib/config';
+// Use shared constants and databases instance from one import
 import { Class } from '../../lib/types';
-import { databases } from './client';
-
-const config = getConfig();
+import {
+    CLASSES_COLLECTION_ID,
+    DATABASE_ID,
+    databases,
+} from './client';
 
 export class ClassService {
-  private collectionId = config.CLASSES_COLLECTION_ID;
-  private databaseId = config.APPWRITE_DATABASE_ID;
-
   /**
    * Create a new class
    */
@@ -16,8 +15,8 @@ export class ClassService {
     try {
       const now = new Date().toISOString();
       const document = await databases.createDocument(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         ID.unique(),
         {
           ...classData,
@@ -43,8 +42,8 @@ export class ClassService {
   async getClass(classId: string): Promise<Class> {
     try {
       const document = await databases.getDocument(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         classId
       );
 
@@ -85,8 +84,8 @@ export class ClassService {
       }
 
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         queries
       );
 
@@ -120,8 +119,8 @@ export class ClassService {
       }
 
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         queries
       );
 
@@ -137,16 +136,29 @@ export class ClassService {
    */
   async getClassesByInstructor(instructorId: string): Promise<Class[]> {
     try {
+      console.log('Getting classes by instructor:', instructorId);
+      console.log('Using databaseId (dynamic):', DATABASE_ID);
+      console.log('Using collectionId (dynamic):', CLASSES_COLLECTION_ID);
+      
+      // Add validation for database and collection IDs
+      if (!DATABASE_ID || !CLASSES_COLLECTION_ID) {
+        console.error('Missing database or collection configuration');
+        console.error('databaseId:', DATABASE_ID);
+        console.error('collectionId:', CLASSES_COLLECTION_ID);
+        return [];
+      }
+      
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         [Query.equal('instructorId', instructorId)]
       );
 
       return response.documents.map(doc => this.transformDocument(doc));
     } catch (error) {
       console.error('Error getting classes by instructor:', error);
-      throw error;
+      // Return empty array instead of throwing to prevent infinite loops
+      return [];
     }
   }
 
@@ -175,8 +187,8 @@ export class ClassService {
       delete updateData.$permissions;
 
       const document = await databases.updateDocument(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         classId,
         updateData
       );
@@ -279,8 +291,8 @@ export class ClassService {
       // Since we can't directly query JSON array fields in Appwrite,
       // we need to get all classes and filter client-side
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         [Query.equal('isActive', true)]
       );
 
@@ -311,8 +323,8 @@ export class ClassService {
       }
 
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         queries
       );
 
@@ -329,8 +341,8 @@ export class ClassService {
   async deleteClass(classId: string): Promise<void> {
     try {
       await databases.deleteDocument(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         classId
       );
     } catch (error) {
@@ -384,8 +396,8 @@ export class ClassService {
       queries.push(Query.search('title', searchTerm));
 
       const response = await databases.listDocuments(
-        this.databaseId,
-        this.collectionId,
+        DATABASE_ID,
+        CLASSES_COLLECTION_ID,
         queries
       );
 

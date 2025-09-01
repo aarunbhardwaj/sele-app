@@ -16,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing } from '../../../components/ui/theme';
 import PreAuthHeader from '../../../components/ui2/pre-auth-header';
 import type { Class } from '../../../lib/types';
-import { classService } from '../../../services/appwrite/classService';
+import appwriteService from '../../../services/appwrite';
 
 // Airbnb color palette
 const airbnbColors = {
@@ -45,8 +45,8 @@ export default function ClassDetailsScreen() {
     try {
       setLoading(true);
       const [classInfo, stats] = await Promise.all([
-        classService.getClass(classId),
-        classService.getClassStats(classId)
+        appwriteService.getClassById(classId),
+        appwriteService.getClassStats(classId)
       ]);
       setClassData(classInfo);
       setClassStats(stats);
@@ -109,7 +109,7 @@ export default function ClassDetailsScreen() {
             
             try {
               setLoading(true);
-              await classService.deleteClass(classData.$id);
+              await appwriteService.deleteClass(classData.$id);
               Alert.alert('Success', 'Class deleted successfully', [
                 {
                   text: 'OK',

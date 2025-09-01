@@ -1,14 +1,15 @@
 import { ID, Permission, Role } from 'appwrite';
 import authService from './auth-service';
-import { account, DATABASE_ID, databases, ROLES_COLLECTION_ID, USERS_COLLECTION_ID } from './client';
+import { getAppwriteClient } from './client';
 
 const roleService = {
   // Create a new role
   createRole: async (name: string, permissions: string[]) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.createDocument(
-        DATABASE_ID,
-        ROLES_COLLECTION_ID,
+        config.databaseId,
+        config.rolesCollectionId,
         ID.unique(),
         {
           name,
@@ -26,9 +27,10 @@ const roleService = {
   // Get all roles
   getAllRoles: async () => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        ROLES_COLLECTION_ID
+        config.databaseId,
+        config.rolesCollectionId
       );
       return response.documents;
     } catch (error) {
@@ -45,6 +47,7 @@ const roleService = {
         updatedAt: new Date().toISOString()
       };
       
+      const { account } = getAppwriteClient();
       // Get current user
       const currentUser = await account.get();
       
@@ -52,10 +55,11 @@ const roleService = {
         throw new Error('User must be logged in to update roles');
       }
       
+      const { databases, config } = getAppwriteClient();
       // Add explicit permissions when updating document
       return await databases.updateDocument(
-        DATABASE_ID,
-        ROLES_COLLECTION_ID,
+        config.databaseId,
+        config.rolesCollectionId,
         roleId,
         updateData,
         [
@@ -73,9 +77,10 @@ const roleService = {
   // Delete a role
   deleteRole: async (roleId: string) => {
     try {
+      const { databases, config } = getAppwriteClient();
       await databases.deleteDocument(
-        DATABASE_ID,
-        ROLES_COLLECTION_ID,
+        config.databaseId,
+        config.rolesCollectionId,
         roleId
       );
       return true;
@@ -104,9 +109,10 @@ const roleService = {
           newRoles = currentRoles + ',' + roleId;
         }
         
+        const { databases, config } = getAppwriteClient();
         return await databases.updateDocument(
-          DATABASE_ID,
-          USERS_COLLECTION_ID,
+          config.databaseId,
+          config.usersCollectionId,
           userProfile.$id,
           {
             roles: newRoles,
@@ -137,9 +143,10 @@ const roleService = {
         const updatedRolesArray = rolesArray.filter(id => id !== roleId);
         const updatedRoles = updatedRolesArray.join(',');
         
+        const { databases, config } = getAppwriteClient();
         return await databases.updateDocument(
-          DATABASE_ID,
-          USERS_COLLECTION_ID,
+          config.databaseId,
+          config.usersCollectionId,
           userProfile.$id,
           {
             roles: updatedRoles,
@@ -168,10 +175,11 @@ const roleService = {
         const rolesArray = userProfile.roles.split(',').filter(id => id.trim() !== '');
         
         if (rolesArray.length > 0) {
+          const { databases, config } = getAppwriteClient();
           // Only try to fetch roles if they exist
           const roles = await Promise.all(
             rolesArray.map(roleId => 
-              databases.getDocument(DATABASE_ID, ROLES_COLLECTION_ID, roleId)
+              databases.getDocument(config.databaseId, config.rolesCollectionId, roleId)
             )
           );
           return roles;

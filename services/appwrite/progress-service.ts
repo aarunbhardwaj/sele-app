@@ -1,13 +1,14 @@
 import { ID, Query } from 'appwrite';
-import { DATABASE_ID, databases, LESSON_COMPLETIONS_COLLECTION_ID, USER_ACTIVITIES_COLLECTION_ID, USER_PROGRESS_COLLECTION_ID } from './client';
+import { getAppwriteClient } from './client';
 
 const progressService = {
   // User Progress methods
   getUserProgress: async (userId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        USER_PROGRESS_COLLECTION_ID,
+        config.databaseId,
+        config.userProgressCollectionId,
         [Query.equal('userId', userId)]
       );
       
@@ -20,9 +21,10 @@ const progressService = {
   
   getUserCourseProgress: async (userId, courseId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       const response = await databases.listDocuments(
-        DATABASE_ID,
-        USER_PROGRESS_COLLECTION_ID,
+        config.databaseId,
+        config.userProgressCollectionId,
         [
           Query.equal('userId', userId),
           Query.equal('courseId', courseId)
@@ -38,9 +40,10 @@ const progressService = {
   
   createUserProgress: async (userId, courseId) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.createDocument(
-        DATABASE_ID,
-        USER_PROGRESS_COLLECTION_ID,
+        config.databaseId,
+        config.userProgressCollectionId,
         ID.unique(),
         {
           userId: userId,
@@ -61,9 +64,10 @@ const progressService = {
   
   updateUserProgress: async (progressId, progressData) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.updateDocument(
-        DATABASE_ID,
-        USER_PROGRESS_COLLECTION_ID,
+        config.databaseId,
+        config.userProgressCollectionId,
         progressId,
         progressData
       );
@@ -76,9 +80,10 @@ const progressService = {
   // Lesson completion methods
   recordLessonCompletion: async (userId, lessonId, completionData) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.createDocument(
-        DATABASE_ID,
-        LESSON_COMPLETIONS_COLLECTION_ID,
+        config.databaseId,
+        config.lessonCompletionsCollectionId,
         ID.unique(),
         {
           userId: userId,
@@ -99,9 +104,10 @@ const progressService = {
   // User activity tracking
   trackUserActivity: async (userId, type, entityId, details = {}) => {
     try {
+      const { databases, config } = getAppwriteClient();
       return await databases.createDocument(
-        DATABASE_ID,
-        USER_ACTIVITIES_COLLECTION_ID,
+        config.databaseId,
+        config.userActivitiesCollectionId,
         ID.unique(),
         {
           userId: userId,

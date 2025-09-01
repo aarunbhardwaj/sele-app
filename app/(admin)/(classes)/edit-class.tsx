@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -14,7 +14,8 @@ import {
     View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { classService } from '../../../services/appwrite/classService';
+import type { Class } from '../../../lib/types';
+import appwriteService from '../../../services/appwrite';
 
 // Airbnb Colors
 const airbnbColors = {
@@ -83,17 +84,21 @@ export default function EditClassScreen() {
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [classData, setClassData] = useState<Class | null>(null);
   
   // Class form state
-  const [className, setClassName] = useState('');
-  const [description, setDescription] = useState('');
-  const [subject, setSubject] = useState('');
-  const [grade, setGrade] = useState('');
-  const [section, setSection] = useState('');
-  const [schedule, setSchedule] = useState('');
-  const [maxStudents, setMaxStudents] = useState('30');
-  const [duration, setDuration] = useState('60');
-  const [academicYear, setAcademicYear] = useState('2024-2025');
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    subject: '',
+    grade: '',
+    section: '',
+    schedule: '',
+    maxStudents: '30',
+    duration: '60',
+    academicYear: '2024-2025',
+    isActive: true,
+  });
   const [status, setStatus] = useState<'active' | 'inactive' | 'full' | 'archived'>('active');
   const [enrollmentStatus, setEnrollmentStatus] = useState<'open' | 'closed' | 'waitlist-only'>('open');
 
@@ -105,33 +110,34 @@ export default function EditClassScreen() {
       Alert.alert('Error', 'Class ID is missing');
       router.back();
     }
-  }, [classId]);
+  }, [classId, loadClassData]);
 
-  const loadClassData = async () => {
+  const loadClassData = useCallback(async () => {
     try {
       setInitialLoading(true);
-      const classData = await classService.getClass(classId);
+      const classInfo = await appwriteService.getClassById(classId);
+      setClassData(classInfo);
       
-      // Populate form with class data
-      setClassName(classData.title || '');
-      setDescription(classData.description || '');
-      setSubject(classData.subject || '');
-      setGrade(classData.grade || '');
-      setSection(classData.section || '');
-      setSchedule(classData.schedule || '');
-      setMaxStudents((classData.maxStudents || 30).toString());
-      setDuration((classData.duration || 60).toString());
-      setAcademicYear(classData.academicYear || '2024-2025');
-      setStatus(classData.status || 'active');
-      setEnrollmentStatus(classData.enrollmentStatus || 'open');
+      // Populate form with existing data
+      setFormData({
+        title: classInfo.title,
+        description: classInfo.description || '',
+        subject: classInfo.subject,
+        grade: classInfo.grade,
+        section: classInfo.section || '',
+        schedule: classInfo.schedule || '',
+        maxStudents: classInfo.maxStudents?.toString() || '30',
+        duration: classInfo.duration?.toString() || '60',
+        academicYear: classInfo.academicYear || '2024-2025',
+        isActive: classInfo.isActive ?? true,
+      });
     } catch (error) {
       console.error('Failed to load class data:', error);
       Alert.alert('Error', 'Failed to load class details. Please try again.');
-      router.back();
     } finally {
       setInitialLoading(false);
     }
-  };
+  }, [classId]);
 
   // Create Airbnb-style Text component
   const AirbnbText = ({ children, style = {}, variant = 'body', color = airbnbColors.dark, ...props }: AirbnbTextProps) => {
@@ -172,17 +178,17 @@ export default function EditClassScreen() {
   };
 
   const validateForm = () => {
-    if (!className.trim()) {
+    if (!formData.title.trim()) {
       Alert.alert('Error', 'Class name is required');
       return false;
     }
     
-    if (!subject.trim()) {
+    if (!formData.subject.trim()) {
       Alert.alert('Error', 'Subject is required');
       return false;
     }
     
-    if (!grade.trim()) {
+    if (!formData.grade.trim()) {
       Alert.alert('Error', 'Grade is required');
       return false;
     }
@@ -195,38 +201,27 @@ export default function EditClassScreen() {
       return;
     }
 
-    setLoading(true);
-    
     try {
-      const updates = {
-        title: className.trim(),
-        description: description.trim(),
-        subject: subject.trim(),
-        grade: grade.trim(),
-        section: section.trim(),
-        academicYear: academicYear,
-        maxStudents: parseInt(maxStudents) || 30,
-        duration: parseInt(duration) || 60,
-        status: status,
-        enrollmentStatus: enrollmentStatus,
-        schedule: schedule.trim(),
+      setLoading(true);
+      const updateData = {
+        ...formData,
+        maxStudents: parseInt(formData.maxStudents) || 30,
+        duration: parseInt(formData.duration) || 60,
+        status,
+        enrollmentStatus,
+        updatedAt: new Date().toISOString(),
       };
 
-      await classService.updateClass(classId, updates);
-      
-      Alert.alert(
-        'Success', 
-        'Class updated successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.back()
-          }
-        ]
-      );
+      await appwriteService.updateClass(classId, updateData);
+      Alert.alert('Success', 'Class updated successfully!', [
+        {
+          text: 'OK',
+          onPress: () => router.back()
+        }
+      ]);
     } catch (error) {
       console.error('Failed to update class:', error);
-      Alert.alert('Error', 'Failed to update class. Please try again.');
+      Alert.alert('Error', 'Failed to update class: ' + (error as Error).message);
     } finally {
       setLoading(false);
     }
@@ -302,8 +297,8 @@ export default function EditClassScreen() {
               <AirbnbText variant="subtitle" style={styles.label}>Class Name *</AirbnbText>
               <TextInput
                 style={styles.input}
-                value={className}
-                onChangeText={setClassName}
+                value={formData.title}
+                onChangeText={(text) => setFormData({ ...formData, title: text })}
                 placeholder="e.g. Advanced Mathematics, English Literature"
                 placeholderTextColor={airbnbColors.mediumGray}
               />
@@ -314,8 +309,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Subject *</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={subject}
-                  onChangeText={setSubject}
+                  value={formData.subject}
+                  onChangeText={(text) => setFormData({ ...formData, subject: text })}
                   placeholder="e.g. Mathematics, English, Science"
                   placeholderTextColor={airbnbColors.mediumGray}
                 />
@@ -325,8 +320,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Grade *</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={grade}
-                  onChangeText={setGrade}
+                  value={formData.grade}
+                  onChangeText={(text) => setFormData({ ...formData, grade: text })}
                   placeholder="e.g. 9, 10, 11, 12"
                   placeholderTextColor={airbnbColors.mediumGray}
                 />
@@ -338,8 +333,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Section</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={section}
-                  onChangeText={setSection}
+                  value={formData.section}
+                  onChangeText={(text) => setFormData({ ...formData, section: text })}
                   placeholder="e.g. A, B, C (optional)"
                   placeholderTextColor={airbnbColors.mediumGray}
                 />
@@ -349,8 +344,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Academic Year</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={academicYear}
-                  onChangeText={setAcademicYear}
+                  value={formData.academicYear}
+                  onChangeText={(text) => setFormData({ ...formData, academicYear: text })}
                   placeholder="2024-2025"
                   placeholderTextColor={airbnbColors.mediumGray}
                 />
@@ -361,8 +356,8 @@ export default function EditClassScreen() {
               <AirbnbText variant="subtitle" style={styles.label}>Description</AirbnbText>
               <TextInput
                 style={[styles.input, styles.textArea]}
-                value={description}
-                onChangeText={setDescription}
+                value={formData.description}
+                onChangeText={(text) => setFormData({ ...formData, description: text })}
                 placeholder="Enter class description"
                 placeholderTextColor={airbnbColors.mediumGray}
                 multiline
@@ -385,8 +380,8 @@ export default function EditClassScreen() {
               <AirbnbText variant="subtitle" style={styles.label}>Schedule</AirbnbText>
               <TextInput
                 style={styles.input}
-                value={schedule}
-                onChangeText={setSchedule}
+                value={formData.schedule}
+                onChangeText={(text) => setFormData({ ...formData, schedule: text })}
                 placeholder="e.g. Mon-Fri 9:00 AM - 10:00 AM"
                 placeholderTextColor={airbnbColors.mediumGray}
               />
@@ -397,8 +392,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Duration (minutes)</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={duration}
-                  onChangeText={setDuration}
+                  value={formData.duration}
+                  onChangeText={(text) => setFormData({ ...formData, duration: text })}
                   placeholder="60"
                   placeholderTextColor={airbnbColors.mediumGray}
                   keyboardType="numeric"
@@ -409,8 +404,8 @@ export default function EditClassScreen() {
                 <AirbnbText variant="subtitle" style={styles.label}>Max Students</AirbnbText>
                 <TextInput
                   style={styles.input}
-                  value={maxStudents}
-                  onChangeText={setMaxStudents}
+                  value={formData.maxStudents}
+                  onChangeText={(text) => setFormData({ ...formData, maxStudents: text })}
                   placeholder="30"
                   placeholderTextColor={airbnbColors.mediumGray}
                   keyboardType="numeric"

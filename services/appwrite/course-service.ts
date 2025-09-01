@@ -1,10 +1,20 @@
 import { ID, Permission, Query, Role } from 'appwrite';
 import authService from './auth-service';
-import { account, COURSES_COLLECTION_ID, DATABASE_ID, databases, EXERCISES_COLLECTION_ID, LESSONS_COLLECTION_ID, USERS_COLLECTION_ID } from './client';
+import { getAppwriteClient } from './client';
+
+// Retrieve Appwrite primitives and config
+const { account, databases, config } = getAppwriteClient();
+
+// Helper alias accessors for readability (still sourced from config)
+const DATABASE_ID = config.databaseId;
+const COURSES_COLLECTION_ID = config.coursesCollectionId;
+const LESSONS_COLLECTION_ID = config.lessonsCollectionId;
+const EXERCISES_COLLECTION_ID = config.exercisesCollectionId;
+const USERS_COLLECTION_ID = config.usersCollectionId;
 
 const courseService = {
   // Course methods
-  getAllCourses: async (filters = []) => {
+  getAllCourses: async (filters: any[] = []) => {
     console.log('getAllCourses: Starting request to Appwrite...');
     
     try {
@@ -16,15 +26,15 @@ const courseService = {
       
       console.log('getAllCourses: Request successful, received', response.documents.length, 'courses');
       return response.documents;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getAllCourses :: error:', error);
       
       // More detailed error logging
-      if (error.code) {
+      if (error && typeof error === 'object' && 'code' in error) {
         console.error('Error code:', error.code);
       }
       
-      if (error.response) {
+      if (error && typeof error === 'object' && 'response' in error) {
         console.error('Response details:', error.response);
       }
       
@@ -32,7 +42,7 @@ const courseService = {
     }
   },
   
-  createCourse: async (courseData) => {
+  createCourse: async (courseData: any) => {
     try {
       // Get current user
       const currentUser = await account.get();
@@ -94,13 +104,13 @@ const courseService = {
       console.log('Course created successfully:', result.$id);
       
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: createCourse :: error', error);
       throw error;
     }
   },
   
-  updateCourse: async (courseId, courseData) => {
+  updateCourse: async (courseId: string, courseData: any) => {
     try {
       // Prepare data for update - handle field mismatches
       const updateData = { ...courseData };
@@ -135,13 +145,13 @@ const courseService = {
         courseId,
         updateData
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: updateCourse :: error', error);
       throw error;
     }
   },
   
-  deleteCourse: async (courseId) => {
+  deleteCourse: async (courseId: string) => {
     try {
       // First, check if there are any lessons associated with this course
       const associatedLessons = await databases.listDocuments(
@@ -185,13 +195,13 @@ const courseService = {
       );
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: deleteCourse :: error', error);
       throw error;
     }
   },
   
-  getCoursesByLevel: async (level) => {
+  getCoursesByLevel: async (level: string) => {
     try {
       const response = await databases.listDocuments(
         DATABASE_ID,
@@ -200,27 +210,27 @@ const courseService = {
       );
       
       return response.documents;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getCoursesByLevel :: error', error);
       throw error;
     }
   },
   
-  getCourseById: async (courseId) => {
+  getCourseById: async (courseId: string) => {
     try {
       return await databases.getDocument(
         DATABASE_ID,
         COURSES_COLLECTION_ID,
         courseId
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getCourseById :: error', error);
       throw error;
     }
   },
   
   // Lesson methods
-  getLessonsByCourse: async (courseId) => {
+  getLessonsByCourse: async (courseId: string) => {
     try {
       const response = await databases.listDocuments(
         DATABASE_ID,
@@ -233,13 +243,13 @@ const courseService = {
       );
       
       return response.documents;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getLessonsByCourse :: error', error);
       throw error;
     }
   },
   
-  createLesson: async (lessonData) => {
+  createLesson: async (lessonData: any) => {
     try {
       // Get current user
       const currentUser = await account.get();
@@ -292,13 +302,13 @@ const courseService = {
       );
       
       return result;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: createLesson :: error', error);
       throw error;
     }
   },
   
-  updateLesson: async (lessonId, lessonData) => {
+  updateLesson: async (lessonId: string, lessonData: any) => {
     try {
       // Add updated timestamp
       const updateData = {
@@ -312,13 +322,13 @@ const courseService = {
         lessonId,
         updateData
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: updateLesson :: error', error);
       throw error;
     }
   },
   
-  deleteLesson: async (lessonId) => {
+  deleteLesson: async (lessonId: string) => {
     try {
       // First, check if there are any exercises associated with this lesson
       const associatedExercises = await databases.listDocuments(
@@ -346,27 +356,27 @@ const courseService = {
       );
       
       return true;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: deleteLesson :: error', error);
       throw error;
     }
   },
   
-  getLessonById: async (lessonId) => {
+  getLessonById: async (lessonId: string) => {
     try {
       return await databases.getDocument(
         DATABASE_ID,
         LESSONS_COLLECTION_ID,
         lessonId
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getLessonById :: error', error);
       throw error;
     }
   },
   
   // Exercise methods
-  getExercisesByLesson: async (lessonId) => {
+  getExercisesByLesson: async (lessonId: string) => {
     try {
       const response = await databases.listDocuments(
         DATABASE_ID,
@@ -375,7 +385,7 @@ const courseService = {
       );
       
       return response.documents;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getExercisesByLesson :: error', error);
       throw error;
     }
@@ -401,7 +411,7 @@ const courseService = {
           updatedAt: new Date().toISOString()
         }
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: assignInstructorToCourse :: error', error);
       throw error;
     }
@@ -426,7 +436,7 @@ const courseService = {
           updatedAt: new Date().toISOString()
         }
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: removeInstructorFromCourse :: error', error);
       throw error;
     }
@@ -442,7 +452,7 @@ const courseService = {
       );
       
       return response.documents;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getInstructors :: error', error);
       throw error;
     }
@@ -462,7 +472,7 @@ const courseService = {
       const instructor = await authService.getUserProfile(course.instructorId);
       
       return instructor ? [instructor] : [];
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getInstructorsByCourse :: error', error);
       return [];
     }
@@ -506,7 +516,7 @@ const courseService = {
       await courseService.assignInstructorToCourse(courseId, instructorId);
       
       return { success: true };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: addInstructorToCourse :: error', error);
       throw error;
     }
@@ -531,7 +541,7 @@ const courseService = {
         }
         return 0;
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Appwrite service :: getEligibleInstructors :: error', error);
       return [];
     }

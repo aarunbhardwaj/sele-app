@@ -1,16 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
 import Animated, {
-    FadeIn,
-    FadeInDown,
-    FadeInUp,
-    useAnimatedStyle,
-    useSharedValue,
-    withRepeat,
-    withSequence,
-    withTiming
+  FadeIn,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming
 } from 'react-native-reanimated';
 import PreAuthHeader from '../../components/ui/Header';
 import Text from '../../components/ui/Typography';
@@ -69,6 +69,10 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [isFocused, setIsFocused] = useState<{[key: string]: boolean}>({});
   
+  // Refs for TextInput components
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  
   // Gamification elements
   const [streakDays, setStreakDays] = useState(7);
   
@@ -101,7 +105,7 @@ export default function LoginScreen() {
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
   
-  // Validation functions
+  // Validation functions - no automatic validation on change
   const validateEmail = (email: string): boolean => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isValid = emailRegex.test(email);
@@ -148,14 +152,27 @@ export default function LoginScreen() {
     }
   };
   
+  // Focus handlers with better management
   const handleFocus = (field: string) => {
     setIsFocused(prev => ({ ...prev, [field]: true }));
+    // Clear any existing errors when focusing on a field
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
   };
   
   const handleBlur = (field: string) => {
     setIsFocused(prev => ({ ...prev, [field]: false }));
-    if (field === 'email' && email) validateEmail(email);
-    if (field === 'password' && password) validatePassword(password);
+    // Only validate on blur if field has content AND we're not switching to another input
+    // This prevents the focus jumping issue
+    setTimeout(() => {
+      if (field === 'email' && email.trim() && !isFocused.password) {
+        validateEmail(email);
+      }
+      if (field === 'password' && password.trim() && !isFocused.email) {
+        validatePassword(password);
+      }
+    }, 100);
   };
   
   return (
@@ -237,15 +254,14 @@ export default function LoginScreen() {
                 errors.email && styles.inputWrapperError
               ]}>
                 <TextInput
+                  ref={emailRef}
                   placeholder="Enter your email address"
                   placeholderTextColor={airbnbColors.mediumGray}
                   value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    if (errors.email) validateEmail(text);
-                  }}
+                  onChangeText={setEmail}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  autoCorrect={false}
                   onFocus={() => handleFocus('email')}
                   onBlur={() => handleBlur('email')}
                   style={styles.textInput}
@@ -267,14 +283,14 @@ export default function LoginScreen() {
                 errors.password && styles.inputWrapperError
               ]}>
                 <TextInput
+                  ref={passwordRef}
                   placeholder="Enter your password"
                   placeholderTextColor={airbnbColors.mediumGray}
                   value={password}
-                  onChangeText={(text) => {
-                    setPassword(text);
-                    if (errors.password) validatePassword(text);
-                  }}
+                  onChangeText={setPassword}
                   secureTextEntry={!isPasswordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   onFocus={() => handleFocus('password')}
                   onBlur={() => handleBlur('password')}
                   style={styles.textInput}
@@ -334,56 +350,13 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </Animated.View>
           </Animated.View>
-          
-          {/* Social login section - Airbnb style */}
-          <Animated.View 
-            entering={FadeInUp.delay(700).duration(800)}
-            style={styles.socialSection}
-            accessible={true}
-            accessibilityLabel="Alternative login options"
-          >
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-            
-            <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.socialButton}
-                accessible={true}
-                accessibilityLabel="Continue with Google"
-              >
-                <View style={[styles.socialIcon, { backgroundColor: airbnbColors.google }]}>
-                  <Text style={styles.socialIconText}>G</Text>
-                </View>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.socialButton}
-                accessible={true}
-                accessibilityLabel="Continue with Apple"
-              >
-                <Ionicons name="logo-apple" size={20} color={airbnbColors.apple} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.socialButton}
-                accessible={true}
-                accessibilityLabel="Continue with Facebook"
-              >
-                <Ionicons name="logo-facebook" size={20} color={airbnbColors.facebook} />
-                <Text style={styles.socialButtonText}>Facebook</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
         </Animated.View>
       </ScrollView>
       
       {/* Footer - Clean Airbnb style */}
       <Animated.View 
+        entering={FadeInUp.delay(600).duration(800)}
+        style={styles.footer}
       >
         <Text style={styles.footerText}>
           Don't have an account?{' '}
@@ -579,60 +552,6 @@ const styles = StyleSheet.create({
   },
   spinner: {
     marginRight: 8,
-  },
-  socialSection: {
-    marginBottom: 20,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: airbnbColors.gray,
-  },
-  dividerText: {
-    fontSize: 14,
-    color: airbnbColors.mediumGray,
-    marginHorizontal: 16,
-  },
-  socialButtonsContainer: {
-    gap: 12,
-  },
-  socialButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: airbnbColors.gray,
-    borderRadius: 8,
-    height: 48,
-    backgroundColor: airbnbColors.white,
-    shadowColor: airbnbColors.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  socialButtonText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: airbnbColors.charcoal,
-    marginLeft: 12,
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  socialIconText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: airbnbColors.white,
   },
   footer: {
     paddingHorizontal: 24,

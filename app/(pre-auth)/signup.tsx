@@ -334,43 +334,9 @@ export default function SignUpScreen() {
             </Animated.View>
           </Animated.View>
           
-          {/* Social signup section */}
-          <Animated.View 
-            entering={FadeInUp.delay(600).duration(800)}
-            style={styles.socialSection}
-          >
-            <View style={styles.dividerContainer}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-            
-            <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity 
-                style={styles.socialButton}
-                accessible={true}
-                accessibilityLabel="Sign up with Google"
-              >
-                <View style={[styles.socialIcon, { backgroundColor: airbnbColors.google }]}>
-                  <Text style={styles.socialIconText}>G</Text>
-                </View>
-                <Text style={styles.socialButtonText}>Google</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.socialButton}
-                accessible={true}
-                accessibilityLabel="Sign up with Apple"
-              >
-                <Ionicons name="logo-apple" size={20} color={airbnbColors.apple} />
-                <Text style={styles.socialButtonText}>Apple</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-          
           {/* Terms text */}
           <Animated.View 
-            entering={FadeInUp.delay(700).duration(800)}
+            entering={FadeInUp.delay(600).duration(800)}
             style={styles.termsContainer}
           >
             <Text style={styles.termsText}>
@@ -389,7 +355,7 @@ export default function SignUpScreen() {
       
       {/* Footer */}
       <Animated.View 
-        entering={FadeInUp.delay(800).duration(800)}
+        entering={FadeInUp.delay(700).duration(800)}
         style={styles.footer}
       >
         <Text style={styles.footerText}>
