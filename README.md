@@ -31,7 +31,7 @@ A comprehensive language learning platform built with React Native and Expo, fea
 - Node.js 18+
 - npm or yarn
 - Expo CLI
-- EAS CLI (for building)
+- EAS CLI (for building): `npm install -g eas-cli`
 
 ### Installation
 

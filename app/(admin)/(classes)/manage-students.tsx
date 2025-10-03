@@ -457,6 +457,9 @@ export default function ManageStudentsScreen() {
                 <Text style={styles.emptySubtitle}>
                   This class doesn't have any enrolled students yet. Add some students to get started.
                 </Text>
+                <Text style={styles.noStudentsText}>
+                  No students enrolled yet in this class.
+                </Text>
                 <TouchableOpacity
                   style={styles.emptyActionButton}
                   onPress={() => setShowAddStudent(true)}
@@ -871,5 +874,12 @@ const styles = StyleSheet.create({
     color: airbnbColors.primary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  noStudentsText: {
+    fontSize: 14,
+    color: colors.neutral.gray,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: spacing.lg,
   },
 });

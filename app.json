@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Language Learning Hub",
-    "slug": "language-learning-hub",
+    "name": "sele-language-learning-app",
+    "slug": "sele-language-learning-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,11 @@
     "newArchEnabled": true,
     "description": "A comprehensive language learning platform with instructor management, student progress tracking, and interactive lessons.",
     "privacy": "public",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -37,12 +41,13 @@
       "package": "com.languagelearning.hub",
       "versionCode": 1,
       "permissions": [
-        "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "RECORD_AUDIO",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "edgeToEdgeEnabled": true
     },
@@ -82,9 +87,11 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {},
       "eas": {
-        "projectId": "your-project-id-here"
+        "projectId": "9f573cd6-248e-411b-a0e6-b39c5e31941d"
       }
-    }
+    },
+    "owner": "aarunbhardwaj"
   }
 }

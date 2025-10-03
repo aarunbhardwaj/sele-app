@@ -775,4 +775,17 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: airbnbColors.border,
   },
+  cardContent: {
+    padding: 20,
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
 });

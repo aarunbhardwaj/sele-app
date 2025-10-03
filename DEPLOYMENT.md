@@ -4,7 +4,7 @@
 
 1. **EAS CLI Installation**
    ```bash
-   npm install -g @expo/eas-cli
+   npm install -g eas-cli
    ```
 
 2. **Expo Account**
