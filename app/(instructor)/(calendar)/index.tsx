@@ -2,14 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View
+  ActivityIndicator,
+  Alert,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import type { ClassSession, InstructorSchedule } from '../../../lib/instructor-types';
@@ -40,6 +40,33 @@ interface CalendarDay {
   sessions: ClassSession[];
 }
 
+// Add new interfaces for roster integration
+interface EnhancedSession extends ClassSession {
+  schoolName?: string;
+  classTitle?: string;
+  assignmentStatus?: 'active' | 'pending' | 'completed' | 'cancelled';
+  isTemporary?: boolean;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  enrollmentRate?: number;
+  maxStudents?: number;
+}
+
+interface RosterAssignment {
+  $id: string;
+  schoolName: string;
+  className: string;
+  subject: string;
+  grade: string;
+  schedule: string;
+  status: 'active' | 'pending' | 'completed' | 'cancelled';
+  isTemporary: boolean;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  totalStudents: number;
+  maxStudents: number;
+  assignedDate: string;
+  notes?: string;
+}
+
 export default function InstructorCalendarScreen() {
   const router = useRouter();
   const { user } = useAuth();
@@ -49,8 +76,10 @@ export default function InstructorCalendarScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([]);
-  const [sessions, setSessions] = useState<ClassSession[]>([]);
+  const [sessions, setSessions] = useState<EnhancedSession[]>([]);
   const [schedule, setSchedule] = useState<InstructorSchedule[]>([]);
+  const [rosterAssignments, setRosterAssignments] = useState<RosterAssignment[]>([]);
+  const [weekView, setWeekView] = useState(false);
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -77,17 +106,45 @@ export default function InstructorCalendarScreen() {
       const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
       const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
       
-      // Get sessions for the month
-      const [sessionsResp, scheduleResp] = await Promise.all([
+      // Load all instructor data including roster assignments
+      const [sessionsResp, scheduleResp, assignmentsResp, classesResp] = await Promise.all([
         appwriteService.getInstructorSessions?.(user.$id, {}).catch(() => []),
-        appwriteService.getInstructorSchedule?.(user.$id).catch(() => [])
+        appwriteService.getInstructorSchedule?.(user.$id).catch(() => []),
+        appwriteService.getInstructorAssignments?.(user.$id).catch(() => []),
+        appwriteService.getClassesByInstructor?.(user.$id).catch(() => [])
       ]);
 
-      setSessions(Array.isArray(sessionsResp) ? sessionsResp : []);
-      setSchedule(Array.isArray(scheduleResp) ? scheduleResp : []);
+      // Enhance sessions with roster data
+      const enhancedSessions = await enhanceSessionsWithRosterData(
+        sessionsResp || [], 
+        assignmentsResp || [], 
+        classesResp || []
+      );
 
-      // Generate calendar days
-      generateCalendarDays(startOfMonth, endOfMonth, sessionsResp || []);
+      setSessions(enhancedSessions);
+      setSchedule(Array.isArray(scheduleResp) ? scheduleResp : []);
+      
+      // Transform assignments for roster display
+      const rosterData = (assignmentsResp || []).map(assignment => ({
+        $id: assignment.$id,
+        schoolName: assignment.schoolName,
+        className: assignment.className,
+        subject: assignment.subject,
+        grade: assignment.grade,
+        schedule: assignment.schedule,
+        status: assignment.status,
+        isTemporary: assignment.isTemporary,
+        priority: determinePriority(assignment),
+        totalStudents: 0, // Will be populated from class data
+        maxStudents: 0,
+        assignedDate: assignment.startDate,
+        notes: assignment.notes
+      }));
+
+      setRosterAssignments(rosterData);
+
+      // Generate calendar days with enhanced session data
+      generateCalendarDays(startOfMonth, endOfMonth, enhancedSessions);
 
     } catch (error) {
       console.error('Error loading calendar data:', error);
@@ -96,6 +153,41 @@ export default function InstructorCalendarScreen() {
       setLoading(false);
       setRefreshing(false);
     }
+  };
+
+  const enhanceSessionsWithRosterData = async (
+    sessions: ClassSession[], 
+    assignments: any[], 
+    classes: any[]
+  ): Promise<EnhancedSession[]> => {
+    return sessions.map(session => {
+      // Find matching assignment
+      const assignment = assignments.find(a => a.classId === session.classId);
+      
+      // Find matching class data
+      const classData = classes.find(c => c.$id === session.classId);
+      
+      return {
+        ...session,
+        schoolName: assignment?.schoolName || 'Unknown School',
+        classTitle: assignment?.className || classData?.title || 'English Class',
+        assignmentStatus: assignment?.status || 'active',
+        isTemporary: assignment?.isTemporary || false,
+        priority: determinePriority(assignment) || 'medium',
+        enrollmentRate: classData ? (classData.currentEnrollment / (classData.maxStudents || 1)) : 0,
+        maxStudents: classData?.maxStudents || session.totalStudents
+      };
+    });
+  };
+
+  const determinePriority = (assignment: any): 'low' | 'medium' | 'high' | 'urgent' => {
+    if (!assignment) return 'medium';
+    
+    if (assignment.isTemporary) return 'urgent';
+    if (assignment.status === 'pending') return 'high';
+    if (assignment.endDate && new Date(assignment.endDate) < new Date()) return 'high';
+    
+    return 'medium';
   };
 
   const generateCalendarDays = (startOfMonth: Date, endOfMonth: Date, sessionData: ClassSession[]) => {
@@ -159,6 +251,26 @@ export default function InstructorCalendarScreen() {
     }
   };
 
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'urgent': return '#DC2626';
+      case 'high': return '#EA580C';
+      case 'medium': return '#D97706';
+      case 'low': return '#65A30D';
+      default: return airbnbColors.mediumGray;
+    }
+  };
+
+  const getAssignmentStatusColor = (status: string) => {
+    switch (status) {
+      case 'active': return airbnbColors.success;
+      case 'pending': return airbnbColors.warning;
+      case 'completed': return airbnbColors.primary;
+      case 'cancelled': return airbnbColors.error;
+      default: return airbnbColors.mediumGray;
+    }
+  };
+
   const formatTime = (timeString: string) => {
     try {
       const [hours, minutes] = timeString.split(':');
@@ -201,11 +313,14 @@ export default function InstructorCalendarScreen() {
     );
   };
 
-  const renderSessionCard = (session: ClassSession, index: number) => (
+  const renderSessionCard = (session: EnhancedSession, index: number) => (
     <Animated.View
       key={session.$id}
       entering={FadeInUp.delay(index * 100).duration(500)}
-      style={styles.sessionCard}
+      style={[
+        styles.sessionCard,
+        session.isTemporary && styles.temporarySessionCard
+      ]}
     >
       <TouchableOpacity
         style={styles.sessionContent}
@@ -216,15 +331,29 @@ export default function InstructorCalendarScreen() {
             <Text style={styles.sessionTime}>
               {formatTime(session.startTime)} - {formatTime(session.endTime)}
             </Text>
-            <View style={[styles.sessionStatusBadge, { backgroundColor: getSessionStatusColor(session.status) }]}>
-              <Text style={styles.sessionStatusText}>
-                {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
-              </Text>
+            <View style={styles.sessionBadges}>
+              <View style={[styles.sessionStatusBadge, { backgroundColor: getSessionStatusColor(session.status) }]}>
+                <Text style={styles.sessionStatusText}>
+                  {session.status.charAt(0).toUpperCase() + session.status.slice(1)}
+                </Text>
+              </View>
+              {session.isTemporary && (
+                <View style={[styles.temporaryBadge, { backgroundColor: airbnbColors.warning }]}>
+                  <Text style={styles.badgeText}>TEMP</Text>
+                </View>
+              )}
+              <View style={[styles.priorityBadge, { backgroundColor: getPriorityColor(session.priority || 'medium') }]}>
+                <Text style={styles.badgeText}>{(session.priority || 'medium').toUpperCase()}</Text>
+              </View>
             </View>
           </View>
         </View>
 
-        <Text style={styles.sessionTopic}>{session.lessonTopic || 'English Class'}</Text>
+        {/* Enhanced session info with roster data */}
+        <View style={styles.sessionInfoContainer}>
+          <Text style={styles.sessionTopic}>{session.lessonTopic || session.classTitle}</Text>
+          <Text style={styles.schoolName}>{session.schoolName}</Text>
+        </View>
         
         <View style={styles.sessionDetails}>
           <View style={styles.sessionDetail}>
@@ -240,6 +369,31 @@ export default function InstructorCalendarScreen() {
               {session.attendanceCount}/{session.totalStudents} students
             </Text>
           </View>
+
+          <View style={styles.sessionDetail}>
+            <Ionicons name="school-outline" size={16} color={airbnbColors.darkGray} />
+            <Text style={styles.sessionDetailText}>
+              Grade {rosterAssignments.find(a => a.className === session.classTitle)?.grade || 'N/A'}
+            </Text>
+          </View>
+
+          {session.enrollmentRate !== undefined && (
+            <View style={styles.sessionDetail}>
+              <Ionicons name="trending-up-outline" size={16} color={airbnbColors.darkGray} />
+              <Text style={styles.sessionDetailText}>
+                {Math.round((session.enrollmentRate || 0) * 100)}% enrolled
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Assignment status indicator */}
+        <View style={styles.assignmentStatusContainer}>
+          <View style={[styles.assignmentStatusBadge, { backgroundColor: getAssignmentStatusColor(session.assignmentStatus || 'active') + '15' }]}>
+            <Text style={[styles.assignmentStatusText, { color: getAssignmentStatusColor(session.assignmentStatus || 'active') }]}>
+              Assignment: {(session.assignmentStatus || 'active').charAt(0).toUpperCase() + (session.assignmentStatus || 'active').slice(1)}
+            </Text>
+          </View>
         </View>
 
         {session.status === 'scheduled' && (
@@ -250,6 +404,19 @@ export default function InstructorCalendarScreen() {
             >
               <Ionicons name="play" size={16} color={airbnbColors.success} />
               <Text style={[styles.actionButtonText, { color: airbnbColors.success }]}>Start Class</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                Alert.alert(
+                  'Class Details', 
+                  `School: ${session.schoolName}\nClass: ${session.classTitle}\nType: ${session.isTemporary ? 'Temporary Assignment' : 'Regular Assignment'}\nPriority: ${session.priority}\nStatus: ${session.assignmentStatus}`
+                );
+              }}
+            >
+              <Ionicons name="information-circle-outline" size={16} color={airbnbColors.primary} />
+              <Text style={[styles.actionButtonText, { color: airbnbColors.primary }]}>Details</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -266,6 +433,39 @@ export default function InstructorCalendarScreen() {
           </View>
         )}
       </TouchableOpacity>
+    </Animated.View>
+  );
+
+  // Add roster summary component
+  const renderRosterSummary = () => (
+    <Animated.View entering={FadeInUp.delay(150).duration(600)} style={styles.rosterSummary}>
+      <Text style={styles.rosterSummaryTitle}>Assignment Overview</Text>
+      <View style={styles.rosterStats}>
+        <View style={styles.rosterStatItem}>
+          <Text style={styles.rosterStatNumber}>
+            {rosterAssignments.filter(a => a.status === 'active').length}
+          </Text>
+          <Text style={styles.rosterStatLabel}>Active</Text>
+        </View>
+        <View style={styles.rosterStatItem}>
+          <Text style={[styles.rosterStatNumber, { color: airbnbColors.warning }]}>
+            {rosterAssignments.filter(a => a.isTemporary).length}
+          </Text>
+          <Text style={styles.rosterStatLabel}>Temporary</Text>
+        </View>
+        <View style={styles.rosterStatItem}>
+          <Text style={[styles.rosterStatNumber, { color: '#EA580C' }]}>
+            {rosterAssignments.filter(a => a.priority === 'high' || a.priority === 'urgent').length}
+          </Text>
+          <Text style={styles.rosterStatLabel}>High Priority</Text>
+        </View>
+        <View style={styles.rosterStatItem}>
+          <Text style={[styles.rosterStatNumber, { color: airbnbColors.secondary }]}>
+            {new Set(rosterAssignments.map(a => a.schoolName)).size}
+          </Text>
+          <Text style={styles.rosterStatLabel}>Schools</Text>
+        </View>
+      </View>
     </Animated.View>
   );
 
@@ -295,10 +495,18 @@ export default function InstructorCalendarScreen() {
             <Ionicons name="arrow-back" size={24} color={airbnbColors.charcoal} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Schedule</Text>
-          <TouchableOpacity onPress={() => setSelectedDate(new Date())} style={styles.todayButton}>
-            <Text style={styles.todayButtonText}>Today</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => setWeekView(!weekView)} style={styles.viewToggleButton}>
+              <Ionicons name={weekView ? "calendar" : "list"} size={20} color={airbnbColors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setSelectedDate(new Date())} style={styles.todayButton}>
+              <Text style={styles.todayButtonText}>Today</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
+
+        {/* Roster Summary */}
+        {renderRosterSummary()}
 
         {/* Calendar Navigation */}
         <Animated.View entering={FadeInUp.delay(200).duration(600)} style={styles.calendarHeader}>
@@ -361,6 +569,101 @@ export default function InstructorCalendarScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ...existing styles...
+
+  // New styles for roster integration
+  rosterSummary: {
+    backgroundColor: airbnbColors.white,
+    margin: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: airbnbColors.charcoal,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  rosterSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+    marginBottom: 16,
+  },
+  rosterStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  rosterStatItem: {
+    alignItems: 'center',
+  },
+  rosterStatNumber: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: airbnbColors.charcoal,
+  },
+  rosterStatLabel: {
+    fontSize: 12,
+    color: airbnbColors.darkGray,
+    marginTop: 4,
+  },
+  temporarySessionCard: {
+    borderLeftWidth: 4,
+    borderLeftColor: airbnbColors.warning,
+  },
+  sessionBadges: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  temporaryBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  priorityBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: airbnbColors.white,
+  },
+  sessionInfoContainer: {
+    marginBottom: 12,
+  },
+  schoolName: {
+    fontSize: 14,
+    color: airbnbColors.secondary,
+    fontWeight: '500',
+  },
+  assignmentStatusContainer: {
+    marginTop: 8,
+    marginBottom: 12,
+  },
+  assignmentStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  assignmentStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  viewToggleButton: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
+    backgroundColor: airbnbColors.lightGray,
+  },
+
+  // ...keep all existing styles...
   container: {
     flex: 1,
     backgroundColor: airbnbColors.offWhite,
@@ -544,10 +847,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: airbnbColors.charcoal,
-    marginBottom: 12,
+    marginBottom: 4,
   },
   sessionDetails: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 16,
     marginBottom: 16,
   },
