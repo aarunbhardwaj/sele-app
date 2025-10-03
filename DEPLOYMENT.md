@@ -1,129 +1,144 @@
-# Deployment Checklist
+# Production Deployment Guide
 
-## Pre-Deployment Validation
+## Prerequisites
 
-### ✅ Code Quality
-- [ ] All TypeScript errors resolved
-- [ ] No console.error or console.warn in production code  
-- [ ] Proper error handling implemented
-- [ ] Input validation for all forms
-- [ ] Authentication flows tested
+1. **EAS CLI Installation**
+   ```bash
+   npm install -g @expo/eas-cli
+   ```
 
-### ✅ Environment Configuration
-- [ ] Production `.env` file configured
-- [ ] Appwrite project set up for production
-- [ ] Database collections created with proper permissions
-- [ ] Storage bucket configured
-- [ ] API keys secured (not exposed in client)
+2. **Expo Account**
+   - Create account at [expo.dev](https://expo.dev)
+   - Login: `eas login`
 
-### ✅ Testing Completed
-- [ ] Authentication flow (login/signup/logout)
-- [ ] Course creation and management
-- [ ] Quiz creation and taking
-- [ ] Video playback functionality
-- [ ] Progress tracking accuracy
-- [ ] Admin user management
-- [ ] Error boundaries working
-- [ ] Offline functionality (if implemented)
+3. **App Store Accounts**
+   - Google Play Console ($25 one-time fee)
+   - Apple Developer Program ($99/year)
 
-### ✅ Performance Optimization  
-- [ ] Image optimization and lazy loading
-- [ ] Video streaming optimized
-- [ ] Bundle size analysis completed
-- [ ] Memory leak checks
-- [ ] Network request optimization
+## Environment Setup
 
-### ✅ Security
-- [ ] Input sanitization implemented
-- [ ] SQL injection protection (Appwrite handles this)
-- [ ] XSS protection measures
-- [ ] Secure authentication tokens
-- [ ] Role-based access control tested
-- [ ] Data validation on both client and server
+1. **Copy production environment**
+   ```bash
+   cp .env.production .env
+   ```
 
-### ✅ User Experience
-- [ ] Loading states for all async operations
-- [ ] Error messages user-friendly
-- [ ] Responsive design tested on multiple screen sizes
-- [ ] Accessibility features implemented
-- [ ] Navigation flow intuitive
+2. **Update environment variables**
+   - Replace all placeholder values with your production Appwrite configuration
+   - Ensure all collection IDs match your production database
 
-## Deployment Steps
+## Build Process
 
-### 1. Final Code Review
-```bash
-# Run final checks
-npm run lint
-npm run type-check
-expo doctor
+### Android Build (Google Play Store)
+
+1. **Configure EAS Project**
+   ```bash
+   eas build:configure
+   ```
+
+2. **Production Build**
+   ```bash
+   npm run build:android
+   ```
+
+3. **Submit to Play Store**
+   ```bash
+   npm run submit:android
+   ```
+
+### iOS Build (App Store)
+
+1. **Production Build**
+   ```bash
+   npm run build:ios
+   ```
+
+2. **Submit to App Store**
+   ```bash
+   npm run submit:ios
+   ```
+
+## Store Listing Requirements
+
+### Google Play Store
+
+**Required Assets:**
+- App Icon: 512x512 PNG
+- Feature Graphic: 1024x500 PNG
+- Screenshots: At least 2 phone screenshots
+- Privacy Policy URL
+- App Description (max 4000 characters)
+
+**Store Listing Information:**
+```
+Title: Language Learning Hub
+Short Description: Comprehensive language learning platform with instructor management
+Description: 
+A powerful language learning platform that connects students with instructors. Features include:
+• Interactive lessons and quizzes
+• Instructor dashboard with class management
+• Student progress tracking and ratings
+• Multi-school support with assignment management
+• Real-time calendar and scheduling
+• Comprehensive admin panel
+
+Perfect for language schools, private tutors, and educational institutions.
 ```
 
-### 2. Build Configuration
-```bash
-# Install EAS CLI
-npm install -g @expo/eas-cli
+### App Store (iOS)
 
-# Configure EAS
-eas build:configure
+**Required Assets:**
+- App Icon: 1024x1024 PNG
+- Screenshots: iPhone and iPad
+- App Preview (optional video)
+- Privacy Policy URL
+- App Description (max 4000 characters)
 
-# Create production build
-eas build --platform all --profile production
-```
+## Pre-Launch Checklist
 
-### 3. Testing Builds
-- [ ] Test on physical iOS device
-- [ ] Test on physical Android device  
-- [ ] Verify all features work as expected
-- [ ] Test with production Appwrite instance
+### Technical
+- [ ] All environment variables configured
+- [ ] Production Appwrite instance set up
+- [ ] App builds successfully
+- [ ] All features tested on physical devices
+- [ ] Performance optimized
+- [ ] Memory leaks checked
+- [ ] Offline functionality tested (if applicable)
 
-### 4. Store Deployment
-```bash
-# Submit to app stores
-eas submit --platform ios
-eas submit --platform android
-```
+### Legal & Compliance
+- [ ] Privacy Policy created
+- [ ] Terms of Service created
+- [ ] Data collection practices documented
+- [ ] COPPA compliance (if applicable)
+- [ ] GDPR compliance (if applicable)
 
-### 5. Web Deployment (if applicable)
-```bash
-# Build for web
-expo build:web
+### Store Requirements
+- [ ] App icons created (all sizes)
+- [ ] Screenshots taken (all required sizes)
+- [ ] Feature graphics created
+- [ ] Store descriptions written
+- [ ] Keywords researched
+- [ ] Content rating completed
 
-# Deploy to hosting service (Netlify, Vercel, etc.)
-```
+## Post-Launch
 
-## Post-Deployment
+### Monitoring
+- Set up crash reporting with Expo
+- Monitor user feedback and ratings
+- Track key metrics and analytics
 
-### ✅ Monitoring Setup
-- [ ] Error tracking (Sentry, Bugsnag)
-- [ ] Analytics integration (if desired)
-- [ ] Performance monitoring
-- [ ] User feedback collection
+### Updates
+- Use EAS Update for over-the-air updates
+- Follow semantic versioning for releases
+- Test updates thoroughly before deployment
 
-### ✅ Maintenance Plan
-- [ ] Update schedule established
-- [ ] Backup procedures documented
-- [ ] Support contact information provided
-- [ ] Documentation updated
+## Troubleshooting
 
-## Rollback Plan
+### Common Build Issues
+1. **Missing environment variables**: Ensure all required env vars are set
+2. **Asset optimization**: Compress images and optimize bundle size
+3. **Permission issues**: Verify all required permissions are declared
 
-In case of critical issues:
-1. Revert to previous working build via EAS
-2. Update users via over-the-air updates if needed
-3. Fix issues in development
-4. Test thoroughly before re-deploying
-
-## Success Metrics
-
-- [ ] App launches successfully on all platforms
-- [ ] User registration/login works
-- [ ] Core learning features functional
-- [ ] No critical crashes reported
-- [ ] Performance meets acceptable standards
-- [ ] User feedback positive
-
-## Notes
-
-- Keep this checklist updated as the app evolves
-- Document any deployment-specific configurations
-- Maintain changelog for future reference
+### Store Rejection Reasons
+1. **Incomplete metadata**: Ensure all required fields are filled
+2. **Missing privacy policy**: Required for apps that collect data
+3. **Inappropriate content**: Ensure content follows store guidelines

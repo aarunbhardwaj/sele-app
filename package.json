@@ -1,14 +1,36 @@
 {
-  "name": "react_tutorial",
+  "name": "language-learning-hub",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "description": "A comprehensive language learning platform with instructor management, student progress tracking, and interactive lessons.",
+  "keywords": ["language learning", "education", "react native", "expo", "instructor", "student management"],
+  "homepage": "https://github.com/your-username/language-learning-hub",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/language-learning-hub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/language-learning-hub/issues"
+  },
   "scripts": {
     "start": "expo start",
+    "start:prod": "expo start --no-dev --minify",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "lint:fix": "expo lint --fix",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "build:android": "eas build --platform android --profile production",
+    "build:ios": "eas build --platform ios --profile production",
+    "build:all": "eas build --platform all --profile production",
+    "preview:android": "eas build --platform android --profile preview",
+    "preview:ios": "eas build --platform ios --profile preview",
+    "submit:android": "eas submit --platform android",
+    "submit:ios": "eas submit --platform ios",
+    "prepare": "husky install"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.1.0",

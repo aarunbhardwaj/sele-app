@@ -1,44 +1,90 @@
 {
   "expo": {
-    "name": "react_tutorial",
-    "slug": "react_tutorial",
+    "name": "Language Learning Hub",
+    "slug": "language-learning-hub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "movies",
+    "scheme": "languagelearning",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "description": "A comprehensive language learning platform with instructor management, student progress tracking, and interactive lessons.",
+    "privacy": "public",
+    "platforms": ["ios", "android", "web"],
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.languagelearning.hub",
+      "buildNumber": "1",
+      "requireFullScreen": false,
+      "userInterfaceStyle": "automatic"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
+      "package": "com.languagelearning.hub",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ],
       "edgeToEdgeEnabled": true
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "Language Learning Hub",
+      "shortName": "LearningHub",
+      "lang": "en",
+      "scope": "/",
+      "themeColor": "#FF5A5F",
+      "backgroundColor": "#ffffff"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
         }
       ],
       "expo-video",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you share images in lessons and profile.",
+          "cameraPermission": "The app accesses your camera to let you take photos for lessons and profile."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "your-project-id-here"
+      }
     }
   }
 }
